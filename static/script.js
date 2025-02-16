@@ -7,68 +7,6 @@ setInterval(updateGameStatuses, 5000); // Check every 5 seconds
 setInterval(updatePlaytimes, 1000); // Update playtimes every second
 setInterval(updateSteamStatus, 10000); // Check Steam status every 10 seconds
 
-// Load settings on startup
-loadSettings();
-
-async function loadSettings() {
-    try {
-        const response = await fetch('/api/settings');
-        const settings = await response.json();
-        
-        // Update minimize to tray checkbox and its visual state
-        const minimizeToTrayCheckbox = document.getElementById('minimizeToTray');
-        if (minimizeToTrayCheckbox) {
-            minimizeToTrayCheckbox.checked = settings.minimize_to_tray;
-            // Update the toggle appearance
-            const toggleDiv = minimizeToTrayCheckbox.nextElementSibling;
-            if (settings.minimize_to_tray) {
-                toggleDiv.classList.add('bg-blue-500');
-                toggleDiv.classList.remove('bg-gray-600');
-            } else {
-                toggleDiv.classList.remove('bg-blue-500');
-                toggleDiv.classList.add('bg-gray-600');
-            }
-        }
-    } catch (error) {
-        console.error('Error loading settings:', error);
-    }
-}
-
-async function updateSettings() {
-    try {
-        const minimizeToTrayCheckbox = document.getElementById('minimizeToTray');
-        const settings = {
-            minimize_to_tray: minimizeToTrayCheckbox.checked
-        };
-        
-        const response = await fetch('/api/settings', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(settings)
-        });
-        
-        if (response.ok) {
-            // Update the toggle appearance
-            const toggleDiv = minimizeToTrayCheckbox.nextElementSibling;
-            if (minimizeToTrayCheckbox.checked) {
-                toggleDiv.classList.add('bg-blue-500');
-                toggleDiv.classList.remove('bg-gray-600');
-            } else {
-                toggleDiv.classList.remove('bg-blue-500');
-                toggleDiv.classList.add('bg-gray-600');
-            }
-            showNotification('Settings saved successfully', 'success');
-        } else {
-            showNotification('Failed to save settings', 'error');
-        }
-    } catch (error) {
-        console.error('Error updating settings:', error);
-        showNotification('Failed to save settings', 'error');
-    }
-}
-
 async function updateGameStatuses() {
     for (const game of currentGames) {
         await checkGameStatus(game.id);

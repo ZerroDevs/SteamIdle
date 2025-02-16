@@ -9,102 +9,14 @@ import winreg
 from flask import Flask, render_template, request, jsonify
 from bs4 import BeautifulSoup
 from datetime import datetime
-from pystray import Icon, Menu, MenuItem
-from PIL import Image
-import threading
 
 app = Flask(__name__)
 window = None
-minimize_to_tray = False
-icon = None
 
 PRESETS_DIR = "presets"
-SETTINGS_FILE = "settings.json"
 IDLER_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Idler", "steam-idle.exe")
-LOGO_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Logo.png")
 running_games = {}
 game_sessions = {}  # Store game session data: {game_id: {'start_time': datetime, 'total_time': seconds}}
-
-def load_settings():
-    global minimize_to_tray
-    try:
-        if os.path.exists(SETTINGS_FILE):
-            with open(SETTINGS_FILE, 'r') as f:
-                settings = json.load(f)
-                minimize_to_tray = settings.get('minimize_to_tray', False)
-    except Exception as e:
-        print(f"Error loading settings: {e}")
-
-def save_settings():
-    try:
-        with open(SETTINGS_FILE, 'w') as f:
-            json.dump({
-                'minimize_to_tray': minimize_to_tray
-            }, f)
-    except Exception as e:
-        print(f"Error saving settings: {e}")
-
-def setup_system_tray():
-    global icon, window
-    try:
-        # Create system tray icon
-        image = Image.open(LOGO_PATH)
-        menu = Menu(
-            MenuItem('Show', lambda: show_window()),
-            MenuItem('Exit', lambda: quit_app())
-        )
-        icon = Icon("Steam Idle Manager", image, "Steam Idle Manager", menu)
-        icon.run_detached()
-    except Exception as e:
-        print(f"Error setting up system tray: {e}")
-
-def show_window():
-    global window
-    try:
-        window.show()
-        window.restore()  # This will restore the window if it was minimized
-    except Exception as e:
-        print(f"Error showing window: {e}")
-
-def quit_app():
-    global icon, window
-    try:
-        if icon:
-            icon.stop()
-        if window:
-            window.destroy()
-    except Exception as e:
-        print(f"Error during quit: {e}")
-    finally:
-        # Force exit the program
-        os._exit(0)
-
-def on_closing():
-    global minimize_to_tray, window
-    try:
-        if minimize_to_tray:
-            window.hide()
-            return False  # Prevent the window from being destroyed
-        else:
-            # Create a thread to handle the quit operation
-            threading.Thread(target=quit_app, daemon=True).start()
-            return True
-    except Exception as e:
-        print(f"Error during closing: {e}")
-        os._exit(0)  # Force exit if there's an error
-
-@app.route('/api/settings', methods=['GET', 'POST'])
-def handle_settings():
-    global minimize_to_tray
-    if request.method == 'GET':
-        return jsonify({
-            'minimize_to_tray': minimize_to_tray
-        })
-    else:
-        data = request.get_json()
-        minimize_to_tray = data.get('minimize_to_tray', False)
-        save_settings()
-        return jsonify({'status': 'success'})
 
 def get_steam_path():
     try:
@@ -447,19 +359,5 @@ def run_preset():
         return jsonify({"status": "error", "message": str(e)}), 500
 
 if __name__ == '__main__':
-    try:
-        # Load settings before creating window
-        load_settings()
-        
-        # Create window with proper event handlers
-        window = webview.create_window('Steam Idle Manager', app)
-        window.events.closing += on_closing
-        
-        # Setup system tray
-        setup_system_tray()
-        
-        # Start the application
-        webview.start()
-    except Exception as e:
-        print(f"Error during startup: {e}")
-        os._exit(0)  # Force exit if there's an error 
+    window = webview.create_window('Steam Idle Manager', app)
+    webview.start() 

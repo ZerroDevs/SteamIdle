@@ -964,6 +964,7 @@ def create_tray_icon():
         
         def show_window(icon, item):
             window.show()
+            window.restore()  # Restore from minimized state
             
         def exit_app(icon, item):
             icon.stop()

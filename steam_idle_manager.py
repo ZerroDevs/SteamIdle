@@ -425,6 +425,9 @@ def start_game():
         # Save statistics
         save_statistics()
         
+        # Update tray menu
+        update_tray_menu()
+        
         return jsonify({"status": "success", "pid": process.pid})
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
@@ -454,10 +457,15 @@ def stop_game():
             save_statistics()
         
         del running_games[game_id]
+        
+        # Update tray menu
+        update_tray_menu()
+        
         return jsonify({"status": "success"})
     except psutil.NoSuchProcess:
         # If process is already gone, just remove it from our tracking
         del running_games[game_id]
+        update_tray_menu()
         return jsonify({"status": "success"})
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
@@ -572,6 +580,9 @@ def run_preset():
                 
                 # Save statistics after each game is started
                 save_statistics()
+        
+        # Update tray menu
+        update_tray_menu()
         
         return jsonify({
             "status": "success",
@@ -980,114 +991,111 @@ def set_startup_status(enable):
     finally:
         winreg.CloseKey(key)
 
+def update_tray_menu():
+    """Update the system tray menu with current running games and other dynamic content"""
+    global icon
+    if not icon:
+        return
+
+    try:
+        menu_items = []
+        
+        # Add Show option
+        menu_items.append(pystray.MenuItem("Show", show_window))
+        menu_items.append(pystray.Menu.SEPARATOR)
+        
+        # Create Running Games submenu
+        if running_games:
+            running_count = len(running_games)
+            running_games_items = []
+            
+            # Add running games count
+            running_games_items.append(
+                pystray.MenuItem(f"Running: {running_count} game{'s' if running_count != 1 else ''}", 
+                               None, enabled=False)
+            )
+            running_games_items.append(pystray.Menu.SEPARATOR)
+            
+            # Add most idled game info
+            most_idled = get_most_idled_game()
+            if most_idled != "None":
+                running_games_items.append(
+                    pystray.MenuItem(f"Most Idled: {most_idled}", None, enabled=False)
+                )
+                running_games_items.append(pystray.Menu.SEPARATOR)
+            
+            # Add individual running games with playtime
+            for game_id in running_games:
+                if game_id in game_sessions:
+                    game_info = game_sessions[game_id]
+                    playtime = get_game_playtime(game_id)
+                    menu_item = pystray.MenuItem(
+                        f"{game_info['name']} ({playtime})",
+                        lambda item, g_id=game_id: stop_single_game_tray(icon, item, g_id)
+                    )
+                    running_games_items.append(menu_item)
+            
+            # Add Running Games submenu to main menu
+            menu_items.append(pystray.MenuItem("Running Games", pystray.Menu(*running_games_items)))
+            menu_items.append(pystray.Menu.SEPARATOR)
+        
+        # Add Favorites submenu
+        favorites = load_favorites()
+        if favorites.get('favorites', []):
+            favorites_items = []
+            for favorite in favorites['favorites']:
+                favorites_items.append(pystray.MenuItem(favorite['name'], 
+                    lambda item, name=favorite['name']: run_preset_tray(icon, item, name)))
+            menu_items.append(pystray.MenuItem("Favorites", pystray.Menu(*favorites_items)))
+        
+        # Add Presets submenu
+        presets = []
+        if os.path.exists(PRESETS_DIR):
+            for filename in os.listdir(PRESETS_DIR):
+                if filename.endswith('.json'):
+                    preset_name = filename[:-5]
+                    presets.append(pystray.MenuItem(preset_name, 
+                        lambda item, name=preset_name: run_preset_tray(icon, item, name)))
+            if presets:
+                menu_items.append(pystray.MenuItem("Presets", pystray.Menu(*presets)))
+        
+        # Add remaining menu items
+        menu_items.append(pystray.Menu.SEPARATOR)
+        menu_items.append(pystray.MenuItem("Launch Steam", launch_steam_tray, 
+                                         enabled=lambda item: not is_steam_running()))
+        menu_items.append(pystray.Menu.SEPARATOR)
+        menu_items.append(pystray.MenuItem("Emergency Stop", emergency_stop_tray, 
+                                         enabled=lambda item: bool(running_games)))
+        menu_items.append(pystray.Menu.SEPARATOR)
+        menu_items.append(pystray.MenuItem("Exit", exit_app))
+        
+        # Create the menu tuple with only non-None items
+        menu = pystray.Menu(*[item for item in menu_items if item is not None])
+        
+        # Update the icon's menu
+        icon.menu = menu
+
+    except Exception as e:
+        print(f"Error updating tray menu: {e}")
+
 def create_tray_icon():
     global icon
     try:
         # Load the icon image
         image = Image.open(resource_path("Logo.png"))
         
-        def show_window(icon, item):
-            window.show()
-            window.restore()  # Restore from minimized state
-            
-        def exit_app(icon, item):
-            icon.stop()
-            window.destroy()
-            sys.exit(0)
-            
-        def emergency_stop_tray(icon, item):
-            # Stop all running games
-            stopped_games = []
-            for game_id in list(running_games.keys()):
-                try:
-                    pid = running_games[game_id]
-                    process = psutil.Process(pid)
-                    for child in process.children(recursive=True):
-                        child.terminate()
-                    process.terminate()
-                    stopped_games.append(game_id)
-                    del running_games[game_id]
-                    
-                    # Update game session
-                    if game_id in game_sessions and 'start_time' in game_sessions[game_id]:
-                        session_duration = (datetime.now() - game_sessions[game_id]['start_time']).total_seconds()
-                        game_sessions[game_id]['total_time'] += session_duration
-                        game_sessions[game_id].pop('start_time', None)
-                except (psutil.NoSuchProcess, psutil.AccessDenied):
-                    del running_games[game_id]
-            
-            save_recent_action(f"Emergency stop from tray - Stopped {len(stopped_games)} games")
-            save_statistics()
-            if icon:
-                icon.notify(f"Stopped {len(stopped_games)} games", "Emergency Stop")
-
-        def run_preset_tray(icon, item):
-            preset_name = item.text
-            # Check Steam status first
-            steam_status = check_steam_status()
-            if not steam_status['running']:
-                icon.notify("Steam is not running. Please start Steam first.", "Error")
-                return
-            
-            if not steam_status['online']:
-                icon.notify("Steam appears to be offline. Please ensure Steam is online.", "Error")
-                return
-            
-            try:
-                # Get the preset data from JSON file
-                json_path = os.path.join(PRESETS_DIR, f"{preset_name}.json")
-                if not os.path.exists(json_path):
-                    icon.notify(f"Preset {preset_name} not found", "Error")
-                    return
-                    
-                with open(json_path, 'r') as f:
-                    games = json.load(f)
-                
-                # Start each game
-                started_games = 0
-                for game in games:
-                    game_id = str(game['id'])
-                    if game_id not in running_games:  # Only start if not already running
-                        process = subprocess.Popen([IDLER_PATH, game_id], shell=True)
-                        running_games[game_id] = process.pid
-                        started_games += 1
-                        
-                        # Initialize or update game session
-                        if game_id not in game_sessions:
-                            game_sessions[game_id] = {
-                                'total_time': 0,
-                                'name': game['name'],
-                                'image': game['image']
-                            }
-                        game_sessions[game_id]['start_time'] = datetime.now()
-                
-                save_statistics()
-                icon.notify(f"Started {started_games} games from preset {preset_name}", "Preset Started")
-                save_recent_action(f"Started preset {preset_name} from tray")
-            except Exception as e:
-                icon.notify(f"Error running preset: {str(e)}", "Error")
-
-        # Create Presets submenu
-        presets = []
-        if os.path.exists(PRESETS_DIR):
-            for filename in os.listdir(PRESETS_DIR):
-                if filename.endswith('.json'):
-                    preset_name = filename[:-5]  # Remove .json extension
-                    presets.append(pystray.MenuItem(preset_name, run_preset_tray))
-
-        # Create the tray icon menu with presets submenu
-        menu = (
+        # Create initial menu with basic items
+        initial_menu = (
             pystray.MenuItem("Show", show_window),
-            pystray.Menu.SEPARATOR,
-            pystray.MenuItem("Presets", pystray.Menu(*presets)) if presets else None,
-            pystray.Menu.SEPARATOR,
-            pystray.MenuItem("Emergency Stop", emergency_stop_tray, enabled=lambda item: bool(running_games)),
             pystray.Menu.SEPARATOR,
             pystray.MenuItem("Exit", exit_app)
         )
         
         # Create the icon
-        icon = pystray.Icon("SteamIdleManager", image, "Steam Idle Manager", menu)
+        icon = pystray.Icon("SteamIdleManager", image, "Steam Idle Manager", initial_menu)
+        
+        # Update the menu immediately
+        update_tray_menu()
         
         # Run the icon in a separate thread
         icon_thread = threading.Thread(target=icon.run)
@@ -1507,12 +1515,178 @@ def stop_preset(preset_name=None):
         save_statistics()
         save_recent_action(f"Stopped preset {preset_name}")
         
+        # Update tray menu
+        update_tray_menu()
+        
         return jsonify({
             "status": "success",
             "stopped_games": stopped_games
         })
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
+
+def update_tray_periodically():
+    """Update the system tray menu every 30 seconds to refresh playtimes and status"""
+    while True:
+        try:
+            update_tray_menu()
+        except Exception as e:
+            print(f"Error in periodic tray update: {e}")
+        time.sleep(30)
+
+def show_window(icon, item):
+    window.show()
+    window.restore()  # Restore from minimized state
+
+def exit_app(icon, item):
+    icon.stop()
+    window.destroy()
+    sys.exit(0)
+
+def emergency_stop_tray(icon, item):
+    # Stop all running games
+    stopped_games = []
+    for game_id in list(running_games.keys()):
+        try:
+            pid = running_games[game_id]
+            process = psutil.Process(pid)
+            for child in process.children(recursive=True):
+                child.terminate()
+            process.terminate()
+            stopped_games.append(game_id)
+            del running_games[game_id]
+            
+            # Update game session
+            if game_id in game_sessions and 'start_time' in game_sessions[game_id]:
+                session_duration = (datetime.now() - game_sessions[game_id]['start_time']).total_seconds()
+                game_sessions[game_id]['total_time'] += session_duration
+                game_sessions[game_id].pop('start_time', None)
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            del running_games[game_id]
+    
+    save_recent_action(f"Emergency stop from tray - Stopped {len(stopped_games)} games")
+    save_statistics()
+    if icon:
+        icon.notify(f"Stopped {len(stopped_games)} games", "Emergency Stop")
+    update_tray_menu()
+
+def stop_single_game_tray(icon, item, game_id):
+    """Stop a single game from the system tray menu"""
+    try:
+        if game_id in running_games:
+            pid = running_games[game_id]
+            process = psutil.Process(pid)
+            for child in process.children(recursive=True):
+                child.terminate()
+            process.terminate()
+            
+            # Update game session
+            if game_id in game_sessions and 'start_time' in game_sessions[game_id]:
+                session_duration = (datetime.now() - game_sessions[game_id]['start_time']).total_seconds()
+                game_sessions[game_id]['total_time'] += session_duration
+                game_sessions[game_id].pop('start_time', None)
+            
+            del running_games[game_id]
+            save_statistics()
+            icon.notify(f"Stopped {game_sessions[game_id]['name']}", "Game Stopped")
+            save_recent_action(f"Stopped game {game_sessions[game_id]['name']} from tray")
+            update_tray_menu()
+    except Exception as e:
+        icon.notify(f"Error stopping game: {str(e)}", "Error")
+
+def run_preset_tray(icon, item, preset_name):
+    """Run a preset from the system tray menu"""
+    # Check Steam status first
+    steam_status = check_steam_status()
+    if not steam_status['running']:
+        icon.notify("Steam is not running. Please start Steam first.", "Error")
+        return
+    
+    if not steam_status['online']:
+        icon.notify("Steam appears to be offline. Please ensure Steam is online.", "Error")
+        return
+    
+    try:
+        # Get the preset data from JSON file
+        json_path = os.path.join(PRESETS_DIR, f"{preset_name}.json")
+        if not os.path.exists(json_path):
+            icon.notify(f"Preset {preset_name} not found", "Error")
+            return
+            
+        with open(json_path, 'r') as f:
+            games = json.load(f)
+        
+        # Start each game
+        started_games = 0
+        for game in games:
+            game_id = str(game['id'])
+            if game_id not in running_games:  # Only start if not already running
+                process = subprocess.Popen([IDLER_PATH, game_id], shell=True)
+                running_games[game_id] = process.pid
+                started_games += 1
+                
+                # Initialize or update game session
+                if game_id not in game_sessions:
+                    game_sessions[game_id] = {
+                        'total_time': 0,
+                        'name': game['name'],
+                        'image': game['image']
+                    }
+                game_sessions[game_id]['start_time'] = datetime.now()
+        
+        save_statistics()
+        icon.notify(f"Started {started_games} games from preset {preset_name}", "Preset Started")
+        save_recent_action(f"Started preset {preset_name} from tray")
+        update_tray_menu()
+    except Exception as e:
+        icon.notify(f"Error running preset: {str(e)}", "Error")
+
+def launch_steam_tray(icon, item):
+    steam_path = get_steam_path()
+    if steam_path:
+        try:
+            steam_exe = os.path.join(steam_path, "Steam.exe")
+            if os.path.exists(steam_exe):
+                subprocess.Popen([steam_exe])
+                icon.notify("Steam launch initiated", "Steam")
+                save_recent_action("Launched Steam from tray")
+            else:
+                icon.notify("Steam executable not found", "Error")
+        except Exception as e:
+            icon.notify(f"Error launching Steam: {str(e)}", "Error")
+    else:
+        icon.notify("Steam installation not found", "Error")
+
+def get_game_playtime(game_id):
+    if game_id in game_sessions:
+        session = game_sessions[game_id]
+        total_seconds = session.get('total_time', 0)
+        
+        # Add current session time if game is running
+        if game_id in running_games and 'start_time' in session:
+            current_session = (datetime.now() - session['start_time']).total_seconds()
+            total_seconds += current_session
+        
+        return format_duration(total_seconds)
+    return "00:00:00"
+
+def get_most_idled_game():
+    most_idled = None
+    max_time = 0
+    
+    for game_id, session in game_sessions.items():
+        total_seconds = session.get('total_time', 0)
+        if game_id in running_games and 'start_time' in session:
+            current_session = (datetime.now() - session['start_time']).total_seconds()
+            total_seconds += current_session
+        
+        if total_seconds > max_time:
+            max_time = total_seconds
+            most_idled = session
+    
+    if most_idled:
+        return f"{most_idled['name']} ({format_duration(max_time)})"
+    return "None"
 
 if __name__ == '__main__':
     # Initialize settings
@@ -1543,6 +1717,11 @@ if __name__ == '__main__':
     scheduler_thread = threading.Thread(target=run_scheduled_tasks)
     scheduler_thread.daemon = True
     scheduler_thread.start()
+    
+    # Start the tray menu update thread
+    tray_update_thread = threading.Thread(target=update_tray_periodically)
+    tray_update_thread.daemon = True
+    tray_update_thread.start()
     
     # Load existing schedules
     schedules = load_schedules()

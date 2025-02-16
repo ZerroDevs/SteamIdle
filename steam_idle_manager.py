@@ -19,6 +19,11 @@ PRESETS_DIR = os.path.join(APPDATA_PATH, "presets")
 STATS_FILE = os.path.join(APPDATA_PATH, "stats.json")
 IDLER_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Idler", "steam-idle.exe")
 
+# Add new constants after existing constants
+FAVORITES_FILE = os.path.join(APPDATA_PATH, "favorites.json")
+RECENT_ACTIONS_FILE = os.path.join(APPDATA_PATH, "recent_actions.json")
+SHORTCUTS_FILE = os.path.join(APPDATA_PATH, "shortcuts.json")
+
 # Create necessary directories if they don't exist
 if not os.path.exists(APPDATA_PATH):
     os.makedirs(APPDATA_PATH)
@@ -596,6 +601,151 @@ def manage_goals():
                 json.dump(goals, f)
         
         return jsonify({"status": "success"})
+
+def load_favorites():
+    if os.path.exists(FAVORITES_FILE):
+        try:
+            with open(FAVORITES_FILE, 'r') as f:
+                return json.load(f)
+        except:
+            return {"favorites": []}
+    return {"favorites": []}
+
+def save_favorites(favorites):
+    with open(FAVORITES_FILE, 'w') as f:
+        json.dump(favorites, f)
+
+def load_recent_actions():
+    if os.path.exists(RECENT_ACTIONS_FILE):
+        try:
+            with open(RECENT_ACTIONS_FILE, 'r') as f:
+                return json.load(f)
+        except:
+            return {"actions": []}
+    return {"actions": []}
+
+def save_recent_action(action):
+    actions = load_recent_actions()
+    actions["actions"].insert(0, {
+        "action": action,
+        "timestamp": datetime.now().isoformat()
+    })
+    # Keep only last 10 actions
+    actions["actions"] = actions["actions"][:10]
+    with open(RECENT_ACTIONS_FILE, 'w') as f:
+        json.dump(actions, f)
+
+def load_shortcuts():
+    if os.path.exists(SHORTCUTS_FILE):
+        try:
+            with open(SHORTCUTS_FILE, 'r') as f:
+                return json.load(f)
+        except:
+            return {"shortcuts": []}
+    return {"shortcuts": []}
+
+def save_shortcuts(shortcuts):
+    with open(SHORTCUTS_FILE, 'w') as f:
+        json.dump(shortcuts, f)
+
+@app.route('/api/favorites', methods=['GET', 'POST', 'DELETE'])
+def manage_favorites():
+    if request.method == 'GET':
+        return jsonify(load_favorites())
+    
+    elif request.method == 'POST':
+        data = request.get_json()
+        favorites = load_favorites()
+        preset_name = data.get('preset_name')
+        
+        if preset_name not in [f['name'] for f in favorites['favorites']]:
+            # Get preset data
+            presets = [p for p in os.listdir(PRESETS_DIR) if p.endswith('.json')]
+            for preset in presets:
+                if preset.replace('.json', '') == preset_name:
+                    with open(os.path.join(PRESETS_DIR, preset), 'r') as f:
+                        preset_data = json.load(f)
+                        favorites['favorites'].append({
+                            'name': preset_name,
+                            'games': preset_data
+                        })
+                        save_favorites(favorites)
+                        save_recent_action(f"Added {preset_name} to favorites")
+                        break
+        
+        return jsonify({"status": "success"})
+    
+    elif request.method == 'DELETE':
+        data = request.get_json()
+        favorites = load_favorites()
+        preset_name = data.get('preset_name')
+        
+        favorites['favorites'] = [f for f in favorites['favorites'] if f['name'] != preset_name]
+        save_favorites(favorites)
+        save_recent_action(f"Removed {preset_name} from favorites")
+        
+        return jsonify({"status": "success"})
+
+@app.route('/api/recent-actions')
+def get_recent_actions():
+    return jsonify(load_recent_actions())
+
+@app.route('/api/shortcuts', methods=['GET', 'POST', 'DELETE'])
+def manage_shortcuts():
+    if request.method == 'GET':
+        return jsonify(load_shortcuts())
+    
+    elif request.method == 'POST':
+        data = request.get_json()
+        shortcuts = load_shortcuts()
+        shortcut = {
+            'id': str(len(shortcuts['shortcuts']) + 1),
+            'name': data.get('name'),
+            'preset_name': data.get('preset_name'),
+            'key_combination': data.get('key_combination')
+        }
+        shortcuts['shortcuts'].append(shortcut)
+        save_shortcuts(shortcuts)
+        save_recent_action(f"Added shortcut for {shortcut['name']}")
+        return jsonify({"status": "success"})
+    
+    elif request.method == 'DELETE':
+        data = request.get_json()
+        shortcuts = load_shortcuts()
+        shortcut_id = data.get('id')
+        shortcuts['shortcuts'] = [s for s in shortcuts['shortcuts'] if s['id'] != shortcut_id]
+        save_shortcuts(shortcuts)
+        save_recent_action(f"Removed shortcut {shortcut_id}")
+        return jsonify({"status": "success"})
+
+@app.route('/api/emergency-stop')
+def emergency_stop():
+    stopped_games = []
+    for game_id in list(running_games.keys()):
+        try:
+            pid = running_games[game_id]
+            process = psutil.Process(pid)
+            for child in process.children(recursive=True):
+                child.terminate()
+            process.terminate()
+            stopped_games.append(game_id)
+            del running_games[game_id]
+            
+            # Update game session
+            if game_id in game_sessions and 'start_time' in game_sessions[game_id]:
+                session_duration = (datetime.now() - game_sessions[game_id]['start_time']).total_seconds()
+                game_sessions[game_id]['total_time'] += session_duration
+                game_sessions[game_id].pop('start_time', None)
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            del running_games[game_id]
+    
+    save_recent_action(f"Emergency stop - Stopped {len(stopped_games)} games")
+    save_statistics()
+    
+    return jsonify({
+        "status": "success",
+        "stopped_games": stopped_games
+    })
 
 if __name__ == '__main__':
     window = webview.create_window('Steam Idle Manager', app)

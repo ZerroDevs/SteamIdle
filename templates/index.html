@@ -17,9 +17,60 @@
                 <div id="steamStatus" class="text-gray-500">
                     <i class="fas fa-circle mr-1"></i>Checking Steam...
                 </div>
-                <button onclick="launchSteam()" class="bg-blue-500 hover:bg-blue-600 px-4 py-2 rounded text-sm">
-                    <i class="fas fa-play mr-1"></i>Launch Steam
+                <button id="steamButton" onclick="launchSteam()" class="bg-blue-500 hover:bg-blue-600 px-4 py-2 rounded text-sm">
+                    <i class="fas fa-play mr-1"></i><span>Launch Steam</span>
                 </button>
+            </div>
+        </div>
+        
+        <!-- Quick Actions Toggle -->
+        <div class="flex justify-between items-center mb-4">
+            <button onclick="toggleQuickActions()" class="flex items-center gap-2 text-gray-400 hover:text-white transition-colors">
+                <i id="quickActionsIcon" class="fas fa-chevron-down transform transition-transform"></i>
+                <span class="text-lg font-semibold">Quick Actions</span>
+            </button>
+            <button onclick="emergencyStop()" class="bg-red-500 hover:bg-red-600 px-6 py-2 rounded font-semibold transition-colors">
+                <i class="fas fa-stop-circle mr-2"></i>Emergency Stop
+            </button>
+        </div>
+        
+        <!-- Quick Actions Panel -->
+        <div id="quickActionsPanel" class="bg-gray-800 rounded-lg p-6 mb-8 transform transition-all duration-300">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <!-- Favorite Presets -->
+                <div class="bg-gray-700 rounded-lg p-4">
+                    <h3 class="text-lg font-semibold mb-3">
+                        <i class="fas fa-star mr-2 text-yellow-400"></i>Favorite Presets
+                    </h3>
+                    <div id="favoritePresets" class="space-y-2">
+                        <!-- Favorites will be added here dynamically -->
+                    </div>
+                </div>
+                
+                <!-- Recent Actions -->
+                <div class="bg-gray-700 rounded-lg p-4">
+                    <h3 class="text-lg font-semibold mb-3">
+                        <i class="fas fa-history mr-2 text-blue-400"></i>Recent Actions
+                    </h3>
+                    <div id="recentActions" class="space-y-2 max-h-40 overflow-y-auto">
+                        <!-- Recent actions will be added here dynamically -->
+                    </div>
+                </div>
+                
+                <!-- Custom Shortcuts -->
+                <div class="bg-gray-700 rounded-lg p-4">
+                    <h3 class="text-lg font-semibold mb-3">
+                        <i class="fas fa-keyboard mr-2 text-green-400"></i>Custom Shortcuts
+                    </h3>
+                    <div class="mb-3">
+                        <button onclick="addShortcut()" class="bg-green-500 hover:bg-green-600 px-4 py-2 rounded text-sm w-full">
+                            <i class="fas fa-plus mr-1"></i>Add Shortcut
+                        </button>
+                    </div>
+                    <div id="customShortcuts" class="space-y-2">
+                        <!-- Shortcuts will be added here dynamically -->
+                    </div>
+                </div>
             </div>
         </div>
         
@@ -133,5 +184,109 @@
     </div>
 
     <script src="{{ url_for('static', filename='script.js') }}"></script>
+
+    <!-- Shortcut Configuration Modal -->
+    <div id="shortcutModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+        <div class="bg-gray-800 rounded-lg p-6 w-96 transform transition-all">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-semibold">Configure Shortcut</h3>
+                <button onclick="closeShortcutModal()" class="text-gray-400 hover:text-white">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <div class="space-y-4">
+                <!-- Shortcut Name -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-1">Shortcut Name</label>
+                    <input type="text" id="shortcutNameInput" 
+                           class="w-full bg-gray-700 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                           placeholder="Enter shortcut name">
+                </div>
+                
+                <!-- Key Combination -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-1">Key Combination</label>
+                    <div class="relative">
+                        <input type="text" id="keyCombinationInput" 
+                               class="w-full bg-gray-700 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                               placeholder="Click to record" readonly>
+                        <button id="clearKeyCombination" onclick="clearKeyCombination()"
+                                class="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white hidden">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <p class="text-sm text-gray-400 mt-1">Click the input and press your desired key combination</p>
+                </div>
+                
+                <!-- Preset Selection -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-1">Select Preset</label>
+                    <select id="presetSelect" 
+                            class="w-full bg-gray-700 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="">Select a preset</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="flex justify-end gap-3 mt-6">
+                <button onclick="closeShortcutModal()" 
+                        class="px-4 py-2 bg-gray-600 hover:bg-gray-500 rounded">
+                    Cancel
+                </button>
+                <button onclick="saveShortcut()" 
+                        class="px-4 py-2 bg-blue-500 hover:bg-blue-600 rounded">
+                    Save Shortcut
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Emergency Stop Confirmation Modal -->
+    <div id="emergencyStopModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+        <div class="bg-gray-800 rounded-lg p-6 w-96 transform transition-all">
+            <div class="text-center mb-6">
+                <div class="bg-red-500 w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center">
+                    <i class="fas fa-exclamation-triangle text-2xl text-white"></i>
+                </div>
+                <h3 class="text-xl font-semibold mb-2">Emergency Stop</h3>
+                <p class="text-gray-400">Are you sure you want to stop all running games? This action cannot be undone.</p>
+            </div>
+            <div class="flex justify-center gap-4">
+                <button onclick="closeEmergencyStopModal()" 
+                        class="px-6 py-2 bg-gray-600 hover:bg-gray-500 rounded font-medium">
+                    Cancel
+                </button>
+                <button onclick="confirmEmergencyStop()" 
+                        class="px-6 py-2 bg-red-500 hover:bg-red-600 rounded font-medium">
+                    Stop All Games
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Shortcut Confirmation Modal -->
+    <div id="deleteShortcutModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+        <div class="bg-gray-800 rounded-lg p-6 w-96 transform transition-all">
+            <div class="text-center mb-6">
+                <div class="bg-red-500 w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center">
+                    <i class="fas fa-trash text-2xl text-white"></i>
+                </div>
+                <h3 class="text-xl font-semibold mb-2">Delete Shortcut</h3>
+                <p class="text-gray-400">Are you sure you want to delete this shortcut? This action cannot be undone.</p>
+            </div>
+            <div class="flex justify-center gap-4">
+                <button onclick="closeDeleteShortcutModal()" 
+                        class="px-6 py-2 bg-gray-600 hover:bg-gray-500 rounded font-medium">
+                    Cancel
+                </button>
+                <button onclick="confirmDeleteShortcut()" 
+                        class="px-6 py-2 bg-red-500 hover:bg-red-600 rounded font-medium">
+                    Delete Shortcut
+                </button>
+            </div>
+        </div>
+    </div>
+
 </body>
 </html> 

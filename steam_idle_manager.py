@@ -285,9 +285,26 @@ def format_duration(seconds):
     seconds = seconds % 60
     return f"{int(hours):02d}:{int(minutes):02d}:{int(seconds):02d}"
 
-def fetch_game_info(game_id):
+def fetch_game_info(game_input):
     try:
-        url = f"https://store.steampowered.com/app/{game_id}"
+        # Check if input is a numeric ID
+        if game_input.isdigit():
+            game_id = game_input
+            url = f"https://store.steampowered.com/app/{game_id}"
+        else:
+            # Search by game name
+            search_url = f"https://store.steampowered.com/search/?term={requests.utils.quote(game_input)}"
+            search_response = requests.get(search_url)
+            search_soup = BeautifulSoup(search_response.text, 'html.parser')
+            
+            # Find the first search result
+            first_result = search_soup.find('a', {'class': 'search_result_row'})
+            if not first_result:
+                return {"error": "Game not found"}
+            
+            game_id = first_result['data-ds-appid']
+            url = f"https://store.steampowered.com/app/{game_id}"
+
         response = requests.get(url)
         soup = BeautifulSoup(response.text, 'html.parser')
         
@@ -303,11 +320,7 @@ def fetch_game_info(game_id):
             "image": game_image
         }
     except Exception as e:
-        return {
-            "id": game_id,
-            "name": "Error fetching game info",
-            "image": ""
-        }
+        return {"error": "Error fetching game info"}
 
 @app.route('/')
 def home():
@@ -316,8 +329,10 @@ def home():
 @app.route('/api/fetch-game', methods=['POST'])
 def fetch_game():
     data = request.get_json()
-    game_id = data.get('gameId')
-    return jsonify(fetch_game_info(game_id))
+    game_input = data.get('gameId')
+    if not game_input:
+        return jsonify({"error": "Please provide a game ID or name"})
+    return jsonify(fetch_game_info(game_input))
 
 @app.route('/api/save-preset', methods=['POST'])
 def save_preset():

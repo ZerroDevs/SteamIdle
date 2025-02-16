@@ -61,8 +61,11 @@ async function checkGameStatus(gameId) {
 }
 
 async function fetchGame() {
-    const gameId = document.getElementById('gameId').value.trim();
-    if (!gameId) return;
+    const gameInput = document.getElementById('gameId').value.trim();
+    if (!gameInput) {
+        showNotification('Please input game ID or Name', 'error');
+        return;
+    }
 
     try {
         const response = await fetch('/api/fetch-game', {
@@ -70,14 +73,19 @@ async function fetchGame() {
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ gameId })
+            body: JSON.stringify({ gameId: gameInput })
         });
 
         const gameInfo = await response.json();
+        if (gameInfo.error) {
+            showNotification(gameInfo.error, 'error');
+            return;
+        }
         addGameToList(gameInfo);
         document.getElementById('gameId').value = '';
     } catch (error) {
         console.error('Error fetching game:', error);
+        showNotification('Failed to fetch game info', 'error');
     }
 }
 

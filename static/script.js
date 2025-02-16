@@ -1443,6 +1443,15 @@ async function checkFirstTimeSetup() {
             document.getElementById('welcomeMinimizeToggle').classList.add('bg-gray-500');
             document.getElementById('welcomeIdlePath').textContent = 'No file selected';
             document.getElementById('welcomeCompleteBtn').disabled = true;
+        } else if (settings.idler_path) {
+            // If setup is completed and we have a path, update the settings display
+            welcomeIdleExePath = settings.idler_path;
+            const pathElement = document.getElementById('currentIdlePath');
+            if (pathElement) {
+                pathElement.textContent = settings.idler_path;
+                pathElement.classList.remove('text-gray-500');
+                pathElement.classList.add('text-green-500');
+            }
         }
     } catch (error) {
         console.error('Error checking setup status:', error);
@@ -1589,11 +1598,36 @@ async function checkFirstTimeSetup() {
         const response = await fetch('/api/settings');
         const settings = await response.json();
         
+        const modal = document.getElementById('welcomeConfigModal');
         if (!settings.setup_completed) {
-            document.getElementById('welcomeConfigModal').style.display = 'flex';
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            
+            // Reset the form state
+            welcomeStartupEnabled = false;
+            welcomeMinimizeEnabled = false;
+            welcomeIdleExePath = null;
+            
+            // Reset UI elements
+            document.getElementById('welcomeStartupToggle').classList.remove('bg-blue-500');
+            document.getElementById('welcomeStartupToggle').classList.add('bg-gray-500');
+            document.getElementById('welcomeMinimizeToggle').classList.remove('bg-blue-500');
+            document.getElementById('welcomeMinimizeToggle').classList.add('bg-gray-500');
+            document.getElementById('welcomeIdlePath').textContent = 'No file selected';
+            document.getElementById('welcomeCompleteBtn').disabled = true;
+        } else if (settings.idler_path) {
+            // If setup is completed and we have a path, update the settings display
+            welcomeIdleExePath = settings.idler_path;
+            const pathElement = document.getElementById('currentIdlePath');
+            if (pathElement) {
+                pathElement.textContent = settings.idler_path;
+                pathElement.classList.remove('text-gray-500');
+                pathElement.classList.add('text-green-500');
+            }
         }
     } catch (error) {
         console.error('Error checking setup status:', error);
+        showNotification('Failed to check setup status', 'error');
     }
 }
 
@@ -1686,11 +1720,201 @@ async function updateIdlePath() {
         const data = await response.json();
         const pathElement = document.getElementById('currentIdlePath');
         if (pathElement) {
-            pathElement.textContent = data.path || 'Not configured';
-            pathElement.classList.toggle('text-gray-500', !data.path);
-            pathElement.classList.toggle('text-green-500', !!data.path);
+            if (data.path) {
+                pathElement.textContent = data.path;
+                pathElement.classList.remove('text-gray-500');
+                pathElement.classList.add('text-green-500');
+            } else {
+                pathElement.textContent = 'Not configured';
+                pathElement.classList.remove('text-green-500');
+                pathElement.classList.add('text-gray-500');
+            }
         }
     } catch (error) {
         console.error('Error updating idle path:', error);
     }
-} 
+}
+
+// Rename Preset Functions
+function showRenamePresetModal(presetName) {
+    presetToRename = presetName;
+    const modal = document.getElementById('renamePresetModal');
+    const currentNameSpan = document.getElementById('currentPresetName');
+    const newNameInput = document.getElementById('newPresetName');
+    
+    currentNameSpan.textContent = presetName;
+    newNameInput.value = presetName;
+    
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+}
+
+function closeRenamePresetModal() {
+    const modal = document.getElementById('renamePresetModal');
+    modal.classList.remove('flex');
+    modal.classList.add('hidden');
+    presetToRename = null;
+}
+
+async function confirmRenamePreset() {
+    if (!presetToRename) return;
+    
+    const newName = document.getElementById('newPresetName').value.trim();
+    if (!newName) {
+        showNotification('Please enter a new name', 'error');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/rename-preset', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                oldName: presetToRename,
+                newName: newName
+            })
+        });
+        
+        if (response.ok) {
+            showNotification(`Preset renamed to "${newName}"`, 'success');
+            updatePresetsList(await loadPresets(true));
+            updateFavoritePresets();
+        } else {
+            const data = await response.json();
+            showNotification(data.message || 'Failed to rename preset', 'error');
+        }
+    } catch (error) {
+        console.error('Error renaming preset:', error);
+        showNotification('Failed to rename preset', 'error');
+    }
+    
+    closeRenamePresetModal();
+}
+
+// Edit Preset Functions
+async function showEditPresetModal(presetName) {
+    presetToEdit = presetName;
+    const modal = document.getElementById('editPresetModal');
+    const nameSpan = document.getElementById('editPresetName');
+    const gamesList = document.getElementById('editPresetCurrentGames');
+    
+    nameSpan.textContent = presetName;
+    
+    // Get the preset data
+    const presets = await loadPresets(true);
+    const preset = presets.find(p => p.name === presetName);
+    
+    if (preset) {
+        editedGames = [...preset.games];
+        updateEditPresetGamesList();
+    }
+    
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+}
+
+function closeEditPresetModal() {
+    const modal = document.getElementById('editPresetModal');
+    modal.classList.remove('flex');
+    modal.classList.add('hidden');
+    presetToEdit = null;
+    editedGames = [];
+}
+
+function updateEditPresetGamesList() {
+    const gamesList = document.getElementById('editPresetCurrentGames');
+    gamesList.innerHTML = editedGames.map(game => `
+        <div class="flex items-center justify-between bg-gray-700 p-2 rounded">
+            <div class="flex items-center gap-2">
+                <img src="${game.image}" alt="${game.name}" class="w-8 h-8 rounded">
+                <div>
+                    <div class="font-medium">${game.name}</div>
+                    <div class="text-sm text-gray-400">ID: ${game.id}</div>
+                </div>
+            </div>
+            <button onclick="removeGameFromPreset('${game.id}')" 
+                    class="bg-red-500 hover:bg-red-600 px-3 py-1 rounded text-xs">
+                <i class="fas fa-times mr-1"></i>Remove
+            </button>
+        </div>
+    `).join('');
+}
+
+async function addGameToPreset() {
+    const gameId = document.getElementById('editPresetGameId').value.trim();
+    if (!gameId) {
+        showNotification('Please enter a game ID', 'error');
+        return;
+    }
+    
+    if (editedGames.some(game => game.id === gameId)) {
+        showNotification('This game is already in the preset', 'error');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/fetch-game', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ gameId })
+        });
+        
+        const gameInfo = await response.json();
+        editedGames.push(gameInfo);
+        updateEditPresetGamesList();
+        document.getElementById('editPresetGameId').value = '';
+    } catch (error) {
+        console.error('Error fetching game:', error);
+        showNotification('Failed to fetch game info', 'error');
+    }
+}
+
+function removeGameFromPreset(gameId) {
+    editedGames = editedGames.filter(game => game.id !== gameId);
+    updateEditPresetGamesList();
+}
+
+async function saveEditedPreset() {
+    if (!presetToEdit || editedGames.length === 0) {
+        showNotification('Please add at least one game', 'error');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/save-preset', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                name: presetToEdit,
+                games: editedGames
+            })
+        });
+        
+        if (response.ok) {
+            showNotification('Preset updated successfully', 'success');
+            updatePresetsList(await loadPresets(true));
+            closeEditPresetModal();
+        } else {
+            showNotification('Failed to update preset', 'error');
+        }
+    } catch (error) {
+        console.error('Error saving preset:', error);
+        showNotification('Failed to update preset', 'error');
+    }
+}
+
+// Add event listener for the edit preset game ID input
+document.addEventListener('DOMContentLoaded', function() {
+    const editPresetGameId = document.getElementById('editPresetGameId');
+    if (editPresetGameId) {
+        editPresetGameId.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') addGameToPreset();
+        });
+    }
+}); 

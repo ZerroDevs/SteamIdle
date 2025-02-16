@@ -56,11 +56,20 @@ def load_settings():
                 settings = json.load(f)
                 # Update IDLER_PATH if it was previously configured
                 global IDLER_PATH
+                
+                # First check if there's a valid saved path
                 if 'idler_path' in settings and os.path.exists(settings['idler_path']):
                     IDLER_PATH = settings['idler_path']
                     settings['setup_completed'] = True
+                # Then check if default path exists
+                elif os.path.exists(IDLER_PATH):
+                    settings['idler_path'] = IDLER_PATH
+                    settings['setup_completed'] = True
+                    # Save the settings since we found the default path
+                    save_settings(settings)
                 else:
                     settings['setup_completed'] = False
+                    settings['idler_path'] = None
                 return settings
         except:
             return {
@@ -68,6 +77,17 @@ def load_settings():
                 "setup_completed": False,
                 "idler_path": None
             }
+    
+    # If settings file doesn't exist, check for default path
+    if os.path.exists(IDLER_PATH):
+        settings = {
+            "minimize_to_tray": False,
+            "setup_completed": True,
+            "idler_path": IDLER_PATH
+        }
+        save_settings(settings)
+        return settings
+        
     return {
         "minimize_to_tray": False,
         "setup_completed": False,

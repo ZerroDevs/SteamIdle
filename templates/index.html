@@ -366,6 +366,23 @@
                     </div>
                 </div>
 
+                <!-- Add to the settings modal content, inside the space-y-6 div, after the Advanced Features section -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-2">Steam Idle Configuration</label>
+                    <div class="space-y-3">
+                        <div class="flex items-center justify-between bg-gray-700 p-3 rounded">
+                            <div>
+                                <span class="block font-medium">Steam Idle Location</span>
+                                <span class="text-sm text-gray-400" id="currentIdlePath">Current: Loading...</span>
+                            </div>
+                            <button onclick="reconfigureIdlePath()" 
+                                    class="bg-blue-500 hover:bg-blue-600 px-4 py-2 rounded text-sm">
+                                <i class="fas fa-folder-open mr-2"></i>Change Location
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Export Statistics -->
                 <div>
                     <label class="block text-sm font-medium text-gray-300 mb-2">Export Statistics</label>
@@ -664,6 +681,65 @@
                 <button onclick="saveEditedPreset()" 
                         class="bg-blue-500 hover:bg-blue-600 px-6 py-2 rounded font-semibold transition-colors">
                     Save Changes
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Welcome Configuration Modal -->
+    <div id="welcomeConfigModal" class="fixed inset-0 bg-black bg-opacity-80 hidden items-center justify-center z-50">
+        <div class="bg-gray-800 rounded-lg p-8 w-[600px] transform transition-all">
+            <div class="text-center mb-8">
+                <div class="bg-blue-500 w-20 h-20 rounded-full mx-auto mb-4 flex items-center justify-center">
+                    <i class="fas fa-steam-symbol text-4xl text-white"></i>
+                </div>
+                <h2 class="text-2xl font-bold mb-2">Welcome to Steam Idle Manager</h2>
+                <p class="text-gray-400">Let's get you set up with a quick configuration</p>
+            </div>
+
+            <div class="space-y-6">
+                <div class="bg-gray-700 p-6 rounded-lg">
+                    <h3 class="text-lg font-semibold mb-4">Steam Idle Location</h3>
+                    <p class="text-gray-400 mb-4">Please select the location of your steam-idle.exe file. This is required for the program to function.</p>
+                    <div class="flex items-center justify-between bg-gray-600 p-3 rounded mb-4">
+                        <span class="text-sm text-gray-300" id="welcomeIdlePath">No file selected</span>
+                    </div>
+                    <button onclick="selectIdleExe()" class="w-full bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded transition-colors">
+                        <i class="fas fa-folder-open mr-2"></i>Select steam-idle.exe
+                    </button>
+                </div>
+
+                <div class="bg-gray-700 p-6 rounded-lg">
+                    <h3 class="text-lg font-semibold mb-4">Additional Settings</h3>
+                    <div class="space-y-4">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <span class="block font-medium">Run on Startup</span>
+                                <span class="text-sm text-gray-400">Launch automatically when Windows starts</span>
+                            </div>
+                            <button id="welcomeStartupToggle" onclick="toggleWelcomeStartup()" 
+                                    class="relative inline-flex items-center h-6 rounded-full w-11 bg-gray-500 transition-colors focus:outline-none">
+                                <span class="inline-block w-4 h-4 transform bg-white rounded-full transition-transform"></span>
+                            </button>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <span class="block font-medium">Minimize to Tray</span>
+                                <span class="text-sm text-gray-400">Keep running in system tray when minimized</span>
+                            </div>
+                            <button id="welcomeMinimizeToggle" onclick="toggleWelcomeMinimize()" 
+                                    class="relative inline-flex items-center h-6 rounded-full w-11 bg-gray-500 transition-colors focus:outline-none">
+                                <span class="inline-block w-4 h-4 transform bg-white rounded-full transition-transform"></span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-8 text-center">
+                <button onclick="completeWelcomeSetup()" id="welcomeCompleteBtn" disabled
+                        class="bg-green-500 hover:bg-green-600 text-white py-3 px-8 rounded-lg font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                    <i class="fas fa-check mr-2"></i>Complete Setup
                 </button>
             </div>
         </div>

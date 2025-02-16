@@ -15,6 +15,8 @@ import threading
 import schedule
 import csv
 import time
+import tkinter as tk
+from tkinter import filedialog, messagebox
 
 app = Flask(__name__)
 window = None
@@ -46,6 +48,86 @@ if not os.path.exists(PRESETS_DIR):
 
 running_games = {}
 game_sessions = {}  # Store game session data: {game_id: {'start_time': datetime, 'total_time': seconds}}
+
+def load_settings():
+    if os.path.exists(SETTINGS_FILE):
+        try:
+            with open(SETTINGS_FILE, 'r') as f:
+                settings = json.load(f)
+                # Update IDLER_PATH if it was previously configured
+                global IDLER_PATH
+                if 'idler_path' in settings and os.path.exists(settings['idler_path']):
+                    IDLER_PATH = settings['idler_path']
+                    settings['setup_completed'] = True
+                else:
+                    settings['setup_completed'] = False
+                return settings
+        except:
+            return {
+                "minimize_to_tray": False,
+                "setup_completed": False,
+                "idler_path": None
+            }
+    return {
+        "minimize_to_tray": False,
+        "setup_completed": False,
+        "idler_path": None
+    }
+
+def save_settings(settings):
+    try:
+        with open(SETTINGS_FILE, 'w') as f:
+            json.dump(settings, f)
+        return True
+    except Exception as e:
+        print(f"Error saving settings: {e}")
+        return False
+
+def select_idle_executable():
+    """Show file dialog to select steam-idle.exe"""
+    try:
+        # Use webview's file dialog instead of tkinter
+        file_path = window.create_file_dialog(
+            webview.OPEN_DIALOG,
+            directory='',
+            file_types=('Executable files (*.exe)', 'All files (*.*)')
+        )
+        
+        # If user cancels or no file selected
+        if not file_path or len(file_path) == 0:
+            return None
+            
+        # Get the selected file path
+        file_path = file_path[0]
+        
+        # Verify the selected file is actually steam-idle.exe
+        if os.path.basename(file_path).lower() != "steam-idle.exe":
+            return None
+        
+        return file_path
+        
+    except Exception as e:
+        print(f"Error in file selection: {e}")
+        return None
+
+def check_idler_executable():
+    """Check if steam-idle.exe exists and is configured"""
+    global IDLER_PATH
+    settings = load_settings()
+    
+    # If we have a valid saved path, use it
+    if 'idler_path' in settings and os.path.exists(settings['idler_path']):
+        IDLER_PATH = settings['idler_path']
+        return True
+        
+    # If the default path exists, save it and use it
+    if os.path.exists(IDLER_PATH):
+        settings['idler_path'] = IDLER_PATH
+        settings['setup_completed'] = True
+        save_settings(settings)
+        return True
+    
+    return False
 
 def load_statistics():
     if os.path.exists(STATS_FILE):
@@ -836,38 +918,6 @@ def set_startup_status(enable):
     finally:
         winreg.CloseKey(key)
 
-def load_settings():
-    if os.path.exists(SETTINGS_FILE):
-        try:
-            with open(SETTINGS_FILE, 'r') as f:
-                return json.load(f)
-        except:
-            return {"minimize_to_tray": False}
-    return {"minimize_to_tray": False}
-
-def save_settings(settings):
-    with open(SETTINGS_FILE, 'w') as f:
-        json.dump(settings, f)
-
-@app.route('/api/settings', methods=['GET', 'POST'])
-def manage_settings():
-    global minimize_to_tray
-    if request.method == 'GET':
-        settings = load_settings()
-        return jsonify(settings)
-    
-    elif request.method == 'POST':
-        data = request.get_json()
-        settings = load_settings()
-        
-        if 'minimize_to_tray' in data:
-            settings['minimize_to_tray'] = data['minimize_to_tray']
-            minimize_to_tray = data['minimize_to_tray']
-        
-        save_settings(settings)
-        save_recent_action(f"{'Enabled' if minimize_to_tray else 'Disabled'} minimize to tray")
-        return jsonify({"status": "success"})
-
 def create_tray_icon():
     global icon
     try:
@@ -1177,8 +1227,77 @@ def rename_preset():
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
+@app.route('/api/settings', methods=['GET', 'POST'])
+def manage_settings():
+    global minimize_to_tray, IDLER_PATH
+    if request.method == 'GET':
+        settings = load_settings()
+        # Add the current idler path to the response
+        settings['idler_path'] = IDLER_PATH
+        return jsonify(settings)
+    
+    elif request.method == 'POST':
+        data = request.get_json()
+        settings = load_settings()
+        
+        if 'minimize_to_tray' in data:
+            settings['minimize_to_tray'] = data['minimize_to_tray']
+            minimize_to_tray = data['minimize_to_tray']
+        
+        if 'setup_completed' in data:
+            settings['setup_completed'] = data['setup_completed']
+        
+        if save_settings(settings):
+            save_recent_action("Updated settings")
+            return jsonify({"status": "success"})
+        else:
+            return jsonify({
+                "status": "error",
+                "message": "Failed to save settings"
+            }), 500
+
+@app.route('/api/reconfigure-idle', methods=['POST'])
+def reconfigure_idle():
+    """Endpoint to reconfigure steam-idle.exe location"""
+    global IDLER_PATH
+    
+    try:
+        new_path = select_idle_executable()
+        if new_path:
+            IDLER_PATH = new_path
+            settings = load_settings()
+            settings['idler_path'] = new_path
+            settings['setup_completed'] = True
+            if save_settings(settings):
+                save_recent_action("Updated steam-idle.exe location")
+                return jsonify({
+                    "status": "success",
+                    "message": "Steam Idle location updated successfully",
+                    "path": new_path
+                })
+        
+        return jsonify({
+            "status": "error",
+            "message": "No valid file selected or failed to save settings"
+        }), 400
+        
+    except Exception as e:
+        print(f"Error in reconfigure_idle: {e}")
+        return jsonify({
+            "status": "error",
+            "message": "An error occurred while configuring Steam Idle location"
+        }), 500
+
+@app.route('/api/get-idle-path')
+def get_idle_path():
+    """Get the current steam-idle.exe path"""
+    settings = load_settings()
+    return jsonify({
+        "path": settings.get('idler_path', IDLER_PATH)
+    })
+
 if __name__ == '__main__':
-    # Load initial settings
+    # Initialize settings
     settings = load_settings()
     minimize_to_tray = settings.get('minimize_to_tray', False)
     

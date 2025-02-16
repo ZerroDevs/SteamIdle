@@ -430,4 +430,112 @@ body, div, button {
 
 #editPresetModal .game-item:last-child {
     margin-bottom: 0;
+}
+
+/* Welcome Configuration Modal Styles */
+#welcomeConfigModal .bg-gray-800 {
+    width: 600px;
+    max-width: 90vw;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+#welcomeConfigModal .bg-gray-800::-webkit-scrollbar {
+    width: 8px;
+}
+
+#welcomeConfigModal .bg-gray-800::-webkit-scrollbar-track {
+    background: #1f2937;
+    border-radius: 4px;
+}
+
+#welcomeConfigModal .bg-gray-800::-webkit-scrollbar-thumb {
+    background: #3b82f6;
+    border-radius: 4px;
+}
+
+#welcomeConfigModal .bg-gray-800::-webkit-scrollbar-thumb:hover {
+    background: #2563eb;
+}
+
+#welcomeConfigModal .space-y-6 {
+    margin-top: 2rem;
+}
+
+#welcomeConfigModal .bg-gray-700 {
+    transition: all 0.3s ease;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+#welcomeConfigModal .bg-gray-700:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+#welcomeConfigModal #welcomeIdlePath {
+    word-break: break-all;
+    max-width: 100%;
+    display: block;
+}
+
+#welcomeConfigModal button {
+    transition: all 0.2s ease;
+}
+
+#welcomeConfigModal button:not(:disabled):hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+#welcomeConfigModal button:not(:disabled):active {
+    transform: translateY(0);
+}
+
+#welcomeConfigModal .text-center button {
+    min-width: 200px;
+}
+
+/* Toggle button animations */
+#welcomeConfigModal .relative.inline-flex {
+    position: relative;
+    width: 44px;
+    height: 24px;
+    transition: background-color 0.3s ease;
+}
+
+#welcomeConfigModal .relative.inline-flex span.inline-block {
+    position: absolute;
+    left: 2px;
+    top: 2px;
+    width: 20px;
+    height: 20px;
+    background-color: white;
+    border-radius: 50%;
+    transition: transform 0.3s ease;
+}
+
+#welcomeConfigModal .bg-blue-500 span.inline-block {
+    transform: translateX(20px);
+}
+
+#welcomeConfigModal .bg-gray-500 span.inline-block {
+    transform: translateX(0);
+}
+
+/* Animation for the modal */
+@keyframes modalSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+#welcomeConfigModal .bg-gray-800 {
+    animation: modalSlideIn 0.3s ease-out;
 } 

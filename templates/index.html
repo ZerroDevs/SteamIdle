@@ -63,15 +63,13 @@
                 <!-- Custom Shortcuts -->
                 <div class="bg-gray-700 rounded-lg p-4">
                     <h3 class="text-lg font-semibold mb-3">
-                        <i class="fas fa-keyboard mr-2 text-green-400"></i>Custom Shortcuts
-                    </h3>
-                    <div class="mb-3">
-                        <button onclick="addShortcut()" class="bg-green-500 hover:bg-green-600 px-4 py-2 rounded text-sm w-full">
-                            <i class="fas fa-plus mr-1"></i>Add Shortcut
+                        <i class="fas fa-keyboard mr-2 text-blue-400"></i>Custom Shortcuts
+                        <button onclick="addShortcut()" class="float-right text-sm bg-blue-500 hover:bg-blue-600 px-3 py-1 rounded">
+                            <i class="fas fa-plus mr-1"></i>Add
                         </button>
-                    </div>
+                    </h3>
                     <div id="customShortcuts" class="space-y-2">
-                        <!-- Shortcuts will be added here dynamically -->
+                        <!-- Custom shortcuts will be added here dynamically -->
                     </div>
                 </div>
             </div>
@@ -739,6 +737,39 @@
                 <button onclick="completeWelcomeSetup()" id="welcomeCompleteBtn" disabled
                         class="bg-green-500 hover:bg-green-600 text-white py-3 px-8 rounded-lg font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                     <i class="fas fa-check mr-2"></i>Complete Setup
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Save Preset Modal -->
+    <div id="savePresetModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+        <div class="bg-gray-800 rounded-lg p-6 w-96 transform transition-all">
+            <div class="text-center mb-6">
+                <div class="bg-green-500 w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center">
+                    <i class="fas fa-save text-2xl text-white"></i>
+                </div>
+                <h3 class="text-xl font-semibold mb-2">Save Preset</h3>
+                <p class="text-gray-400">Enter a name for your preset to save it.</p>
+            </div>
+            
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-2">Preset Name</label>
+                    <input type="text" id="savePresetNameInput" 
+                           class="w-full bg-gray-700 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                           placeholder="Enter preset name">
+                </div>
+            </div>
+            
+            <div class="flex justify-center gap-4 mt-6">
+                <button onclick="closeSavePresetModal()" 
+                        class="px-6 py-2 bg-gray-600 hover:bg-gray-500 rounded font-medium">
+                    Cancel
+                </button>
+                <button onclick="confirmSavePreset()" 
+                        class="px-6 py-2 bg-green-500 hover:bg-green-600 rounded font-medium">
+                    Save
                 </button>
             </div>
         </div>

@@ -125,9 +125,36 @@ function updateGamesList() {
 }
 
 async function savePreset() {
-    const presetName = document.getElementById('presetName').value.trim();
-    if (!presetName || currentGames.length === 0) {
-        alert('Please enter a preset name and add at least one game!');
+    // Show the save preset modal instead of immediately saving
+    const modal = document.getElementById('savePresetModal');
+    const input = document.getElementById('savePresetNameInput');
+    
+    // Clear the input and focus it
+    input.value = document.getElementById('presetName').value.trim();
+    
+    // Show the modal
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    
+    // Focus the input
+    input.focus();
+}
+
+function closeSavePresetModal() {
+    const modal = document.getElementById('savePresetModal');
+    modal.classList.remove('flex');
+    modal.classList.add('hidden');
+}
+
+async function confirmSavePreset() {
+    const presetName = document.getElementById('savePresetNameInput').value.trim();
+    if (!presetName) {
+        showNotification('Please enter a preset name', 'error');
+        return;
+    }
+
+    if (currentGames.length === 0) {
+        showNotification('Please add at least one game to the preset', 'error');
         return;
     }
 
@@ -144,13 +171,41 @@ async function savePreset() {
         });
 
         if (response.ok) {
+            showNotification('Preset saved successfully', 'success');
             document.getElementById('presetName').value = '';
             loadPresets();
+            closeSavePresetModal();
+        } else {
+            const data = await response.json();
+            showNotification(data.message || 'Failed to save preset', 'error');
         }
     } catch (error) {
         console.error('Error saving preset:', error);
+        showNotification('Failed to save preset', 'error');
     }
 }
+
+// Add event listener for the save preset input to handle Enter key
+document.addEventListener('DOMContentLoaded', function() {
+    const savePresetInput = document.getElementById('savePresetNameInput');
+    if (savePresetInput) {
+        savePresetInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                confirmSavePreset();
+            }
+        });
+    }
+    
+    // Add click outside listener to close the modal
+    const savePresetModal = document.getElementById('savePresetModal');
+    if (savePresetModal) {
+        savePresetModal.addEventListener('click', (e) => {
+            if (e.target === savePresetModal) {
+                closeSavePresetModal();
+            }
+        });
+    }
+});
 
 async function loadPresets(returnData = false) {
     try {
@@ -1486,232 +1541,6 @@ async function selectIdleExe() {
     }
 }
 
-function toggleWelcomeStartup() {
-    welcomeStartupEnabled = !welcomeStartupEnabled;
-    const button = document.getElementById('welcomeStartupToggle');
-    const label = button.nextElementSibling;
-    
-    button.classList.toggle('bg-blue-500', welcomeStartupEnabled);
-    button.classList.toggle('bg-gray-500', !welcomeStartupEnabled);
-    button.querySelector('span:last-child').classList.toggle('translate-x-5', welcomeStartupEnabled);
-    
-    label.classList.toggle('text-blue-500', welcomeStartupEnabled);
-}
-
-function toggleWelcomeMinimize() {
-    welcomeMinimizeEnabled = !welcomeMinimizeEnabled;
-    const button = document.getElementById('welcomeMinimizeToggle');
-    const label = button.nextElementSibling;
-    
-    button.classList.toggle('bg-blue-500', welcomeMinimizeEnabled);
-    button.classList.toggle('bg-gray-500', !welcomeMinimizeEnabled);
-    button.querySelector('span:last-child').classList.toggle('translate-x-5', welcomeMinimizeEnabled);
-    
-    label.classList.toggle('text-blue-500', welcomeMinimizeEnabled);
-}
-
-async function completeWelcomeSetup() {
-    if (!welcomeIdleExePath) {
-        showNotification('Please select steam-idle.exe location', 'error');
-        return;
-    }
-
-    try {
-        const settings = {
-            minimize_to_tray: welcomeMinimizeEnabled,
-            setup_completed: true
-        };
-
-        // Save settings
-        const settingsResponse = await fetch('/api/settings', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(settings)
-        });
-
-        // Configure startup if enabled
-        if (welcomeStartupEnabled) {
-            const startupResponse = await fetch('/api/startup-status', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ enabled: true })
-            });
-
-            if (!startupResponse.ok) {
-                throw new Error('Failed to configure startup');
-            }
-        }
-
-        // Animate modal out
-        const modal = document.getElementById('welcomeConfigModal');
-        modal.style.animation = 'modalFadeOut 0.3s ease-out forwards';
-        
-        // Hide modal after animation
-        setTimeout(() => {
-            modal.classList.remove('flex');
-            modal.classList.add('hidden');
-            modal.style.animation = '';
-        }, 300);
-        
-        showNotification('Setup completed successfully', 'success');
-    } catch (error) {
-        console.error('Error completing setup:', error);
-        showNotification('Failed to complete setup', 'error');
-    }
-}
-
-// Add fadeout animation to CSS
-const style = document.createElement('style');
-style.textContent = `
-@keyframes modalFadeOut {
-    from {
-        opacity: 1;
-        transform: scale(1);
-    }
-    to {
-        opacity: 0;
-        transform: scale(0.95);
-    }
-}
-`;
-document.head.appendChild(style);
-
-// Initialize theme on page load
-document.addEventListener('DOMContentLoaded', async function() {
-    applyTheme(currentTheme);
-    await checkFirstTimeSetup();
-    updateThemeButtons();
-    await updateSteamStatus();
-    await loadPresets();
-    await updateStatistics();
-    await updateQuickActions();
-});
-
-function applyTheme(theme) {
-    document.documentElement.setAttribute('data-theme', theme);
-    currentTheme = theme;
-    localStorage.setItem('theme', theme);
-}
-
-async function checkFirstTimeSetup() {
-    try {
-        const response = await fetch('/api/settings');
-        const settings = await response.json();
-        
-        const modal = document.getElementById('welcomeConfigModal');
-        if (!settings.setup_completed) {
-            modal.classList.remove('hidden');
-            modal.classList.add('flex');
-            
-            // Reset the form state
-            welcomeStartupEnabled = false;
-            welcomeMinimizeEnabled = false;
-            welcomeIdleExePath = null;
-            
-            // Reset UI elements
-            document.getElementById('welcomeStartupToggle').classList.remove('bg-blue-500');
-            document.getElementById('welcomeStartupToggle').classList.add('bg-gray-500');
-            document.getElementById('welcomeMinimizeToggle').classList.remove('bg-blue-500');
-            document.getElementById('welcomeMinimizeToggle').classList.add('bg-gray-500');
-            document.getElementById('welcomeIdlePath').textContent = 'No file selected';
-            document.getElementById('welcomeCompleteBtn').disabled = true;
-        } else if (settings.idler_path) {
-            // If setup is completed and we have a path, update the settings display
-            welcomeIdleExePath = settings.idler_path;
-            const pathElement = document.getElementById('currentIdlePath');
-            if (pathElement) {
-                pathElement.textContent = settings.idler_path;
-                pathElement.classList.remove('text-gray-500');
-                pathElement.classList.add('text-green-500');
-            }
-        }
-    } catch (error) {
-        console.error('Error checking setup status:', error);
-        showNotification('Failed to check setup status', 'error');
-    }
-}
-
-async function selectIdleExe() {
-    try {
-        const response = await fetch('/api/reconfigure-idle', {
-            method: 'POST'
-        });
-        
-        const data = await response.json();
-        
-        if (data.status === 'success') {
-            // Update the global variable
-            welcomeIdleExePath = data.path;
-            
-            // Update both UI elements
-            const welcomePathElement = document.getElementById('welcomeIdlePath');
-            const currentPathElement = document.getElementById('currentIdlePath');
-            
-            // Update welcome modal path
-            if (welcomePathElement) {
-                welcomePathElement.textContent = data.path;
-                welcomePathElement.classList.remove('text-gray-500');
-                welcomePathElement.classList.add('text-green-500');
-            }
-            
-            // Update settings modal path
-            if (currentPathElement) {
-                currentPathElement.textContent = data.path;
-                currentPathElement.classList.remove('text-gray-500');
-                currentPathElement.classList.add('text-green-500');
-            }
-            
-            // Enable the complete setup button
-            const completeBtn = document.getElementById('welcomeCompleteBtn');
-            if (completeBtn) {
-                completeBtn.disabled = false;
-            }
-            
-            showNotification('Steam Idle location updated successfully', 'success');
-        } else {
-            // Reset everything if failed
-            welcomeIdleExePath = null;
-            
-            // Reset welcome modal path
-            const welcomePathElement = document.getElementById('welcomeIdlePath');
-            if (welcomePathElement) {
-                welcomePathElement.textContent = 'No file selected';
-                welcomePathElement.classList.remove('text-green-500');
-                welcomePathElement.classList.add('text-gray-500');
-            }
-            
-            // Reset settings modal path
-            const currentPathElement = document.getElementById('currentIdlePath');
-            if (currentPathElement) {
-                currentPathElement.textContent = 'Not configured';
-                currentPathElement.classList.remove('text-green-500');
-                currentPathElement.classList.add('text-gray-500');
-            }
-            
-            // Disable the complete setup button
-            const completeBtn = document.getElementById('welcomeCompleteBtn');
-            if (completeBtn) {
-                completeBtn.disabled = true;
-            }
-            
-            showNotification(data.message || 'Failed to configure Steam Idle location', 'error');
-        }
-    } catch (error) {
-        console.error('Error selecting idle exe:', error);
-        showNotification('Failed to select steam-idle.exe', 'error');
-        
-        // Disable the complete setup button
-        const completeBtn = document.getElementById('welcomeCompleteBtn');
-        if (completeBtn) {
-            completeBtn.disabled = true;
-        }
-    }
-}
-
 // Rename Preset Functions
 function showRenamePresetModal(presetName) {
     presetToRename = presetName;
@@ -2261,11 +2090,16 @@ async function deleteSchedule(scheduleId) {
 
 async function loadPresetOptions() {
     try {
-        const response = await fetch('/api/get-presets');
-        const presets = await response.json();
-        const presetSelect = document.querySelector('select[name="presetName"]');
+        const presetSelect = document.getElementById('presetSelect');
+        if (!presetSelect) return;
+
+        // Clear existing options
         presetSelect.innerHTML = '<option value="">Select a preset</option>';
+
+        // Load presets
+        const presets = await loadPresets(true);
         
+        // Add preset options
         presets.forEach(preset => {
             const option = document.createElement('option');
             option.value = preset.name;
@@ -2273,7 +2107,64 @@ async function loadPresetOptions() {
             presetSelect.appendChild(option);
         });
     } catch (error) {
-        console.error('Error loading presets:', error);
-        showNotification('error', 'Failed to load presets');
+        console.error('Error loading preset options:', error);
+        showNotification('Failed to load presets', 'error');
     }
-} 
+}
+
+function addShortcut() {
+    // Get the shortcut modal
+    const modal = document.getElementById('shortcutModal');
+    if (!modal) return;
+
+    // Reset form fields
+    document.getElementById('shortcutNameInput').value = '';
+    document.getElementById('keyCombinationInput').value = '';
+    const presetSelect = document.getElementById('presetSelect');
+    if (presetSelect) {
+        presetSelect.selectedIndex = 0;
+    }
+
+    // Load presets into the select dropdown
+    loadPresetOptions();
+
+    // Show the modal
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+}
+
+// Add event listener for key combination input
+document.addEventListener('DOMContentLoaded', function() {
+    const keyCombinationInput = document.getElementById('keyCombinationInput');
+    if (keyCombinationInput) {
+        keyCombinationInput.addEventListener('focus', function() {
+            this.classList.add('recording');
+            this.value = '';
+            
+            const clearButton = document.getElementById('clearKeyCombination');
+            if (clearButton) {
+                clearButton.classList.remove('hidden');
+            }
+        });
+
+        keyCombinationInput.addEventListener('keydown', function(e) {
+            e.preventDefault();
+            
+            const keys = [];
+            if (e.ctrlKey) keys.push('Ctrl');
+            if (e.altKey) keys.push('Alt');
+            if (e.shiftKey) keys.push('Shift');
+            
+            // Add the key if it's not a modifier
+            if (!['Control', 'Alt', 'Shift'].includes(e.key)) {
+                keys.push(e.key.toUpperCase());
+            }
+            
+            this.value = keys.join(' + ');
+        });
+
+        keyCombinationInput.addEventListener('blur', function() {
+            this.classList.remove('recording');
+        });
+    }
+}); 

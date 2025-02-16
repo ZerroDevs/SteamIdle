@@ -6,12 +6,15 @@ import webview
 import requests
 import psutil
 import winreg
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, send_file
 from bs4 import BeautifulSoup
 from datetime import datetime, timedelta
 import pystray
 from PIL import Image
 import threading
+import schedule
+import csv
+import time
 
 app = Flask(__name__)
 window = None
@@ -29,6 +32,11 @@ SETTINGS_FILE = os.path.join(APPDATA_PATH, "settings.json")
 FAVORITES_FILE = os.path.join(APPDATA_PATH, "favorites.json")
 RECENT_ACTIONS_FILE = os.path.join(APPDATA_PATH, "recent_actions.json")
 SHORTCUTS_FILE = os.path.join(APPDATA_PATH, "shortcuts.json")
+
+# Add new constants
+SCHEDULES_FILE = os.path.join(APPDATA_PATH, "schedules.json")
+AUTO_RECONNECT = True  # Global flag for auto-reconnect feature
+RECONNECT_INTERVAL = 300  # 5 minutes in seconds
 
 # Create necessary directories if they don't exist
 if not os.path.exists(APPDATA_PATH):
@@ -868,11 +876,11 @@ def create_tray_icon():
         
         def show_window(icon, item):
             window.show()
-            window.restore()
             
         def exit_app(icon, item):
             icon.stop()
             window.destroy()
+            sys.exit(0)
         
         # Create the tray icon menu
         menu = (
@@ -892,18 +900,21 @@ def create_tray_icon():
         print(f"Error creating tray icon: {e}")
 
 def on_closed():
-    global window
-    settings = load_settings()
-    if settings.get('minimize_to_tray', False):
-        window.hide()
-        # Show notification in system tray
-        if icon:
-            icon.notify("Steam Idle Manager is still running in the background", "Minimized to Tray")
-    else:
-        # If minimize to tray is disabled, or if there's an error, close the app
-        if icon:
-            icon.stop()
-        window.destroy()
+    try:
+        settings = load_settings()
+        if settings.get('minimize_to_tray', False):
+            # Just minimize to tray
+            if icon:
+                icon.notify("Steam Idle Manager is still running in the background", "Minimized to Tray")
+            return False
+        else:
+            # Actually close the app
+            if icon:
+                icon.stop()
+            sys.exit(0)
+    except Exception as e:
+        print(f"Error in on_closed: {e}")
+        sys.exit(0)
 
 def handle_minimize_event(window):
     settings = load_settings()
@@ -915,34 +926,241 @@ def handle_minimize_event(window):
         return False  # Prevent default minimize
     return True  # Allow default minimize if setting is disabled
 
+def check_and_restart_games():
+    """Check if any running games have crashed and restart them if auto-reconnect is enabled"""
+    while True:
+        if AUTO_RECONNECT:
+            for game_id in list(running_games.keys()):
+                try:
+                    process = psutil.Process(running_games[game_id])
+                    if not process.is_running():
+                        print(f"Game {game_id} crashed, restarting...")
+                        restart_game(game_id)
+                except (psutil.NoSuchProcess, psutil.AccessDenied):
+                    print(f"Game {game_id} crashed, restarting...")
+                    restart_game(game_id)
+        time.sleep(RECONNECT_INTERVAL)
+
+def restart_game(game_id):
+    """Restart a crashed game"""
+    try:
+        process = subprocess.Popen([IDLER_PATH, game_id], shell=True)
+        running_games[game_id] = process.pid
+        if icon:
+            icon.notify(f"Game {game_id} was restarted automatically", "Auto-Reconnect")
+    except Exception as e:
+        print(f"Error restarting game {game_id}: {e}")
+
+def check_game_goals():
+    """Check if any game has reached its playtime goal"""
+    while True:
+        goals = load_goals()
+        for goal in goals:
+            game_id = goal['game_id']
+            target_hours = goal['target_hours']
+            
+            if game_id in game_sessions:
+                session = game_sessions[game_id]
+                total_seconds = session.get('total_time', 0)
+                
+                # Add current session time if game is running
+                if game_id in running_games and 'start_time' in session:
+                    current_session = (datetime.now() - session['start_time']).total_seconds()
+                    total_seconds += current_session
+                
+                total_hours = total_seconds / 3600
+                if total_hours >= target_hours and not goal.get('notified', False):
+                    if icon:
+                        icon.notify(
+                            f"Game {session.get('name', game_id)} has reached the target playtime of {target_hours} hours!",
+                            "Goal Reached"
+                        )
+                    goal['notified'] = True
+                    save_goals(goals)
+        
+        time.sleep(60)  # Check every minute
+
+def load_goals():
+    goals_file = os.path.join(PRESETS_DIR, 'goals.json')
+    if os.path.exists(goals_file):
+        try:
+            with open(goals_file, 'r') as f:
+                return json.load(f)
+        except:
+            return []
+    return []
+
+def save_goals(goals):
+    goals_file = os.path.join(PRESETS_DIR, 'goals.json')
+    with open(goals_file, 'w') as f:
+        json.dump(goals, f)
+
+def load_schedules():
+    if os.path.exists(SCHEDULES_FILE):
+        try:
+            with open(SCHEDULES_FILE, 'r') as f:
+                return json.load(f)
+        except:
+            return {"schedules": []}
+    return {"schedules": []}
+
+def save_schedules(schedules):
+    with open(SCHEDULES_FILE, 'w') as f:
+        json.dump(schedules, f)
+
+def run_scheduled_tasks():
+    """Run scheduled tasks in a separate thread"""
+    while True:
+        schedule.run_pending()
+        time.sleep(60)
+
+@app.route('/api/export-stats', methods=['POST'])
+def export_stats():
+    try:
+        data = request.get_json()
+        export_type = data.get('type', 'csv')
+        
+        # Prepare statistics data
+        stats = []
+        current_time = datetime.now()
+        
+        for game_id, session in game_sessions.items():
+            total_seconds = session.get('total_time', 0)
+            
+            # Add current session time if game is running
+            if game_id in running_games and 'start_time' in session:
+                current_session = (current_time - session['start_time']).total_seconds()
+                total_seconds += current_session
+            
+            stats.append({
+                'game_id': game_id,
+                'name': session.get('name', 'Unknown Game'),
+                'total_time': format_duration(total_seconds),
+                'total_hours': round(total_seconds / 3600, 2)
+            })
+        
+        # Export to CSV
+        if export_type == 'csv':
+            filename = f"steam_idle_stats_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+            filepath = os.path.join(APPDATA_PATH, filename)
+            
+            with open(filepath, 'w', newline='', encoding='utf-8') as f:
+                writer = csv.DictWriter(f, fieldnames=['game_id', 'name', 'total_time', 'total_hours'])
+                writer.writeheader()
+                writer.writerows(stats)
+            
+            # Return file as attachment
+            return send_file(
+                filepath,
+                as_attachment=True,
+                download_name=filename,
+                mimetype='text/csv'
+            )
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
+
+@app.route('/api/schedules', methods=['GET', 'POST', 'DELETE'])
+def manage_schedules():
+    if request.method == 'GET':
+        return jsonify(load_schedules())
+    
+    elif request.method == 'POST':
+        data = request.get_json()
+        schedules = load_schedules()
+        
+        schedule_id = str(len(schedules['schedules']) + 1)
+        new_schedule = {
+            'id': schedule_id,
+            'name': data.get('name'),
+            'preset_name': data.get('preset_name'),
+            'start_time': data.get('start_time'),
+            'end_time': data.get('end_time'),
+            'days': data.get('days', []),
+            'enabled': True
+        }
+        
+        schedules['schedules'].append(new_schedule)
+        save_schedules(schedules)
+        
+        # Add the schedule to the scheduler
+        for day in new_schedule['days']:
+            schedule.every().day.at(new_schedule['start_time']).do(
+                run_preset, new_schedule['preset_name']
+            ).tag(f'schedule_{schedule_id}')
+            
+            schedule.every().day.at(new_schedule['end_time']).do(
+                stop_preset, new_schedule['preset_name']
+            ).tag(f'schedule_{schedule_id}')
+        
+        save_recent_action(f"Added schedule for {new_schedule['name']}")
+        return jsonify({"status": "success"})
+    
+    elif request.method == 'DELETE':
+        data = request.get_json()
+        schedule_id = data.get('id')
+        
+        schedules = load_schedules()
+        schedules['schedules'] = [s for s in schedules['schedules'] if s['id'] != schedule_id]
+        save_schedules(schedules)
+        
+        # Remove the schedule from the scheduler
+        schedule.clear(f'schedule_{schedule_id}')
+        
+        save_recent_action(f"Removed schedule {schedule_id}")
+        return jsonify({"status": "success"})
+
+@app.route('/api/auto-reconnect', methods=['POST'])
+def toggle_auto_reconnect():
+    global AUTO_RECONNECT
+    data = request.get_json()
+    AUTO_RECONNECT = data.get('enabled', False)
+    save_recent_action(f"{'Enabled' if AUTO_RECONNECT else 'Disabled'} auto-reconnect")
+    return jsonify({"status": "success"})
+
 if __name__ == '__main__':
     # Load initial settings
     settings = load_settings()
     minimize_to_tray = settings.get('minimize_to_tray', False)
     
-    # Create window with close event handler
-    window = webview.create_window('Steam Idle Manager', app, confirm_close=True)
-    
-    def handle_close_event(window):
-        settings = load_settings()
-        if settings.get('minimize_to_tray', False):
-            window.hide()
-            # Show notification in system tray
-            if icon:
-                icon.notify("Steam Idle Manager is still running in the background", "Minimized to Tray")
-            return False  # Prevent the window from closing
-        else:
-            # If minimize to tray is disabled, allow the window to close
-            if icon:
-                icon.stop()
-            return True
+    # Create window
+    window = webview.create_window('Steam Idle Manager', app, minimized=False)
     
     # Set the window event handlers
-    window.events.closing += handle_close_event
-    window.events.minimized += lambda: handle_minimize_event(window)  # Fix: Wrap the handler in a lambda to pass window
+    window.events.closed += on_closed
     
     # Create tray icon
     create_tray_icon()
+    
+    # Start the auto-reconnect checker thread
+    reconnect_thread = threading.Thread(target=check_and_restart_games)
+    reconnect_thread.daemon = True
+    reconnect_thread.start()
+    
+    # Start the game goals checker thread
+    goals_thread = threading.Thread(target=check_game_goals)
+    goals_thread.daemon = True
+    goals_thread.start()
+    
+    # Start the scheduler thread
+    scheduler_thread = threading.Thread(target=run_scheduled_tasks)
+    scheduler_thread.daemon = True
+    scheduler_thread.start()
+    
+    # Load existing schedules
+    schedules = load_schedules()
+    for schedule_item in schedules['schedules']:
+        if schedule_item['enabled']:
+            for day in schedule_item['days']:
+                schedule.every().day.at(schedule_item['start_time']).do(
+                    run_preset, schedule_item['preset_name']
+                ).tag(f'schedule_{schedule_item["id"]}')
+                
+                schedule.every().day.at(schedule_item['end_time']).do(
+                    stop_preset, schedule_item['preset_name']
+                ).tag(f'schedule_{schedule_item["id"]}')
     
     # Start the application
     webview.start()

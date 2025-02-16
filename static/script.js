@@ -1341,4 +1341,315 @@ document.addEventListener('DOMContentLoaded', () => {
             closeSettings();
         }
     });
+});
+
+// Auto-Reconnect Functions
+async function updateAutoReconnectToggle() {
+    try {
+        const response = await fetch('/api/auto-reconnect');
+        const data = await response.json();
+        const toggle = document.getElementById('autoReconnectToggle');
+        
+        if (data.enabled) {
+            toggle.classList.add('bg-blue-500');
+            toggle.classList.remove('bg-gray-500');
+            toggle.querySelector('span:last-child').classList.add('translate-x-5');
+        } else {
+            toggle.classList.add('bg-gray-500');
+            toggle.classList.remove('bg-blue-500');
+            toggle.querySelector('span:last-child').classList.remove('translate-x-5');
+        }
+    } catch (error) {
+        console.error('Error updating auto-reconnect status:', error);
+    }
+}
+
+async function toggleAutoReconnect() {
+    try {
+        const toggle = document.getElementById('autoReconnectToggle');
+        const isEnabled = toggle.classList.contains('bg-blue-500');
+        
+        const response = await fetch('/api/auto-reconnect', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                enabled: !isEnabled
+            })
+        });
+        
+        if (response.ok) {
+            showNotification(`Auto-reconnect ${!isEnabled ? 'enabled' : 'disabled'}`, 'success');
+            updateAutoReconnectToggle();
+        }
+    } catch (error) {
+        console.error('Error toggling auto-reconnect:', error);
+        showNotification('Failed to update auto-reconnect setting', 'error');
+    }
+}
+
+// Export Statistics Functions
+async function exportStats() {
+    try {
+        showNotification('Preparing statistics for export...', 'info');
+        
+        const response = await fetch('/api/export-stats', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ type: 'csv' })
+        });
+        
+        if (response.ok) {
+            // Get the filename from the Content-Disposition header
+            const contentDisposition = response.headers.get('Content-Disposition');
+            const filename = contentDisposition
+                ? contentDisposition.split('filename=')[1].replace(/"/g, '')
+                : 'steam_idle_stats.csv';
+            
+            // Create a blob from the response
+            const blob = await response.blob();
+            
+            // Create a temporary link element
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            a.download = filename;
+            
+            // Add to document, click it, and remove it
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            a.remove();
+            
+            showNotification('Statistics exported successfully', 'success');
+        } else {
+            const data = await response.json();
+            throw new Error(data.message || 'Failed to export statistics');
+        }
+    } catch (error) {
+        console.error('Error exporting statistics:', error);
+        showNotification('Failed to export statistics', 'error');
+    }
+}
+
+// Schedule Management Functions
+let selectedDays = new Set();
+
+function openScheduleModal() {
+    const modal = document.getElementById('scheduleModal');
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    
+    // Load presets into select
+    loadPresets(true).then(presets => {
+        const select = document.getElementById('schedulePreset');
+        select.innerHTML = '<option value="">Select a preset</option>' + 
+            presets.map(p => `<option value="${p.name}">${p.name}</option>`).join('');
+    });
+    
+    // Load existing schedules
+    loadSchedules();
+}
+
+function closeScheduleModal() {
+    const modal = document.getElementById('scheduleModal');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+    selectedDays.clear();
+    resetScheduleForm();
+}
+
+function resetScheduleForm() {
+    document.getElementById('scheduleName').value = '';
+    document.getElementById('schedulePreset').value = '';
+    document.getElementById('scheduleStartTime').value = '';
+    document.getElementById('scheduleEndTime').value = '';
+    document.querySelectorAll('[onclick^="toggleDay"]').forEach(btn => {
+        btn.classList.remove('bg-blue-500');
+        btn.classList.add('bg-gray-600');
+    });
+}
+
+function toggleDay(button, day) {
+    if (selectedDays.has(day)) {
+        selectedDays.delete(day);
+        button.classList.remove('bg-blue-500');
+        button.classList.add('bg-gray-600');
+    } else {
+        selectedDays.add(day);
+        button.classList.remove('bg-gray-600');
+        button.classList.add('bg-blue-500');
+    }
+}
+
+async function loadSchedules() {
+    try {
+        const response = await fetch('/api/schedules');
+        const data = await response.json();
+        const container = document.getElementById('schedulesList');
+        
+        container.innerHTML = data.schedules.map(schedule => `
+            <div class="bg-gray-700 rounded-lg p-4">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <h5 class="font-medium">${schedule.name}</h5>
+                        <p class="text-sm text-gray-400">
+                            ${schedule.preset_name} • ${schedule.start_time} - ${schedule.end_time}
+                        </p>
+                        <p class="text-sm text-gray-400">
+                            ${schedule.days.join(', ')}
+                        </p>
+                    </div>
+                    <button onclick="deleteSchedule('${schedule.id}')" 
+                            class="bg-red-500 hover:bg-red-600 px-3 py-1 rounded text-sm">
+                        <i class="fas fa-trash mr-1"></i>Delete
+                    </button>
+                </div>
+            </div>
+        `).join('') || '<p class="text-gray-400 text-sm">No schedules found</p>';
+    } catch (error) {
+        console.error('Error loading schedules:', error);
+        showNotification('Failed to load schedules', 'error');
+    }
+}
+
+async function saveSchedule() {
+    const name = document.getElementById('scheduleName').value.trim();
+    const preset = document.getElementById('schedulePreset').value;
+    const startTime = document.getElementById('scheduleStartTime').value;
+    const endTime = document.getElementById('scheduleEndTime').value;
+    
+    if (!name || !preset || !startTime || !endTime || selectedDays.size === 0) {
+        showNotification('Please fill in all fields and select at least one day', 'error');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/schedules', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                name: name,
+                preset_name: preset,
+                start_time: startTime,
+                end_time: endTime,
+                days: Array.from(selectedDays)
+            })
+        });
+        
+        if (response.ok) {
+            showNotification('Schedule saved successfully', 'success');
+            loadSchedules();
+            resetScheduleForm();
+        } else {
+            throw new Error('Failed to save schedule');
+        }
+    } catch (error) {
+        console.error('Error saving schedule:', error);
+        showNotification('Failed to save schedule', 'error');
+    }
+}
+
+async function deleteSchedule(scheduleId) {
+    if (!confirm('Are you sure you want to delete this schedule?')) return;
+    
+    try {
+        const response = await fetch('/api/schedules', {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ id: scheduleId })
+        });
+        
+        if (response.ok) {
+            showNotification('Schedule deleted successfully', 'success');
+            loadSchedules();
+        } else {
+            throw new Error('Failed to delete schedule');
+        }
+    } catch (error) {
+        console.error('Error deleting schedule:', error);
+        showNotification('Failed to delete schedule', 'error');
+    }
+}
+
+// Game Goals Functions
+let currentGameId = null;
+
+function openGoalsModal(gameId) {
+    currentGameId = gameId;
+    const modal = document.getElementById('goalsModal');
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+}
+
+function closeGoalsModal() {
+    const modal = document.getElementById('goalsModal');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+    currentGameId = null;
+    document.getElementById('targetHours').value = '';
+}
+
+async function saveGameGoal() {
+    const targetHours = document.getElementById('targetHours').value;
+    
+    if (!targetHours || targetHours < 1) {
+        showNotification('Please enter a valid number of hours', 'error');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/stats/goals', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                game_id: currentGameId,
+                target_hours: parseInt(targetHours)
+            })
+        });
+        
+        if (response.ok) {
+            showNotification('Game goal saved successfully', 'success');
+            closeGoalsModal();
+        } else {
+            throw new Error('Failed to save game goal');
+        }
+    } catch (error) {
+        console.error('Error saving game goal:', error);
+        showNotification('Failed to save game goal', 'error');
+    }
+}
+
+// Add to the existing DOMContentLoaded event listener
+document.addEventListener('DOMContentLoaded', () => {
+    // ... existing initialization code ...
+    
+    // Initialize auto-reconnect toggle
+    updateAutoReconnectToggle();
+    
+    // Add click outside handlers for new modals
+    const scheduleModal = document.getElementById('scheduleModal');
+    const goalsModal = document.getElementById('goalsModal');
+    
+    scheduleModal.addEventListener('click', (e) => {
+        if (e.target === scheduleModal) {
+            closeScheduleModal();
+        }
+    });
+    
+    goalsModal.addEventListener('click', (e) => {
+        if (e.target === goalsModal) {
+            closeGoalsModal();
+        }
+    });
 }); 

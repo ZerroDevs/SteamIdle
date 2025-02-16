@@ -347,6 +347,42 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- Add to the settings modal content, inside the space-y-6 div -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-2">Advanced Features</label>
+                    <div class="space-y-3">
+                        <div class="flex items-center justify-between bg-gray-700 p-3 rounded">
+                            <div>
+                                <span class="block font-medium">Auto-Reconnect</span>
+                                <span class="text-sm text-gray-400">Automatically restart games if they crash</span>
+                            </div>
+                            <button id="autoReconnectToggle" onclick="toggleAutoReconnect()" 
+                                    class="relative inline-flex items-center h-6 rounded-full w-11 transition-colors focus:outline-none">
+                                <span class="sr-only">Toggle auto-reconnect</span>
+                                <span class="inline-block w-4 h-4 transform bg-white rounded-full transition-transform"></span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Export Statistics -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-2">Export Statistics</label>
+                    <button onclick="exportStats()" 
+                            class="w-full bg-blue-500 hover:bg-blue-600 px-4 py-2 rounded text-sm">
+                        <i class="fas fa-download mr-2"></i>Export to CSV
+                    </button>
+                </div>
+
+                <!-- Schedule Manager -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-2">Schedule Manager</label>
+                    <button onclick="openScheduleModal()" 
+                            class="w-full bg-green-500 hover:bg-green-600 px-4 py-2 rounded text-sm">
+                        <i class="fas fa-clock mr-2"></i>Manage Schedules
+                    </button>
+                </div>
             </div>
             
             <div class="flex justify-end mt-6">
@@ -354,6 +390,133 @@
                         class="px-4 py-2 bg-blue-500 hover:bg-blue-600 rounded">
                     Close
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add new modal for schedule management -->
+    <div id="scheduleModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+        <div class="bg-gray-800 rounded-lg p-6 w-[600px] max-h-[80vh] overflow-y-auto transform transition-all">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-xl font-semibold">Schedule Manager</h3>
+                <button onclick="closeScheduleModal()" class="text-gray-400 hover:text-white">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <div class="space-y-6">
+                <!-- Add New Schedule Form -->
+                <div class="bg-gray-700 rounded-lg p-4">
+                    <h4 class="text-lg font-medium mb-4">Add New Schedule</h4>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300 mb-1">Schedule Name</label>
+                            <input type="text" id="scheduleName" 
+                                   class="w-full bg-gray-600 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                   placeholder="Enter schedule name">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300 mb-1">Select Preset</label>
+                            <select id="schedulePreset" 
+                                    class="w-full bg-gray-600 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <!-- Presets will be loaded dynamically -->
+                            </select>
+                        </div>
+                        
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-300 mb-1">Start Time</label>
+                                <input type="time" id="scheduleStartTime" 
+                                       class="w-full bg-gray-600 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-300 mb-1">End Time</label>
+                                <input type="time" id="scheduleEndTime" 
+                                       class="w-full bg-gray-600 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300 mb-2">Days of Week</label>
+                            <div class="flex flex-wrap gap-2">
+                                <button onclick="toggleDay(this, 'monday')" 
+                                        class="px-3 py-1 rounded bg-gray-600 hover:bg-gray-500 transition-colors">
+                                    Mon
+                                </button>
+                                <button onclick="toggleDay(this, 'tuesday')" 
+                                        class="px-3 py-1 rounded bg-gray-600 hover:bg-gray-500 transition-colors">
+                                    Tue
+                                </button>
+                                <button onclick="toggleDay(this, 'wednesday')" 
+                                        class="px-3 py-1 rounded bg-gray-600 hover:bg-gray-500 transition-colors">
+                                    Wed
+                                </button>
+                                <button onclick="toggleDay(this, 'thursday')" 
+                                        class="px-3 py-1 rounded bg-gray-600 hover:bg-gray-500 transition-colors">
+                                    Thu
+                                </button>
+                                <button onclick="toggleDay(this, 'friday')" 
+                                        class="px-3 py-1 rounded bg-gray-600 hover:bg-gray-500 transition-colors">
+                                    Fri
+                                </button>
+                                <button onclick="toggleDay(this, 'saturday')" 
+                                        class="px-3 py-1 rounded bg-gray-600 hover:bg-gray-500 transition-colors">
+                                    Sat
+                                </button>
+                                <button onclick="toggleDay(this, 'sunday')" 
+                                        class="px-3 py-1 rounded bg-gray-600 hover:bg-gray-500 transition-colors">
+                                    Sun
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <button onclick="saveSchedule()" 
+                                class="w-full bg-blue-500 hover:bg-blue-600 px-4 py-2 rounded text-sm">
+                            <i class="fas fa-save mr-2"></i>Save Schedule
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Existing Schedules -->
+                <div>
+                    <h4 class="text-lg font-medium mb-4">Existing Schedules</h4>
+                    <div id="schedulesList" class="space-y-3">
+                        <!-- Schedules will be loaded dynamically -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add new modal for game goals -->
+    <div id="goalsModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+        <div class="bg-gray-800 rounded-lg p-6 w-96 transform transition-all">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-xl font-semibold">Set Game Goal</h3>
+                <button onclick="closeGoalsModal()" class="text-gray-400 hover:text-white">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-1">Target Hours</label>
+                    <input type="number" id="targetHours" min="1" step="1" 
+                           class="w-full bg-gray-700 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                           placeholder="Enter target hours">
+                </div>
+                
+                <div class="flex justify-end gap-3">
+                    <button onclick="closeGoalsModal()" 
+                            class="px-4 py-2 bg-gray-600 hover:bg-gray-500 rounded">
+                        Cancel
+                    </button>
+                    <button onclick="saveGameGoal()" 
+                            class="px-4 py-2 bg-blue-500 hover:bg-blue-600 rounded">
+                        Save Goal
+                    </button>
+                </div>
             </div>
         </div>
     </div>

@@ -994,10 +994,95 @@ def create_tray_icon():
             icon.stop()
             window.destroy()
             sys.exit(0)
-        
-        # Create the tray icon menu
+            
+        def emergency_stop_tray(icon, item):
+            # Stop all running games
+            stopped_games = []
+            for game_id in list(running_games.keys()):
+                try:
+                    pid = running_games[game_id]
+                    process = psutil.Process(pid)
+                    for child in process.children(recursive=True):
+                        child.terminate()
+                    process.terminate()
+                    stopped_games.append(game_id)
+                    del running_games[game_id]
+                    
+                    # Update game session
+                    if game_id in game_sessions and 'start_time' in game_sessions[game_id]:
+                        session_duration = (datetime.now() - game_sessions[game_id]['start_time']).total_seconds()
+                        game_sessions[game_id]['total_time'] += session_duration
+                        game_sessions[game_id].pop('start_time', None)
+                except (psutil.NoSuchProcess, psutil.AccessDenied):
+                    del running_games[game_id]
+            
+            save_recent_action(f"Emergency stop from tray - Stopped {len(stopped_games)} games")
+            save_statistics()
+            if icon:
+                icon.notify(f"Stopped {len(stopped_games)} games", "Emergency Stop")
+
+        def run_preset_tray(icon, item):
+            preset_name = item.text
+            # Check Steam status first
+            steam_status = check_steam_status()
+            if not steam_status['running']:
+                icon.notify("Steam is not running. Please start Steam first.", "Error")
+                return
+            
+            if not steam_status['online']:
+                icon.notify("Steam appears to be offline. Please ensure Steam is online.", "Error")
+                return
+            
+            try:
+                # Get the preset data from JSON file
+                json_path = os.path.join(PRESETS_DIR, f"{preset_name}.json")
+                if not os.path.exists(json_path):
+                    icon.notify(f"Preset {preset_name} not found", "Error")
+                    return
+                    
+                with open(json_path, 'r') as f:
+                    games = json.load(f)
+                
+                # Start each game
+                started_games = 0
+                for game in games:
+                    game_id = str(game['id'])
+                    if game_id not in running_games:  # Only start if not already running
+                        process = subprocess.Popen([IDLER_PATH, game_id], shell=True)
+                        running_games[game_id] = process.pid
+                        started_games += 1
+                        
+                        # Initialize or update game session
+                        if game_id not in game_sessions:
+                            game_sessions[game_id] = {
+                                'total_time': 0,
+                                'name': game['name'],
+                                'image': game['image']
+                            }
+                        game_sessions[game_id]['start_time'] = datetime.now()
+                
+                save_statistics()
+                icon.notify(f"Started {started_games} games from preset {preset_name}", "Preset Started")
+                save_recent_action(f"Started preset {preset_name} from tray")
+            except Exception as e:
+                icon.notify(f"Error running preset: {str(e)}", "Error")
+
+        # Create Presets submenu
+        presets = []
+        if os.path.exists(PRESETS_DIR):
+            for filename in os.listdir(PRESETS_DIR):
+                if filename.endswith('.json'):
+                    preset_name = filename[:-5]  # Remove .json extension
+                    presets.append(pystray.MenuItem(preset_name, run_preset_tray))
+
+        # Create the tray icon menu with presets submenu
         menu = (
             pystray.MenuItem("Show", show_window),
+            pystray.Menu.SEPARATOR,
+            pystray.MenuItem("Presets", pystray.Menu(*presets)) if presets else None,
+            pystray.Menu.SEPARATOR,
+            pystray.MenuItem("Emergency Stop", emergency_stop_tray, enabled=lambda item: bool(running_games)),
+            pystray.Menu.SEPARATOR,
             pystray.MenuItem("Exit", exit_app)
         )
         

@@ -569,9 +569,13 @@ async function stopPreset(presetName) {
             }
         }
 
-        // Update UI
+        // Remove from running presets
+        runningPresets.delete(presetName);
+
+        // Update UI with fresh data
         updateGamesList();
-        updatePresetsList(presets);
+        const updatedPresets = await loadPresets(true);
+        updatePresetsList(updatedPresets);
         
         // Show success message
         showNotification(`Stopped all games in preset "${presetName}"`, 'success');
@@ -1522,10 +1526,6 @@ async function completeWelcomeSetup() {
             },
             body: JSON.stringify(settings)
         });
-
-        if (!settingsResponse.ok) {
-            throw new Error('Failed to save settings');
-        }
 
         // Configure startup if enabled
         if (welcomeStartupEnabled) {

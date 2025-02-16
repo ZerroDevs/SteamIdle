@@ -1,7 +1,7 @@
 let currentGames = [];
 let runningGames = new Set();
 let runningPresets = new Set();
-let quickActionsEnabled = true; // Add this at the top with other state variables
+let quickActionsEnabled = false; // Changed from true to false
 
 // Add status checking intervals
 setInterval(updateGameStatuses, 5000); // Check every 5 seconds
@@ -1094,12 +1094,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const panel = document.getElementById('quickActionsPanel');
     const icon = document.getElementById('quickActionsIcon');
     
-    // Set initial styles
-    panel.style.maxHeight = panel.scrollHeight + 'px';
-    panel.style.opacity = '1';
-    panel.style.marginBottom = '2rem';
+    // Set initial styles for closed state
+    panel.style.maxHeight = '0';
+    panel.style.opacity = '0';
+    panel.style.marginBottom = '0';
     panel.style.overflow = 'hidden';
-    icon.style.transform = 'rotate(0deg)';
+    icon.style.transform = 'rotate(-90deg)';
 });
 
 // Add these functions after the key recording initialization

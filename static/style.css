@@ -1,0 +1,191 @@
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #1a1a1a;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #3b82f6;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #2563eb;
+}
+
+/* Animations */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.game-card {
+    animation: fadeIn 0.3s ease-out;
+    transition: transform 0.2s ease-out;
+}
+
+.game-card:hover {
+    transform: translateY(-5px);
+}
+
+/* Custom Card Styles */
+.game-card {
+    background: linear-gradient(145deg, #2d3748, #1a202c);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.preset-card {
+    background: linear-gradient(145deg, #2d3748, #1a202c);
+    transition: all 0.3s ease;
+}
+
+.preset-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+/* Input Focus Effects */
+input:focus {
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.5);
+}
+
+/* Button Hover Effects */
+button {
+    transition: all 0.2s ease;
+}
+
+button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+button:active {
+    transform: translateY(0);
+}
+
+/* Games Info Section */
+.games-info {
+    margin-top: 1rem;
+    background: rgba(17, 24, 39, 0.4);
+    border-radius: 0.5rem;
+    padding: 1rem;
+}
+
+.games-info ul {
+    scrollbar-width: thin;
+    scrollbar-color: #3b82f6 #1a1a1a;
+}
+
+.games-info ul::-webkit-scrollbar {
+    width: 6px;
+}
+
+.games-info ul::-webkit-scrollbar-track {
+    background: #1a1a1a;
+    border-radius: 3px;
+}
+
+.games-info ul::-webkit-scrollbar-thumb {
+    background: #3b82f6;
+    border-radius: 3px;
+}
+
+/* Animation for showing/hiding games info */
+.games-info {
+    transition: all 0.3s ease-in-out;
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.games-info.hidden {
+    opacity: 0;
+    transform: translateY(-10px);
+    display: none;
+}
+
+/* Notifications */
+@keyframes slideIn {
+    from { transform: translateY(20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+.fixed {
+    z-index: 1000;
+}
+
+/* Add animation to notifications */
+.fixed.bottom-4 {
+    animation: slideIn 0.3s ease-out;
+}
+
+/* Toggle Switch Styles */
+.toggle-switch {
+    --toggle-width: 4rem;
+    --toggle-height: 2rem;
+}
+
+.toggle-slider {
+    position: relative;
+    transition: all 0.3s ease-in-out;
+}
+
+.toggle-slider::after {
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* Toggle Labels */
+.toggle-label-off,
+.toggle-label-on {
+    transition: opacity 0.3s ease-in-out;
+    font-weight: 600;
+    z-index: 1;
+}
+
+/* Toggle States */
+.peer:checked + .toggle-slider {
+    background-color: #2563eb;
+}
+
+.peer:checked + .toggle-slider .toggle-label-off {
+    opacity: 0;
+}
+
+.peer:checked + .toggle-slider .toggle-label-on {
+    opacity: 1;
+}
+
+.peer:not(:checked) + .toggle-slider .toggle-label-off {
+    opacity: 1;
+}
+
+.peer:not(:checked) + .toggle-slider .toggle-label-on {
+    opacity: 0;
+}
+
+/* Toggle Hover Effects */
+.toggle-slider:hover {
+    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1);
+}
+
+.peer:focus + .toggle-slider {
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
+}
+
+/* Toggle Animation */
+@keyframes toggleSlide {
+    from { transform: translateX(0); }
+    to { transform: translateX(2rem); }
+}
+
+.peer:checked + .toggle-slider::after {
+    animation: toggleSlide 0.3s ease-out forwards;
+}
+
+/* Toggle Switch Text */
+.peer + div span {
+    font-weight: 500;
+    letter-spacing: 0.05em;
+} 

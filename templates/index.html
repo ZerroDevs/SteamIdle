@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Steam Idle Manager</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="bg-gray-900 text-white">
+    <div class="container mx-auto px-4 py-8">
+        <div class="flex justify-between items-center mb-8">
+            <h1 class="text-4xl font-bold text-blue-500">Steam Idle Manager</h1>
+            <div class="flex items-center gap-4">
+                <div id="steamStatus" class="text-gray-500">
+                    <i class="fas fa-circle mr-1"></i>Checking Steam...
+                </div>
+                <button onclick="launchSteam()" class="bg-blue-500 hover:bg-blue-600 px-4 py-2 rounded text-sm">
+                    <i class="fas fa-play mr-1"></i>Launch Steam
+                </button>
+            </div>
+        </div>
+        
+        <!-- Tabs -->
+        <div class="mb-8">
+            <div class="border-b border-gray-700">
+                <nav class="-mb-px flex">
+                    <button onclick="switchTab('games')" id="gamesTab" 
+                            class="tab-button active w-1/3 py-4 px-6 text-center border-b-2 font-medium text-lg">
+                        <i class="fas fa-gamepad mr-2"></i>Games
+                    </button>
+                    <button onclick="switchTab('presets')" id="presetsTab" 
+                            class="tab-button w-1/3 py-4 px-6 text-center border-b-2 font-medium text-lg">
+                        <i class="fas fa-list mr-2"></i>Presets
+                    </button>
+                    <button onclick="switchTab('settings')" id="settingsTab" 
+                            class="tab-button w-1/3 py-4 px-6 text-center border-b-2 font-medium text-lg">
+                        <i class="fas fa-cog mr-2"></i>Settings
+                    </button>
+                </nav>
+            </div>
+        </div>
+
+        <!-- Games Tab Content -->
+        <div id="gamesContent" class="tab-content">
+            <!-- Add Game Section -->
+            <div class="bg-gray-800 rounded-lg p-6 mb-8">
+                <h2 class="text-2xl font-semibold mb-4">Add Game</h2>
+                <div class="flex gap-4">
+                    <input type="text" id="gameId" placeholder="Enter Steam Game ID" 
+                           class="flex-1 bg-gray-700 rounded px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <button onclick="fetchGame()" 
+                            class="bg-blue-500 hover:bg-blue-600 px-6 py-2 rounded font-semibold transition-colors">
+                        Add Game
+                    </button>
+                </div>
+            </div>
+
+            <!-- Current Games Section -->
+            <div class="bg-gray-800 rounded-lg p-6">
+                <h2 class="text-2xl font-semibold mb-4">Current Games</h2>
+                <div id="gamesList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <!-- Games will be added here dynamically -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Presets Tab Content -->
+        <div id="presetsContent" class="tab-content hidden">
+            <!-- Import Preset Section -->
+            <div class="bg-gray-800 rounded-lg p-6 mb-8">
+                <h2 class="text-2xl font-semibold mb-4">Import Preset</h2>
+                <div class="flex gap-4 mb-4">
+                    <input type="file" id="presetFile" accept=".bat" class="hidden">
+                    <button onclick="document.getElementById('presetFile').click()" 
+                            class="bg-blue-500 hover:bg-blue-600 px-6 py-2 rounded font-semibold transition-colors">
+                        <i class="fas fa-file-import mr-2"></i>Import BAT File
+                    </button>
+                </div>
+                <div class="flex gap-4">
+                    <input type="text" id="presetName" placeholder="Preset Name" 
+                           class="flex-1 bg-gray-700 rounded px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <button onclick="savePreset()" 
+                            class="bg-green-500 hover:bg-green-600 px-6 py-2 rounded font-semibold transition-colors">
+                        Save Preset
+                    </button>
+                </div>
+            </div>
+
+            <!-- Presets List -->
+            <div class="bg-gray-800 rounded-lg p-6">
+                <h2 class="text-2xl font-semibold mb-4">My Presets</h2>
+                <div id="presetsList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <!-- Presets will be added here dynamically -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings Tab Content -->
+        <div id="settingsContent" class="tab-content hidden">
+            <div class="bg-gray-800 rounded-lg p-6">
+                <h2 class="text-2xl font-semibold mb-6">Application Settings</h2>
+                
+                <div class="space-y-6">
+                    <!-- System Tray Settings -->
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h3 class="text-lg font-medium">Minimize to System Tray</h3>
+                            <p class="text-gray-400 text-sm">When enabled, closing the window will minimize to system tray instead of quitting</p>
+                        </div>
+                        <label class="toggle-switch relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="minimizeToTray" class="sr-only peer" onchange="updateSettings()">
+                            <div class="toggle-slider w-16 h-8 bg-gray-700 rounded-full 
+                                      after:content-[''] after:absolute after:top-1 after:left-1 
+                                      after:bg-white after:rounded-full after:h-6 after:w-6 
+                                      after:transition-all after:duration-300 peer-checked:after:translate-x-8 
+                                      peer-checked:bg-blue-600">
+                                <span class="toggle-label-off absolute text-xs text-gray-400 left-2 top-2">OFF</span>
+                                <span class="toggle-label-on absolute text-xs text-white right-2 top-2 opacity-0">ON</span>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html> 

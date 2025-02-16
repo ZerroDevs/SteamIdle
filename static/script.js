@@ -1188,6 +1188,8 @@ function openSettings() {
     
     // Update theme button states
     updateThemeButtons();
+    // Update startup toggle state
+    updateStartupToggle();
 }
 
 function closeSettings() {
@@ -1219,12 +1221,64 @@ function updateThemeButtons() {
     }
 }
 
+// Add after the theme functions
+async function updateStartupToggle() {
+    try {
+        const response = await fetch('/api/startup-status');
+        const data = await response.json();
+        const toggle = document.getElementById('startupToggle');
+        
+        if (data.enabled) {
+            toggle.classList.add('bg-blue-500');
+            toggle.classList.remove('bg-gray-500');
+            toggle.querySelector('span:last-child').classList.add('translate-x-5');
+        } else {
+            toggle.classList.add('bg-gray-500');
+            toggle.classList.remove('bg-blue-500');
+            toggle.querySelector('span:last-child').classList.remove('translate-x-5');
+        }
+    } catch (error) {
+        console.error('Error updating startup status:', error);
+    }
+}
+
+async function toggleStartup() {
+    try {
+        const toggle = document.getElementById('startupToggle');
+        const isEnabled = toggle.classList.contains('bg-blue-500');
+        
+        const response = await fetch('/api/startup-status', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                enabled: !isEnabled
+            })
+        });
+        
+        if (response.ok) {
+            showNotification(`Startup ${!isEnabled ? 'enabled' : 'disabled'}`, 'success');
+            updateStartupToggle();
+        } else {
+            const data = await response.json();
+            showNotification(data.message || 'Failed to update startup status', 'error');
+        }
+    } catch (error) {
+        console.error('Error toggling startup:', error);
+        showNotification('Failed to update startup status', 'error');
+    }
+}
+
 // Add to the existing DOMContentLoaded event listener
 document.addEventListener('DOMContentLoaded', () => {
     // ... existing initialization code ...
     
     // Initialize theme
     setTheme(currentTheme);
+    
+    // Initialize startup toggle
+    updateStartupToggle();
     
     // Add click outside handler for settings modal
     const settingsModal = document.getElementById('settingsModal');

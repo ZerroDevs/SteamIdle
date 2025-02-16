@@ -318,6 +318,22 @@
                         </button>
                     </div>
                 </div>
+
+                <!-- Run on Startup Toggle -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-2">Application Settings</label>
+                    <div class="flex items-center justify-between bg-gray-700 p-3 rounded">
+                        <div>
+                            <span class="block font-medium">Run on Startup</span>
+                            <span class="text-sm text-gray-400">Launch Steam Idle Manager when Windows starts</span>
+                        </div>
+                        <button id="startupToggle" onclick="toggleStartup()" 
+                                class="relative inline-flex items-center h-6 rounded-full w-11 transition-colors focus:outline-none">
+                            <span class="sr-only">Toggle startup</span>
+                            <span class="inline-block w-4 h-4 transform bg-white rounded-full transition-transform"></span>
+                        </button>
+                    </div>
+                </div>
             </div>
             
             <div class="flex justify-end mt-6">

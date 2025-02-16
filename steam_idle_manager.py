@@ -747,6 +747,81 @@ def emergency_stop():
         "stopped_games": stopped_games
     })
 
+@app.route('/api/startup-status', methods=['GET', 'POST'])
+def startup_status():
+    if request.method == 'GET':
+        return jsonify({"enabled": get_startup_status()})
+    
+    elif request.method == 'POST':
+        data = request.get_json()
+        success = set_startup_status(data.get('enabled', False))
+        
+        if success:
+            status = "enabled" if data.get('enabled') else "disabled"
+            save_recent_action(f"Startup {status}")
+            return jsonify({"status": "success"})
+        else:
+            return jsonify({
+                "status": "error",
+                "message": "Failed to update startup status"
+            }), 500
+
+def get_startup_status():
+    try:
+        key = winreg.OpenKey(
+            winreg.HKEY_CURRENT_USER,
+            r"Software\Microsoft\Windows\CurrentVersion\Run",
+            0,
+            winreg.KEY_READ
+        )
+        try:
+            winreg.QueryValueEx(key, "SteamIdleManager")
+            return True
+        except WindowsError:
+            return False
+        finally:
+            winreg.CloseKey(key)
+    except WindowsError:
+        return False
+
+def set_startup_status(enable):
+    try:
+        key = winreg.OpenKey(
+            winreg.HKEY_CURRENT_USER,
+            r"Software\Microsoft\Windows\CurrentVersion\Run",
+            0,
+            winreg.KEY_SET_VALUE
+        )
+        
+        if enable:
+            # Get the path to the executable
+            if getattr(sys, 'frozen', False):
+                # Running as compiled executable
+                app_path = f'"{sys.executable}"'
+            else:
+                # Running as script
+                app_path = f'pythonw "{os.path.abspath(__file__)}"'
+            
+            winreg.SetValueEx(
+                key,
+                "SteamIdleManager",
+                0,
+                winreg.REG_SZ,
+                app_path
+            )
+        else:
+            try:
+                winreg.DeleteValue(key, "SteamIdleManager")
+            except WindowsError:
+                pass
+        
+        return True
+    except Exception as e:
+        print(f"Error setting startup status: {e}")
+        return False
+    finally:
+        winreg.CloseKey(key)
+
 if __name__ == '__main__':
     window = webview.create_window('Steam Idle Manager', app)
     webview.start() 

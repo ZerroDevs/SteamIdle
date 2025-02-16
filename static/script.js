@@ -1684,7 +1684,7 @@ function updateEditPresetGamesList() {
 async function addGameToPreset() {
     const gameId = document.getElementById('editPresetGameId').value.trim();
     if (!gameId) {
-        showNotification('Please enter a game ID', 'error');
+        showNotification('Please input game ID or Name', 'error');
         return;
     }
     

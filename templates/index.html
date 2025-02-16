@@ -375,6 +375,15 @@
                     </button>
                 </div>
 
+                <!-- Reset Statistics -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-2">Reset Statistics</label>
+                    <button onclick="confirmResetStats()" 
+                            class="w-full bg-red-500 hover:bg-red-600 px-4 py-2 rounded text-sm">
+                        <i class="fas fa-trash mr-2"></i>Reset All Statistics
+                    </button>
+                </div>
+
                 <!-- Schedule Manager -->
                 <div>
                     <label class="block text-sm font-medium text-gray-300 mb-2">Schedule Manager</label>
@@ -517,6 +526,29 @@
                         Save Goal
                     </button>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Reset Statistics Confirmation Modal -->
+    <div id="resetStatsModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+        <div class="bg-gray-800 rounded-lg p-6 w-96 transform transition-all">
+            <div class="text-center mb-6">
+                <div class="bg-red-500 w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center">
+                    <i class="fas fa-exclamation-triangle text-2xl text-white"></i>
+                </div>
+                <h3 class="text-xl font-semibold mb-2">Reset Statistics</h3>
+                <p class="text-gray-400">Are you sure you want to reset all statistics? This action cannot be undone and will remove all playtime data.</p>
+            </div>
+            <div class="flex justify-center gap-4">
+                <button onclick="closeResetStatsModal()" 
+                        class="px-6 py-2 bg-gray-600 hover:bg-gray-500 rounded font-medium">
+                    Cancel
+                </button>
+                <button onclick="resetStats()" 
+                        class="px-6 py-2 bg-red-500 hover:bg-red-600 rounded font-medium">
+                    Reset Statistics
+                </button>
             </div>
         </div>
     </div>

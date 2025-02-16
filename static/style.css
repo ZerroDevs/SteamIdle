@@ -1,3 +1,126 @@
+/* Container sizing */
+.container {
+    max-width: 1400px !important;
+    margin: 0 auto;
+    padding: 2rem;
+}
+
+/* Settings Modal Specific Styles */
+#settingsModal .bg-gray-800 {
+    width: 800px !important;
+    max-height: 90vh !important;
+    margin: 2rem auto;
+}
+
+#settingsModal .bg-gray-800 > div:nth-child(2) {
+    max-height: calc(90vh - 180px);
+    overflow-y: auto;
+    padding-right: 1rem;
+}
+
+/* Improved Modal Scrollbar */
+#settingsModal .bg-gray-800 > div:nth-child(2)::-webkit-scrollbar {
+    width: 8px;
+}
+
+#settingsModal .bg-gray-800 > div:nth-child(2)::-webkit-scrollbar-track {
+    background: #1f2937;
+    border-radius: 4px;
+}
+
+#settingsModal .bg-gray-800 > div:nth-child(2)::-webkit-scrollbar-thumb {
+    background: #3b82f6;
+    border-radius: 4px;
+}
+
+#settingsModal .bg-gray-800 > div:nth-child(2)::-webkit-scrollbar-thumb:hover {
+    background: #2563eb;
+}
+
+/* Settings Sections */
+#settingsModal .space-y-6 > div {
+    background: #1f2937;
+    padding: 1.5rem;
+    border-radius: 0.5rem;
+    margin-bottom: 1.5rem;
+}
+
+#settingsModal .space-y-6 > div:last-child {
+    margin-bottom: 0;
+}
+
+/* Settings Section Headers */
+#settingsModal label.block.text-sm.font-medium {
+    font-size: 1rem;
+    margin-bottom: 1rem;
+    color: #e5e7eb;
+}
+
+/* Settings Items */
+#settingsModal .space-y-3 > div {
+    padding: 1rem;
+    border-radius: 0.5rem;
+    background: #374151;
+}
+
+/* Game and Preset Cards */
+.game-card, .preset-card {
+    min-height: 450px;
+}
+
+.game-card img {
+    height: 280px !important;
+    object-fit: cover;
+}
+
+/* Quick Actions Panel */
+#quickActionsPanel .grid {
+    gap: 2rem !important;
+}
+
+#quickActionsPanel .bg-gray-700 {
+    padding: 1.5rem !important;
+}
+
+/* Statistics Cards */
+#statsContent .grid {
+    gap: 2rem !important;
+}
+
+#statsContent .bg-gray-800 {
+    padding: 2rem !important;
+}
+
+/* Game List Grid */
+#gamesList {
+    grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)) !important;
+    gap: 2rem !important;
+}
+
+/* Preset List Grid */
+#presetsList {
+    grid-template-columns: repeat(auto-fill, minmax(450px, 1fr)) !important;
+    gap: 2rem !important;
+}
+
+/* Settings Buttons */
+#settingsModal button {
+    padding: 0.75rem 1.5rem;
+    font-size: 0.95rem;
+}
+
+#settingsModal .bg-blue-500 {
+    background-color: #3b82f6 !important;
+}
+
+#settingsModal .bg-red-500 {
+    background-color: #ef4444 !important;
+}
+
+#settingsModal .bg-green-500 {
+    background-color: #10b981 !important;
+}
+
 /* Custom Scrollbar */
 ::-webkit-scrollbar {
     width: 8px;
@@ -195,4 +318,31 @@ body {
 /* Theme transition */
 body, div, button {
     transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Settings Toggle Buttons */
+#settingsModal .relative.inline-flex {
+    position: relative;
+    width: 44px;
+    height: 24px;
+    transition: background-color 0.3s ease;
+}
+
+#settingsModal .relative.inline-flex span.inline-block {
+    position: absolute;
+    left: 2px;
+    top: 2px;
+    width: 20px;
+    height: 20px;
+    background-color: white;
+    border-radius: 50%;
+    transition: transform 0.3s ease;
+}
+
+#settingsModal .bg-blue-500 span.inline-block {
+    transform: translateX(20px);
+}
+
+#settingsModal .bg-gray-500 span.inline-block {
+    transform: translateX(0);
 } 

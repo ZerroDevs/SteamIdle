@@ -1120,13 +1120,37 @@ def toggle_auto_reconnect():
     save_recent_action(f"{'Enabled' if AUTO_RECONNECT else 'Disabled'} auto-reconnect")
     return jsonify({"status": "success"})
 
+@app.route('/api/stats/reset', methods=['POST'])
+def reset_statistics():
+    global game_sessions
+    try:
+        # Clear game sessions
+        game_sessions = {}
+        
+        # Delete stats file
+        if os.path.exists(STATS_FILE):
+            os.remove(STATS_FILE)
+            
+        # Save empty statistics
+        save_statistics()
+        
+        # Log the action
+        save_recent_action("Reset all statistics")
+        
+        return jsonify({"status": "success", "message": "Statistics reset successfully"})
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
+
 if __name__ == '__main__':
     # Load initial settings
     settings = load_settings()
     minimize_to_tray = settings.get('minimize_to_tray', False)
     
     # Create window
-    window = webview.create_window('Steam Idle Manager', app, minimized=False)
+    window = webview.create_window('Steam Idle Manager', app, minimized=False, width=1440, height=1000)
     
     # Set the window event handlers
     window.events.closed += on_closed

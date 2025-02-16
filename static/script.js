@@ -1436,6 +1436,47 @@ async function exportStats() {
     }
 }
 
+// Reset Statistics Functions
+function confirmResetStats() {
+    const modal = document.getElementById('resetStatsModal');
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+}
+
+function closeResetStatsModal() {
+    const modal = document.getElementById('resetStatsModal');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+}
+
+async function resetStats() {
+    try {
+        const response = await fetch('/api/stats/reset', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (response.ok) {
+            showNotification('Statistics reset successfully', 'success');
+            // Update statistics display
+            updateStatistics();
+            // Update recent actions
+            updateRecentActions();
+            // Close the modal
+            closeResetStatsModal();
+        } else {
+            const data = await response.json();
+            throw new Error(data.message || 'Failed to reset statistics');
+        }
+    } catch (error) {
+        console.error('Error resetting statistics:', error);
+        showNotification('Failed to reset statistics', 'error');
+        closeResetStatsModal();
+    }
+}
+
 // Schedule Management Functions
 let selectedDays = new Set();
 
@@ -1650,6 +1691,14 @@ document.addEventListener('DOMContentLoaded', () => {
     goalsModal.addEventListener('click', (e) => {
         if (e.target === goalsModal) {
             closeGoalsModal();
+        }
+    });
+    
+    // Add click outside handler for reset stats modal
+    const resetStatsModal = document.getElementById('resetStatsModal');
+    resetStatsModal.addEventListener('click', (e) => {
+        if (e.target === resetStatsModal) {
+            closeResetStatsModal();
         }
     });
 }); 

@@ -1,13 +1,3 @@
-"""
-Steam Idle Manager
-Copyright (c) 2025 ZerroDevs
-https://github.com/ZerroDevs
-
-A powerful Steam game idling manager with modern UI and extensive functionality.
-This software is licensed under the MIT License with additional terms.
-See the LICENSE file for full license information.
-"""
-
 import os
 import sys
 import json

@@ -376,4 +376,58 @@ body, div, button {
                      0 0 20px rgba(252, 211, 77, 0.3),
                      0 0 30px rgba(252, 211, 77, 0.2);
     }
+}
+
+/* Edit Preset Modal Styles */
+#editPresetModal .bg-gray-800 {
+    width: 800px !important;
+    max-height: 90vh !important;
+    margin: 2rem auto;
+    display: flex;
+    flex-direction: column;
+}
+
+#editPresetModal #editPresetCurrentGames {
+    max-height: 300px !important;
+    overflow-y: auto;
+    padding-right: 1rem;
+    scrollbar-width: thin;
+    scrollbar-color: #3b82f6 #1a1a1a;
+}
+
+#editPresetModal #editPresetCurrentGames::-webkit-scrollbar {
+    width: 8px;
+}
+
+#editPresetModal #editPresetCurrentGames::-webkit-scrollbar-track {
+    background: #1a1a1a;
+    border-radius: 4px;
+}
+
+#editPresetModal #editPresetCurrentGames::-webkit-scrollbar-thumb {
+    background: #3b82f6;
+    border-radius: 4px;
+}
+
+#editPresetModal #editPresetCurrentGames::-webkit-scrollbar-thumb:hover {
+    background: #2563eb;
+}
+
+#editPresetModal .game-item {
+    background: #374151;
+    padding: 1rem;
+    margin-bottom: 0.5rem;
+    border-radius: 0.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: all 0.2s ease;
+}
+
+#editPresetModal .game-item:hover {
+    background: #4B5563;
+}
+
+#editPresetModal .game-item:last-child {
+    margin-bottom: 0;
 } 

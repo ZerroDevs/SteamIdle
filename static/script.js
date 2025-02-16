@@ -5,6 +5,8 @@ let quickActionsEnabled = false; // Changed from true to false
 let currentTheme = localStorage.getItem('theme') || 'dark';
 let presetToDelete = null;
 let presetToRename = null;
+let presetToEdit = null;
+let editedGames = [];
 
 // Add status checking intervals
 setInterval(updateGameStatuses, 5000); // Check every 5 seconds
@@ -38,7 +40,7 @@ async function checkGameStatus(gameId) {
                 runningGames.delete(gameId);
             }
             if (wasRunning !== data.running) {
-                updateGamesList(); // Update UI if status changed
+                updateGamesList();
             }
         }
     } catch (error) {
@@ -227,6 +229,10 @@ async function updatePresetsList(presets) {
                     <button onclick="${isPresetRunning ? 'stopPreset' : 'runPreset'}('${preset.name}')" 
                             class="bg-${isPresetRunning ? 'red' : 'green'}-500 hover:bg-${isPresetRunning ? 'red' : 'green'}-600 px-4 py-2 rounded text-sm">
                         <i class="fas fa-${isPresetRunning ? 'stop' : 'play'} mr-1"></i>${isPresetRunning ? 'Stop All' : 'Run All'}
+                    </button>
+                    <button onclick="showEditPresetModal('${preset.name}')"
+                            class="bg-blue-500 hover:bg-blue-600 px-4 py-2 rounded text-sm">
+                        <i class="fas fa-cog mr-1"></i>Edit Games
                     </button>
                     <button onclick="togglePresetInfo(this)" 
                             class="bg-blue-500 hover:bg-blue-600 px-4 py-2 rounded text-sm">
@@ -1828,4 +1834,128 @@ async function confirmRenamePreset() {
     }
     
     closeRenamePresetModal();
+}
+
+function showEditPresetModal(presetName) {
+    presetToEdit = presetName;
+    editedGames = [];
+    
+    // Get the preset data
+    fetch('/api/get-presets')
+        .then(response => response.json())
+        .then(presets => {
+            const preset = presets.find(p => p.name === presetName);
+            if (preset) {
+                editedGames = [...preset.games];
+                document.getElementById('editPresetName').textContent = presetName;
+                updateEditPresetGamesList();
+            }
+        });
+    
+    const modal = document.getElementById('editPresetModal');
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    
+    // Focus on the game ID input
+    setTimeout(() => {
+        document.getElementById('editPresetGameId').focus();
+    }, 100);
+}
+
+function closeEditPresetModal() {
+    const modal = document.getElementById('editPresetModal');
+    modal.classList.remove('flex');
+    modal.classList.add('hidden');
+    presetToEdit = null;
+    editedGames = [];
+}
+
+function updateEditPresetGamesList() {
+    const container = document.getElementById('editPresetCurrentGames');
+    container.innerHTML = editedGames.map(game => `
+        <div class="game-item">
+            <div class="flex items-center gap-3">
+                <img src="${game.image}" alt="${game.name}" class="w-12 h-12 rounded object-cover">
+                <div>
+                    <div class="font-medium text-white">${game.name}</div>
+                    <div class="text-sm text-gray-400">ID: ${game.id}</div>
+                </div>
+            </div>
+            <button onclick="removeGameFromPreset('${game.id}')" 
+                    class="bg-red-500 hover:bg-red-600 px-4 py-2 rounded text-sm transition-colors duration-200">
+                <i class="fas fa-times mr-1"></i>Remove
+            </button>
+        </div>
+    `).join('') || '<div class="text-gray-400 text-sm p-4 text-center">No games in preset</div>';
+}
+
+async function addGameToPreset() {
+    const gameId = document.getElementById('editPresetGameId').value.trim();
+    if (!gameId) {
+        showNotification('Please enter a game ID', 'error');
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/fetch-game', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ gameId })
+        });
+
+        const gameInfo = await response.json();
+        
+        // Check if game is already in the preset
+        if (editedGames.some(g => g.id === gameInfo.id)) {
+            showNotification('This game is already in the preset', 'error');
+            return;
+        }
+
+        editedGames.push(gameInfo);
+        updateEditPresetGamesList();
+        document.getElementById('editPresetGameId').value = '';
+        showNotification('Game added to preset', 'success');
+    } catch (error) {
+        console.error('Error adding game:', error);
+        showNotification('Failed to add game', 'error');
+    }
+}
+
+function removeGameFromPreset(gameId) {
+    editedGames = editedGames.filter(game => game.id !== gameId);
+    updateEditPresetGamesList();
+    showNotification('Game removed from preset', 'success');
+}
+
+async function saveEditedPreset() {
+    if (!presetToEdit || editedGames.length === 0) {
+        showNotification('Please add at least one game to the preset', 'error');
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/save-preset', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                name: presetToEdit,
+                games: editedGames
+            })
+        });
+
+        if (response.ok) {
+            showNotification('Preset updated successfully', 'success');
+            updatePresetsList(await loadPresets(true));
+            closeEditPresetModal();
+        } else {
+            throw new Error('Failed to update preset');
+        }
+    } catch (error) {
+        console.error('Error updating preset:', error);
+        showNotification('Failed to update preset', 'error');
+    }
 } 

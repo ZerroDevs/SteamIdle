@@ -628,5 +628,45 @@
             </div>
         </div>
     </div>
+
+    <!-- Edit Preset Modal -->
+    <div id="editPresetModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center">
+        <div class="bg-gray-800 rounded-lg p-6 w-[800px] max-h-[90vh] overflow-y-auto">
+            <h2 class="text-2xl font-semibold mb-4">Edit Preset: <span id="editPresetName" class="text-blue-400"></span></h2>
+            
+            <!-- Current Games Section -->
+            <div class="mb-6">
+                <h3 class="text-lg font-medium mb-3">Current Games</h3>
+                <div id="editPresetCurrentGames" class="space-y-2 max-h-[200px] overflow-y-auto bg-gray-700 p-4 rounded">
+                    <!-- Current games will be listed here -->
+                </div>
+            </div>
+
+            <!-- Add New Games Section -->
+            <div class="mb-6">
+                <h3 class="text-lg font-medium mb-3">Add New Game</h3>
+                <div class="flex gap-4">
+                    <input type="text" id="editPresetGameId" placeholder="Enter Game ID" 
+                           class="flex-1 bg-gray-700 rounded px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <button onclick="addGameToPreset()" 
+                            class="bg-green-500 hover:bg-green-600 px-6 py-2 rounded font-semibold transition-colors">
+                        <i class="fas fa-plus mr-2"></i>Add Game
+                    </button>
+                </div>
+            </div>
+
+            <!-- Buttons -->
+            <div class="flex justify-end gap-4">
+                <button onclick="closeEditPresetModal()" 
+                        class="bg-gray-600 hover:bg-gray-700 px-6 py-2 rounded font-semibold transition-colors">
+                    Cancel
+                </button>
+                <button onclick="saveEditedPreset()" 
+                        class="bg-blue-500 hover:bg-blue-600 px-6 py-2 rounded font-semibold transition-colors">
+                    Save Changes
+                </button>
+            </div>
+        </div>
+    </div>
 </body>
 </html> 

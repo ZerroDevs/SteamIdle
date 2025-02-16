@@ -538,4 +538,115 @@ body, div, button {
 
 #welcomeConfigModal .bg-gray-800 {
     animation: modalSlideIn 0.3s ease-out;
+}
+
+/* Loading Animation Styles */
+.loader {
+    width: 48px;
+    height: 48px;
+    border: 5px solid #3b82f6;
+    border-bottom-color: transparent;
+    border-radius: 50%;
+    display: inline-block;
+    box-sizing: border-box;
+    animation: rotation 1s linear infinite;
+}
+
+@keyframes rotation {
+    0% {
+        transform: rotate(0deg);
+    }
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+#importLoadingOverlay {
+    backdrop-filter: blur(4px);
+    transition: all 0.3s ease;
+}
+
+#importLoadingOverlay.hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+
+#importLoadingOverlay:not(.hidden) {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+/* Save Button Highlight Styles */
+.save-button-highlight {
+    box-shadow: 0 0 15px rgba(34, 197, 94, 0.5);
+    animation: glow 2s infinite;
+    position: relative;
+    z-index: 1;
+}
+
+@keyframes glow {
+    0% {
+        box-shadow: 0 0 15px rgba(34, 197, 94, 0.5);
+    }
+    50% {
+        box-shadow: 0 0 25px rgba(34, 197, 94, 0.8);
+    }
+    100% {
+        box-shadow: 0 0 15px rgba(34, 197, 94, 0.5);
+    }
+}
+
+.pulse-animation {
+    animation: pulse-green 2s infinite;
+}
+
+@keyframes pulse-green {
+    0% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.05);
+    }
+    100% {
+        transform: scale(1);
+    }
+}
+
+.save-reminder {
+    animation: fadeInUp 0.5s ease-out;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Replace slide-right animation with slide-left */
+.animate-slide-left {
+    animation: slideLeft 1s infinite;
+    display: inline-block;
+}
+
+@keyframes slideLeft {
+    0%, 100% {
+        transform: translateX(0);
+    }
+    50% {
+        transform: translateX(-5px);
+    }
+}
+
+/* Remove old animations */
+.animate-slide-right {
+    animation: none;
+}
+
+.animate-bounce {
+    animation: none;
 } 

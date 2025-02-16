@@ -134,36 +134,14 @@ function updateGamesList() {
 }
 
 async function savePreset() {
-    // Show the save preset modal instead of immediately saving
-    const modal = document.getElementById('savePresetModal');
-    const input = document.getElementById('savePresetNameInput');
-    
-    // Clear the input and focus it
-    input.value = document.getElementById('presetName').value.trim();
-    
-    // Show the modal
-    modal.classList.remove('hidden');
-    modal.classList.add('flex');
-    
-    // Focus the input
-    input.focus();
-}
-
-function closeSavePresetModal() {
-    const modal = document.getElementById('savePresetModal');
-    modal.classList.remove('flex');
-    modal.classList.add('hidden');
-}
-
-async function confirmSavePreset() {
-    const presetName = document.getElementById('savePresetNameInput').value.trim();
-    if (!presetName) {
-        showNotification('Please enter a preset name', 'error');
+    if (currentGames.length === 0) {
+        showNotification('Please add games to the preset first', 'error');
         return;
     }
 
-    if (currentGames.length === 0) {
-        showNotification('Please add at least one game to the preset', 'error');
+    const presetName = document.getElementById('presetName').value.trim();
+    if (!presetName) {
+        showNotification('Please enter a preset name', 'error');
         return;
     }
 
@@ -182,15 +160,28 @@ async function confirmSavePreset() {
         if (response.ok) {
             showNotification('Preset saved successfully', 'success');
             document.getElementById('presetName').value = '';
+            currentGames = [];
+            cleanupSaveHighlight(); // Clean up the highlighting
             loadPresets();
-            closeSavePresetModal();
         } else {
-            const data = await response.json();
-            showNotification(data.message || 'Failed to save preset', 'error');
+            showNotification('Failed to save preset', 'error');
         }
     } catch (error) {
         console.error('Error saving preset:', error);
         showNotification('Failed to save preset', 'error');
+    }
+}
+
+// Add this function to clean up the save button highlighting
+function cleanupSaveHighlight() {
+    const saveButton = document.querySelector('button[onclick="savePreset()"]');
+    const reminderText = document.querySelector('.save-reminder');
+    
+    if (saveButton) {
+        saveButton.classList.remove('save-button-highlight', 'pulse-animation');
+    }
+    if (reminderText) {
+        reminderText.remove();
     }
 }
 
@@ -510,61 +501,96 @@ function switchTab(tabName) {
 }
 
 async function importBatFile(file) {
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-        const content = e.target.result;
-        const gameIds = content.match(/steam-idle\.exe\s+(\d+)/g)
-            ?.map(match => match.match(/\d+/)[0]) || [];
+    const loadingOverlay = document.getElementById('importLoadingOverlay');
+    const statusText = document.getElementById('importStatus');
+    const saveButton = document.querySelector('button[onclick="savePreset()"]');
+    
+    try {
+        loadingOverlay.classList.remove('hidden');
+        statusText.textContent = 'Analyzing BAT file...';
         
-        if (gameIds.length === 0) {
-            alert('No valid game IDs found in the BAT file');
-            return;
-        }
-
-        // Get preset name from file name (remove .bat extension)
-        const presetName = file.name.replace('.bat', '');
+        const reader = new FileReader();
         
-        // Fetch info for each game
-        const games = [];
-        for (const gameId of gameIds) {
-            const response = await fetch('/api/fetch-game', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ gameId })
-            });
-
-            const gameInfo = await response.json();
-            games.push(gameInfo);
-        }
-
-        // Save as preset
-        try {
-            const response = await fetch('/api/save-preset', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    name: presetName,
-                    games: games
-                })
-            });
-
-            if (!response.ok) {
-                throw new Error('Failed to save preset');
+        reader.onload = async function(e) {
+            try {
+                const content = e.target.result;
+                statusText.textContent = 'Extracting game IDs...';
+                
+                // Extract game IDs from the BAT file
+                const gameIds = content.match(/steam-idle\.exe\s+(\d+)/g)
+                    ?.map(match => match.match(/\d+/)[0]) || [];
+                
+                if (gameIds.length === 0) {
+                    throw new Error('No valid game IDs found in the BAT file');
+                }
+                
+                // Clear current games list
+                currentGames = [];
+                
+                // Fetch game info for each ID
+                for (let i = 0; i < gameIds.length; i++) {
+                    statusText.textContent = `Fetching game info (${i + 1}/${gameIds.length})...`;
+                    
+                    const response = await fetch('/api/fetch-game', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ gameId: gameIds[i] })
+                    });
+                    
+                    if (response.ok) {
+                        const gameInfo = await response.json();
+                        if (!currentGames.some(game => game.id === gameInfo.id)) {
+                            currentGames.push(gameInfo);
+                        }
+                    }
+                    
+                    // Add a small delay to prevent overwhelming the Steam API
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                }
+                
+                statusText.textContent = 'Finalizing import...';
+                
+                // Set the preset name from the file name
+                const fileName = file.name.replace('.bat', '');
+                document.getElementById('presetName').value = fileName;
+                
+                // Show success notification with save reminder
+                showNotification(`Successfully imported ${currentGames.length} games. Please click Save to confirm the preset.`, 'info');
+                
+                // Highlight save button with animation
+                saveButton.classList.add('save-button-highlight');
+                
+                // Add pulsing animation to save button
+                saveButton.classList.add('pulse-animation');
+                
+                // Show save reminder text
+                const reminderText = document.createElement('div');
+                reminderText.className = 'text-sm text-blue-400 mt-2 text-center save-reminder';
+                reminderText.innerHTML = '<i class="fas fa-arrow-left animate-slide-left mr-2"></i>Click Save to confirm preset';
+                saveButton.parentElement.appendChild(reminderText);
+                
+            } catch (error) {
+                console.error('Error processing BAT file:', error);
+                showNotification(error.message || 'Failed to process BAT file', 'error');
+            } finally {
+                loadingOverlay.classList.add('hidden');
             }
-
-            // Switch to presets tab and refresh list
-            switchTab('presets');
-            loadPresets();
-        } catch (error) {
-            console.error('Error saving preset:', error);
-            alert('Failed to save preset');
-        }
-    };
-    reader.readAsText(file);
+        };
+        
+        reader.onerror = function() {
+            loadingOverlay.classList.add('hidden');
+            showNotification('Error reading BAT file', 'error');
+        };
+        
+        reader.readAsText(file);
+        
+    } catch (error) {
+        console.error('Error importing BAT file:', error);
+        showNotification('Failed to import BAT file', 'error');
+        loadingOverlay.classList.add('hidden');
+    }
 }
 
 function showDeletePresetModal(presetName) {

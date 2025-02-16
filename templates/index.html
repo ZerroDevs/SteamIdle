@@ -133,6 +133,14 @@
                         <i class="fas fa-file-import mr-2"></i>Import BAT File
                     </button>
                 </div>
+                <!-- Add loading indicator -->
+                <div id="importLoadingOverlay" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+                    <div class="bg-gray-800 rounded-lg p-8 flex flex-col items-center">
+                        <div class="loader mb-4"></div>
+                        <p class="text-lg font-semibold">Importing Preset...</p>
+                        <p class="text-sm text-gray-400 mt-2" id="importStatus">Analyzing BAT file...</p>
+                    </div>
+                </div>
                 <div class="flex gap-4">
                     <input type="text" id="presetName" placeholder="Preset Name" 
                            class="flex-1 bg-gray-700 rounded px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">

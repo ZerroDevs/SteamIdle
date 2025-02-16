@@ -81,3 +81,4 @@ build/SteamIdle/localpycs/pyimod04_pywin32.pyc
 build/SteamIdle/localpycs/struct.pyc
 SteamIdle.spec
 .gitignore
+.env

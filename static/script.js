@@ -1414,17 +1414,75 @@ async function selectIdleExe() {
         const response = await fetch('/api/reconfigure-idle', {
             method: 'POST'
         });
-        const result = await response.json();
         
-        if (response.ok) {
-            await updateIdlePath();
+        const data = await response.json();
+        
+        if (data.status === 'success') {
+            // Update the global variable
+            welcomeIdleExePath = data.path;
+            
+            // Update both UI elements
+            const welcomePathElement = document.getElementById('welcomeIdlePath');
+            const currentPathElement = document.getElementById('currentIdlePath');
+            
+            // Update welcome modal path
+            if (welcomePathElement) {
+                welcomePathElement.textContent = data.path;
+                welcomePathElement.classList.remove('text-gray-500');
+                welcomePathElement.classList.add('text-green-500');
+            }
+            
+            // Update settings modal path
+            if (currentPathElement) {
+                currentPathElement.textContent = data.path;
+                currentPathElement.classList.remove('text-gray-500');
+                currentPathElement.classList.add('text-green-500');
+            }
+            
+            // Enable the complete setup button
+            const completeBtn = document.getElementById('welcomeCompleteBtn');
+            if (completeBtn) {
+                completeBtn.disabled = false;
+            }
+            
             showNotification('Steam Idle location updated successfully', 'success');
         } else {
-            showNotification(result.message || 'Failed to configure Steam Idle location', 'error');
+            // Reset everything if failed
+            welcomeIdleExePath = null;
+            
+            // Reset welcome modal path
+            const welcomePathElement = document.getElementById('welcomeIdlePath');
+            if (welcomePathElement) {
+                welcomePathElement.textContent = 'No file selected';
+                welcomePathElement.classList.remove('text-green-500');
+                welcomePathElement.classList.add('text-gray-500');
+            }
+            
+            // Reset settings modal path
+            const currentPathElement = document.getElementById('currentIdlePath');
+            if (currentPathElement) {
+                currentPathElement.textContent = 'Not configured';
+                currentPathElement.classList.remove('text-green-500');
+                currentPathElement.classList.add('text-gray-500');
+            }
+            
+            // Disable the complete setup button
+            const completeBtn = document.getElementById('welcomeCompleteBtn');
+            if (completeBtn) {
+                completeBtn.disabled = true;
+            }
+            
+            showNotification(data.message || 'Failed to configure Steam Idle location', 'error');
         }
     } catch (error) {
         console.error('Error selecting idle exe:', error);
         showNotification('Failed to select steam-idle.exe', 'error');
+        
+        // Disable the complete setup button
+        const completeBtn = document.getElementById('welcomeCompleteBtn');
+        if (completeBtn) {
+            completeBtn.disabled = true;
+        }
     }
 }
 
@@ -1586,20 +1644,71 @@ async function selectIdleExe() {
         const data = await response.json();
         
         if (data.status === 'success') {
-            // Update the displayed path
-            const pathElement = document.getElementById('currentIdlePath');
-            pathElement.textContent = data.path;
-            pathElement.classList.remove('text-gray-500');
-            pathElement.classList.add('text-green-500');
+            // Update the global variable
+            welcomeIdleExePath = data.path;
+            
+            // Update both UI elements
+            const welcomePathElement = document.getElementById('welcomeIdlePath');
+            const currentPathElement = document.getElementById('currentIdlePath');
+            
+            // Update welcome modal path
+            if (welcomePathElement) {
+                welcomePathElement.textContent = data.path;
+                welcomePathElement.classList.remove('text-gray-500');
+                welcomePathElement.classList.add('text-green-500');
+            }
+            
+            // Update settings modal path
+            if (currentPathElement) {
+                currentPathElement.textContent = data.path;
+                currentPathElement.classList.remove('text-gray-500');
+                currentPathElement.classList.add('text-green-500');
+            }
+            
+            // Enable the complete setup button
+            const completeBtn = document.getElementById('welcomeCompleteBtn');
+            if (completeBtn) {
+                completeBtn.disabled = false;
+            }
+            
             showNotification('Steam Idle location updated successfully', 'success');
         } else {
-            pathElement.textContent = 'Not configured';
-            pathElement.classList.remove('text-green-500');
-            pathElement.classList.add('text-gray-500');
+            // Reset everything if failed
+            welcomeIdleExePath = null;
+            
+            // Reset welcome modal path
+            const welcomePathElement = document.getElementById('welcomeIdlePath');
+            if (welcomePathElement) {
+                welcomePathElement.textContent = 'No file selected';
+                welcomePathElement.classList.remove('text-green-500');
+                welcomePathElement.classList.add('text-gray-500');
+            }
+            
+            // Reset settings modal path
+            const currentPathElement = document.getElementById('currentIdlePath');
+            if (currentPathElement) {
+                currentPathElement.textContent = 'Not configured';
+                currentPathElement.classList.remove('text-green-500');
+                currentPathElement.classList.add('text-gray-500');
+            }
+            
+            // Disable the complete setup button
+            const completeBtn = document.getElementById('welcomeCompleteBtn');
+            if (completeBtn) {
+                completeBtn.disabled = true;
+            }
+            
+            showNotification(data.message || 'Failed to configure Steam Idle location', 'error');
         }
     } catch (error) {
-        console.error('Error updating idle path:', error);
-        showNotification('Failed to update Steam Idle location', 'error');
+        console.error('Error selecting idle exe:', error);
+        showNotification('Failed to select steam-idle.exe', 'error');
+        
+        // Disable the complete setup button
+        const completeBtn = document.getElementById('welcomeCompleteBtn');
+        if (completeBtn) {
+            completeBtn.disabled = true;
+        }
     }
 }
 

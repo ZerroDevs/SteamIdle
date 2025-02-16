@@ -1313,11 +1313,12 @@ def reconfigure_idle():
     
     try:
         new_path = select_idle_executable()
-        if new_path:
+        if new_path and os.path.exists(new_path):
             IDLER_PATH = new_path
             settings = load_settings()
             settings['idler_path'] = new_path
             settings['setup_completed'] = True
+            
             if save_settings(settings):
                 save_recent_action("Updated steam-idle.exe location")
                 return jsonify({
@@ -1325,17 +1326,22 @@ def reconfigure_idle():
                     "message": "Steam Idle location updated successfully",
                     "path": new_path
                 })
+            else:
+                return jsonify({
+                    "status": "error",
+                    "message": "Failed to save settings"
+                }), 500
         
         return jsonify({
             "status": "error",
-            "message": "No valid file selected or failed to save settings"
+            "message": "No valid file selected or file does not exist"
         }), 400
         
     except Exception as e:
         print(f"Error in reconfigure_idle: {e}")
         return jsonify({
             "status": "error",
-            "message": "An error occurred while configuring Steam Idle location"
+            "message": str(e)
         }), 500
 
 @app.route('/api/get-idle-path')

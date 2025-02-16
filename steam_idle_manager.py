@@ -49,6 +49,15 @@ if not os.path.exists(PRESETS_DIR):
 running_games = {}
 game_sessions = {}  # Store game session data: {game_id: {'start_time': datetime, 'total_time': seconds}}
 
+def resource_path(relative_path):
+    """Get absolute path to resource, works for dev and for PyInstaller"""
+    try:
+        # PyInstaller creates a temp folder and stores path in _MEIPASS
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+    return os.path.join(base_path, relative_path)
+
 def load_settings():
     if os.path.exists(SETTINGS_FILE):
         try:
@@ -960,7 +969,7 @@ def create_tray_icon():
     global icon
     try:
         # Load the icon image
-        image = Image.open("Logo.png")
+        image = Image.open(resource_path("Logo.png"))
         
         def show_window(icon, item):
             window.show()

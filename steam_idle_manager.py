@@ -8,15 +8,59 @@ import psutil
 import winreg
 from flask import Flask, render_template, request, jsonify
 from bs4 import BeautifulSoup
-from datetime import datetime
+from datetime import datetime, timedelta
 
 app = Flask(__name__)
 window = None
 
-PRESETS_DIR = "presets"
+# Set up AppData paths
+APPDATA_PATH = os.path.join(os.getenv('APPDATA'), 'SteamIdler')
+PRESETS_DIR = os.path.join(APPDATA_PATH, "presets")
+STATS_FILE = os.path.join(APPDATA_PATH, "stats.json")
 IDLER_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Idler", "steam-idle.exe")
+
+# Create necessary directories if they don't exist
+if not os.path.exists(APPDATA_PATH):
+    os.makedirs(APPDATA_PATH)
+if not os.path.exists(PRESETS_DIR):
+    os.makedirs(PRESETS_DIR)
+
 running_games = {}
 game_sessions = {}  # Store game session data: {game_id: {'start_time': datetime, 'total_time': seconds}}
+
+def load_statistics():
+    if os.path.exists(STATS_FILE):
+        try:
+            with open(STATS_FILE, 'r') as f:
+                return json.load(f)
+        except:
+            return {"game_sessions": {}}
+    return {"game_sessions": {}}
+
+def save_statistics():
+    stats_data = {
+        "game_sessions": {
+            game_id: {
+                "total_time": session.get('total_time', 0),
+                "name": session.get('name', 'Unknown Game'),
+                "image": session.get('image', '')
+            }
+            for game_id, session in game_sessions.items()
+        }
+    }
+    with open(STATS_FILE, 'w') as f:
+        json.dump(stats_data, f)
+
+# Load saved statistics when starting up
+saved_stats = load_statistics()
+game_sessions = {
+    game_id: {
+        'total_time': data['total_time'],
+        'name': data['name'],
+        'image': data['image']
+    }
+    for game_id, data in saved_stats['game_sessions'].items()
+}
 
 def get_steam_path():
     try:
@@ -87,9 +131,6 @@ def launch_steam():
             print(f"Error launching Steam: {e}")
     return False
 
-if not os.path.exists(PRESETS_DIR):
-    os.makedirs(PRESETS_DIR)
-
 def format_duration(seconds):
     hours = seconds // 3600
     minutes = (seconds % 3600) // 60
@@ -141,8 +182,9 @@ def save_preset():
     with open(preset_json_path, 'w') as f:
         json.dump(games, f)
     
-    # Create BAT file
+    # Create BAT file in the same directory
     bat_content = "@echo off\n"
+    bat_content += f'cd "{os.path.dirname(IDLER_PATH)}"\n'  # Change to Idler directory
     for game in games:
         bat_content += f'start steam-idle.exe {game["id"]}\n'
     
@@ -209,8 +251,16 @@ def start_game():
         
         # Initialize or update game session
         if game_id not in game_sessions:
-            game_sessions[game_id] = {'total_time': 0}
+            game_info = fetch_game_info(game_id)
+            game_sessions[game_id] = {
+                'total_time': 0,
+                'name': game_info['name'],
+                'image': game_info['image']
+            }
         game_sessions[game_id]['start_time'] = datetime.now()
+        
+        # Save statistics
+        save_statistics()
         
         return jsonify({"status": "success", "pid": process.pid})
     except Exception as e:
@@ -236,6 +286,9 @@ def stop_game():
             session_duration = (datetime.now() - game_sessions[game_id]['start_time']).total_seconds()
             game_sessions[game_id]['total_time'] += session_duration
             game_sessions[game_id].pop('start_time', None)
+            
+            # Save statistics
+            save_statistics()
         
         del running_games[game_id]
         return jsonify({"status": "success"})
@@ -347,8 +400,15 @@ def run_preset():
                 
                 # Initialize or update game session
                 if game_id not in game_sessions:
-                    game_sessions[game_id] = {'total_time': 0}
+                    game_sessions[game_id] = {
+                        'total_time': 0,
+                        'name': game['name'],
+                        'image': game['image']
+                    }
                 game_sessions[game_id]['start_time'] = datetime.now()
+                
+                # Save statistics after each game is started
+                save_statistics()
         
         return jsonify({
             "status": "success",
@@ -357,6 +417,185 @@ def run_preset():
         })
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
+
+@app.route('/api/stats/total-playtime')
+def get_total_playtime():
+    total_seconds = 0
+    current_time = datetime.now()
+    
+    for game_id, session in game_sessions.items():
+        # Add completed session time
+        total_seconds += session.get('total_time', 0)
+        
+        # Add current session time if game is running
+        if game_id in running_games and 'start_time' in session:
+            current_session = (current_time - session['start_time']).total_seconds()
+            total_seconds += current_session
+    
+    return jsonify({
+        "total_time": format_duration(total_seconds),
+        "total_seconds": total_seconds
+    })
+
+@app.route('/api/stats/most-idled')
+def get_most_idled():
+    games_list = []
+    current_time = datetime.now()
+    
+    for game_id, session in game_sessions.items():
+        total_seconds = session.get('total_time', 0)
+        
+        # Add current session time if game is running
+        if game_id in running_games and 'start_time' in session:
+            current_session = (current_time - session['start_time']).total_seconds()
+            total_seconds += current_session
+        
+        # Get game info
+        game_info = None
+        for preset in os.listdir(PRESETS_DIR):
+            if preset.endswith('.json'):
+                with open(os.path.join(PRESETS_DIR, preset), 'r') as f:
+                    preset_data = json.load(f)
+                    for game in preset_data:
+                        if str(game['id']) == str(game_id):
+                            game_info = game
+                            break
+                    if game_info:
+                        break
+        
+        if game_info:
+            games_list.append({
+                "id": game_id,
+                "name": game_info['name'],
+                "image": game_info['image'],
+                "total_time": format_duration(total_seconds),
+                "total_seconds": total_seconds
+            })
+    
+    # Sort by total seconds in descending order
+    games_list.sort(key=lambda x: x['total_seconds'], reverse=True)
+    
+    return jsonify(games_list[:5])  # Return top 5 games
+
+@app.route('/api/stats/playtime-history/<period>')
+def get_playtime_history(period):
+    current_time = datetime.now()
+    history = []
+    
+    if period == 'daily':
+        # Last 24 hours in hourly intervals
+        for i in range(24):
+            hour_start = current_time - timedelta(hours=i+1)
+            hour_end = current_time - timedelta(hours=i)
+            total_seconds = 0
+            
+            for session in game_sessions.values():
+                if 'start_time' in session and session['start_time'] >= hour_start and session['start_time'] < hour_end:
+                    session_end = min(hour_end, datetime.now())
+                    session_duration = (session_end - session['start_time']).total_seconds()
+                    total_seconds += session_duration
+            
+            history.append({
+                "label": hour_start.strftime("%H:00"),
+                "value": total_seconds / 3600  # Convert to hours
+            })
+    
+    elif period == 'weekly':
+        # Last 7 days
+        for i in range(7):
+            day_start = (current_time - timedelta(days=i+1)).replace(hour=0, minute=0, second=0)
+            day_end = (current_time - timedelta(days=i)).replace(hour=0, minute=0, second=0)
+            total_seconds = 0
+            
+            for session in game_sessions.values():
+                if 'start_time' in session and session['start_time'] >= day_start and session['start_time'] < day_end:
+                    session_end = min(day_end, datetime.now())
+                    session_duration = (session_end - session['start_time']).total_seconds()
+                    total_seconds += session_duration
+            
+            history.append({
+                "label": day_start.strftime("%a"),
+                "value": total_seconds / 3600
+            })
+    
+    elif period == 'monthly':
+        # Last 30 days in weekly intervals
+        for i in range(4):
+            week_start = current_time - timedelta(days=(i+1)*7)
+            week_end = current_time - timedelta(days=i*7)
+            total_seconds = 0
+            
+            for session in game_sessions.values():
+                if 'start_time' in session and session['start_time'] >= week_start and session['start_time'] < week_end:
+                    session_end = min(week_end, datetime.now())
+                    session_duration = (session_end - session['start_time']).total_seconds()
+                    total_seconds += session_duration
+            
+            history.append({
+                "label": f"Week {4-i}",
+                "value": total_seconds / 3600
+            })
+    
+    history.reverse()
+    return jsonify(history)
+
+@app.route('/api/stats/goals', methods=['GET', 'POST', 'PUT', 'DELETE'])
+def manage_goals():
+    goals_file = os.path.join(PRESETS_DIR, 'goals.json')
+    
+    if request.method == 'GET':
+        if os.path.exists(goals_file):
+            with open(goals_file, 'r') as f:
+                return jsonify(json.load(f))
+        return jsonify([])
+    
+    elif request.method == 'POST':
+        data = request.get_json()
+        if os.path.exists(goals_file):
+            with open(goals_file, 'r') as f:
+                goals = json.load(f)
+        else:
+            goals = []
+        
+        goals.append({
+            "id": str(len(goals) + 1),
+            "game_id": data['game_id'],
+            "target_hours": data['target_hours'],
+            "created_at": datetime.now().isoformat()
+        })
+        
+        with open(goals_file, 'w') as f:
+            json.dump(goals, f)
+        
+        return jsonify({"status": "success"})
+    
+    elif request.method == 'PUT':
+        data = request.get_json()
+        if os.path.exists(goals_file):
+            with open(goals_file, 'r') as f:
+                goals = json.load(f)
+                for goal in goals:
+                    if goal['id'] == data['id']:
+                        goal.update(data)
+                        break
+            
+            with open(goals_file, 'w') as f:
+                json.dump(goals, f)
+        
+        return jsonify({"status": "success"})
+    
+    elif request.method == 'DELETE':
+        data = request.get_json()
+        if os.path.exists(goals_file):
+            with open(goals_file, 'r') as f:
+                goals = json.load(f)
+            
+            goals = [g for g in goals if g['id'] != data['id']]
+            
+            with open(goals_file, 'w') as f:
+                json.dump(goals, f)
+        
+        return jsonify({"status": "success"})
 
 if __name__ == '__main__':
     window = webview.create_window('Steam Idle Manager', app)

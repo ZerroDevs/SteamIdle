@@ -7,6 +7,7 @@
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body class="bg-gray-900 text-white">
     <div class="container mx-auto px-4 py-8">
@@ -27,12 +28,18 @@
             <div class="border-b border-gray-700">
                 <nav class="-mb-px flex">
                     <button onclick="switchTab('games')" id="gamesTab" 
-                            class="tab-button active w-1/2 py-4 px-6 text-center border-b-2 font-medium text-lg">
+                            class="tab-button active w-1/3 py-4 px-6 text-center border-b-2 font-medium text-lg">
                         <i class="fas fa-gamepad mr-2"></i>Games
                     </button>
                     <button onclick="switchTab('presets')" id="presetsTab" 
-                            class="tab-button w-1/2 py-4 px-6 text-center border-b-2 font-medium text-lg">
+                            class="tab-button w-1/3 py-4 px-6 text-center border-b-2 font-medium text-lg">
                         <i class="fas fa-list mr-2"></i>Presets
+                    </button>
+                    <button onclick="switchTab('stats')" id="statsTab" 
+                            class="tab-button w-1/3 py-4 px-6 text-center border-b-2 font-medium text-lg">
+                        <svg class="w-5 h-5 inline-block mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                        </svg>Statistics
                     </button>
                 </nav>
             </div>
@@ -89,6 +96,37 @@
                 <h2 class="text-2xl font-semibold mb-4">My Presets</h2>
                 <div id="presetsList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     <!-- Presets will be added here dynamically -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Statistics Tab Content -->
+        <div id="statsContent" class="tab-content hidden">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Total Playtime Card -->
+                <div class="bg-gray-800 rounded-lg p-6">
+                    <h2 class="text-2xl font-semibold mb-4 flex items-center">
+                        <svg class="w-6 h-6 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        Total Playtime
+                    </h2>
+                    <div id="totalPlaytime" class="text-4xl font-bold text-blue-400">Loading...</div>
+                </div>
+
+                <!-- Most Idled Games Card -->
+                <div class="bg-gray-800 rounded-lg p-6">
+                    <h2 class="text-2xl font-semibold mb-4 flex items-center">
+                        <svg class="w-6 h-6 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                        </svg>
+                        Most Idled Games
+                    </h2>
+                    <div id="mostIdledGames" class="space-y-4">
+                        <div class="animate-pulse bg-gray-700 h-10 rounded"></div>
+                        <div class="animate-pulse bg-gray-700 h-10 rounded"></div>
+                        <div class="animate-pulse bg-gray-700 h-10 rounded"></div>
+                    </div>
                 </div>
             </div>
         </div>

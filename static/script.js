@@ -6,6 +6,7 @@ let runningPresets = new Set();
 setInterval(updateGameStatuses, 5000); // Check every 5 seconds
 setInterval(updatePlaytimes, 1000); // Update playtimes every second
 setInterval(updateSteamStatus, 10000); // Check Steam status every 10 seconds
+setInterval(updateStatistics, 5000); // Update statistics every 5 seconds
 
 async function updateGameStatuses() {
     for (const game of currentGames) {
@@ -380,6 +381,11 @@ function switchTab(tabName) {
         content.classList.add('hidden');
     });
     document.getElementById(`${tabName}Content`).classList.remove('hidden');
+
+    // Initialize statistics if switching to stats tab
+    if (tabName === 'stats') {
+        updateStatistics();
+    }
 }
 
 async function importBatFile(file) {
@@ -621,6 +627,68 @@ async function runPreset(presetName) {
         console.error('Error running preset:', error);
         showNotification('Failed to run preset', 'error');
     }
+}
+
+async function updateStatistics() {
+    if (document.getElementById('statsContent').classList.contains('hidden')) {
+        return; // Don't update if stats tab is not visible
+    }
+
+    try {
+        // Get base total playtime from server
+        const totalResponse = await fetch('/api/stats/total-playtime');
+        const totalData = await totalResponse.json();
+        let totalSeconds = totalData.total_seconds;
+
+        // Add current session times for running games
+        const currentTime = new Date();
+        for (const gameId of runningGames) {
+            const response = await fetch('/api/game-session-time', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ gameId })
+            });
+            const data = await response.json();
+            
+            // Extract seconds from HH:MM:SS format of current_session
+            const [hours, minutes, seconds] = data.current_session.split(':').map(Number);
+            totalSeconds += hours * 3600 + minutes * 60 + seconds;
+        }
+
+        // Update total playtime display
+        document.getElementById('totalPlaytime').textContent = formatDuration(totalSeconds);
+    } catch (error) {
+        console.error('Error updating total playtime:', error);
+    }
+
+    // Update most idled games
+    try {
+        const idledResponse = await fetch('/api/stats/most-idled');
+        const idledGames = await idledResponse.json();
+        const mostIdledContainer = document.getElementById('mostIdledGames');
+        mostIdledContainer.innerHTML = idledGames.map((game, index) => `
+            <div class="flex items-center gap-4 bg-gray-700 p-2 rounded">
+                <div class="text-xl font-bold text-gray-400 w-8">#${index + 1}</div>
+                <img src="${game.image}" alt="${game.name}" class="w-8 h-8 rounded">
+                <div class="flex-1">
+                    <div class="font-medium">${game.name}</div>
+                    <div class="text-sm text-gray-400">${game.total_time}</div>
+                </div>
+            </div>
+        `).join('');
+    } catch (error) {
+        console.error('Error updating most idled games:', error);
+    }
+}
+
+// Helper function to format duration in seconds to HH:MM:SS
+function formatDuration(seconds) {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
 }
 
 // Initialize

@@ -20,6 +20,9 @@
                 <button id="steamButton" onclick="launchSteam()" class="bg-blue-500 hover:bg-blue-600 px-4 py-2 rounded text-sm">
                     <i class="fas fa-play mr-1"></i><span>Launch Steam</span>
                 </button>
+                <button onclick="openSettings()" class="text-gray-400 hover:text-white transition-colors">
+                    <i class="fas fa-cog text-xl"></i>
+                </button>
             </div>
         </div>
         
@@ -288,5 +291,42 @@
         </div>
     </div>
 
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+        <div class="bg-gray-800 rounded-lg p-6 w-96 transform transition-all">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-xl font-semibold">Settings</h3>
+                <button onclick="closeSettings()" class="text-gray-400 hover:text-white">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <div class="space-y-6">
+                <!-- Theme Selection -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-2">Theme</label>
+                    <div class="flex gap-4">
+                        <button onclick="setTheme('dark')" id="darkThemeBtn" 
+                                class="flex-1 p-3 rounded border-2 border-transparent hover:border-blue-500 transition-all">
+                            <div class="bg-gray-900 rounded p-2 mb-2"></div>
+                            <span class="block text-center text-sm">Dark</span>
+                        </button>
+                        <button onclick="setTheme('light')" id="lightThemeBtn"
+                                class="flex-1 p-3 rounded border-2 border-transparent hover:border-blue-500 transition-all">
+                            <div class="bg-gray-100 rounded p-2 mb-2"></div>
+                            <span class="block text-center text-sm">Light</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="flex justify-end mt-6">
+                <button onclick="closeSettings()" 
+                        class="px-4 py-2 bg-blue-500 hover:bg-blue-600 rounded">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
 </body>
 </html> 

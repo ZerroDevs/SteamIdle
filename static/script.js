@@ -2,6 +2,7 @@ let currentGames = [];
 let runningGames = new Set();
 let runningPresets = new Set();
 let quickActionsEnabled = false; // Changed from true to false
+let currentTheme = localStorage.getItem('theme') || 'dark';
 
 // Add status checking intervals
 setInterval(updateGameStatuses, 5000); // Check every 5 seconds
@@ -1177,4 +1178,59 @@ document.addEventListener('keydown', async (e) => {
     } catch (error) {
         console.error('Error checking shortcuts:', error);
     }
+});
+
+// Add these functions before the DOMContentLoaded event listener
+function openSettings() {
+    const modal = document.getElementById('settingsModal');
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    
+    // Update theme button states
+    updateThemeButtons();
+}
+
+function closeSettings() {
+    const modal = document.getElementById('settingsModal');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+}
+
+function setTheme(theme) {
+    currentTheme = theme;
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('theme', theme);
+    updateThemeButtons();
+}
+
+function updateThemeButtons() {
+    const darkBtn = document.getElementById('darkThemeBtn');
+    const lightBtn = document.getElementById('lightThemeBtn');
+    
+    // Reset both buttons
+    darkBtn.classList.remove('border-blue-500');
+    lightBtn.classList.remove('border-blue-500');
+    
+    // Highlight active theme
+    if (currentTheme === 'dark') {
+        darkBtn.classList.add('border-blue-500');
+    } else {
+        lightBtn.classList.add('border-blue-500');
+    }
+}
+
+// Add to the existing DOMContentLoaded event listener
+document.addEventListener('DOMContentLoaded', () => {
+    // ... existing initialization code ...
+    
+    // Initialize theme
+    setTheme(currentTheme);
+    
+    // Add click outside handler for settings modal
+    const settingsModal = document.getElementById('settingsModal');
+    settingsModal.addEventListener('click', (e) => {
+        if (e.target === settingsModal) {
+            closeSettings();
+        }
+    });
 }); 

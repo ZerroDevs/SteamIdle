@@ -366,19 +366,20 @@
                     </div>
                 </div>
 
-                <!-- Add to the settings modal content, inside the space-y-6 div, after the Advanced Features section -->
+                <!-- Add to the settings modal content, inside the space-y-6 div, before the Steam Idle Configuration section -->
                 <div>
                     <label class="block text-sm font-medium text-gray-300 mb-2">Steam Idle Configuration</label>
                     <div class="space-y-3">
-                        <div class="flex items-center justify-between bg-gray-700 p-3 rounded">
-                            <div>
-                                <span class="block font-medium">Steam Idle Location</span>
-                                <span class="text-sm text-gray-400" id="currentIdlePath">Current: Loading...</span>
+                        <div class="bg-gray-700 p-3 rounded">
+                            <div class="flex flex-col">
+                                <span class="block font-medium mb-2">Steam Idle Location</span>
+                                <div class="flex items-center justify-between gap-4">
+                                    <span id="currentIdlePath" class="text-sm text-gray-500 flex-1 break-all">Not configured</span>
+                                    <button onclick="reconfigureIdlePath()" class="bg-blue-500 hover:bg-blue-600 px-4 py-2 rounded text-sm">
+                                        <i class="fas fa-folder-open mr-2"></i>Change Location
+                                    </button>
+                                </div>
                             </div>
-                            <button onclick="reconfigureIdlePath()" 
-                                    class="bg-blue-500 hover:bg-blue-600 px-4 py-2 rounded text-sm">
-                                <i class="fas fa-folder-open mr-2"></i>Change Location
-                            </button>
                         </div>
                     </div>
                 </div>

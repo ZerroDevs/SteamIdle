@@ -1264,16 +1264,36 @@ async function openSettings() {
     if (loadingElement) loadingElement.classList.remove('hidden');
     
     try {
-        await Promise.all([
-            updateStartupToggle(),
-            updateMinimizeToTrayToggle(),
-            updateAutoReconnectToggle(),
-            updateThemeButtons(),
-            updateIdlePath()
-        ]);
+        // Execute all settings updates in parallel but track their results individually
+        const results = await Promise.allSettled([
+            { name: 'Startup Status', promise: updateStartupToggle() },
+            { name: 'Minimize to Tray', promise: updateMinimizeToTrayToggle() },
+            { name: 'Auto Reconnect', promise: updateAutoReconnectToggle() },
+            { name: 'Theme Settings', promise: updateThemeButtons() },
+            { name: 'Steam Idle Path', promise: updateIdlePath() }
+        ].map(async ({ name, promise }) => {
+            try {
+                await promise;
+                return { name, success: true };
+            } catch (error) {
+                return { name, success: false, error: error.message };
+            }
+        }));
+
+        // Check for any failures
+        const failures = results.filter(result => result.status === 'rejected' || 
+            (result.status === 'fulfilled' && !result.value.success));
+
+        if (failures.length > 0) {
+            const failedSettings = failures.map(f => {
+                const settingName = f.status === 'rejected' ? f.reason.name : f.value.name;
+                return settingName;
+            });
+            showNotification(`Failed to load settings: ${failedSettings.join(', ')}`, 'error');
+        }
     } catch (error) {
         console.error('Error loading settings:', error);
-        showNotification('Failed to load some settings', 'error');
+        showNotification('Failed to load all settings', 'error');
     } finally {
         // Hide loading state
         if (loadingElement) loadingElement.classList.add('hidden');
@@ -1636,102 +1656,24 @@ async function selectIdleExe() {
         const response = await fetch('/api/reconfigure-idle', {
             method: 'POST'
         });
-        const result = await response.json();
         
-        if (result.status === 'success') {
-            welcomeIdleExePath = result.path;
-            document.getElementById('welcomeIdlePath').textContent = result.path;
-            document.getElementById('welcomeCompleteBtn').disabled = false;
-        } else {
-            showNotification(result.message, 'error');
-        }
-    } catch (error) {
-        console.error('Error selecting idle exe:', error);
-        showNotification('Failed to select steam-idle.exe', 'error');
-    }
-}
-
-function toggleWelcomeStartup() {
-    welcomeStartupEnabled = !welcomeStartupEnabled;
-    const button = document.getElementById('welcomeStartupToggle');
-    button.classList.toggle('bg-blue-500', welcomeStartupEnabled);
-    button.classList.toggle('bg-gray-500', !welcomeStartupEnabled);
-}
-
-function toggleWelcomeMinimize() {
-    welcomeMinimizeEnabled = !welcomeMinimizeEnabled;
-    const button = document.getElementById('welcomeMinimizeToggle');
-    button.classList.toggle('bg-blue-500', welcomeMinimizeEnabled);
-    button.classList.toggle('bg-gray-500', !welcomeMinimizeEnabled);
-}
-
-async function completeWelcomeSetup() {
-    if (!welcomeIdleExePath) {
-        showNotification('Please select steam-idle.exe location', 'error');
-        return;
-    }
-
-    try {
-        const settings = {
-            minimize_to_tray: welcomeMinimizeEnabled,
-            setup_completed: true
-        };
-
-        // Save settings
-        await fetch('/api/settings', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(settings)
-        });
-
-        // Configure startup if enabled
-        if (welcomeStartupEnabled) {
-            await fetch('/api/startup-status', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ enabled: true })
-            });
-        }
-
-        // Animate modal out
-        const modal = document.getElementById('welcomeConfigModal');
-        modal.style.animation = 'modalFadeOut 0.3s ease-out forwards';
-        
-        // Hide modal after animation
-        setTimeout(() => {
-            modal.style.display = 'none';
-            modal.style.animation = '';
-        }, 300);
-        
-        showNotification('Setup completed successfully', 'success');
-    } catch (error) {
-        console.error('Error completing setup:', error);
-        showNotification('Failed to complete setup', 'error');
-    }
-}
-
-async function updateIdlePath() {
-    try {
-        const response = await fetch('/api/get-idle-path');
         const data = await response.json();
-        const pathElement = document.getElementById('currentIdlePath');
-        if (pathElement) {
-            if (data.path) {
-                pathElement.textContent = data.path;
-                pathElement.classList.remove('text-gray-500');
-                pathElement.classList.add('text-green-500');
-            } else {
-                pathElement.textContent = 'Not configured';
-                pathElement.classList.remove('text-green-500');
-                pathElement.classList.add('text-gray-500');
-            }
+        
+        if (data.status === 'success') {
+            // Update the displayed path
+            const pathElement = document.getElementById('currentIdlePath');
+            pathElement.textContent = data.path;
+            pathElement.classList.remove('text-gray-500');
+            pathElement.classList.add('text-green-500');
+            showNotification('Steam Idle location updated successfully', 'success');
+        } else {
+            pathElement.textContent = 'Not configured';
+            pathElement.classList.remove('text-green-500');
+            pathElement.classList.add('text-gray-500');
         }
     } catch (error) {
         console.error('Error updating idle path:', error);
+        showNotification('Failed to update Steam Idle location', 'error');
     }
 }
 
@@ -1917,4 +1859,99 @@ document.addEventListener('DOMContentLoaded', function() {
             if (e.key === 'Enter') addGameToPreset();
         });
     }
-}); 
+});
+
+async function reconfigureIdlePath() {
+    try {
+        const response = await fetch('/api/reconfigure-idle', {
+            method: 'POST'
+        });
+        
+        const data = await response.json();
+        
+        if (data.status === 'success') {
+            // Update the displayed path
+            const pathElement = document.getElementById('currentIdlePath');
+            pathElement.textContent = data.path;
+            pathElement.classList.remove('text-gray-500');
+            pathElement.classList.add('text-green-500');
+            showNotification('Steam Idle location updated successfully', 'success');
+        } else {
+            showNotification(data.message || 'Failed to update Steam Idle location', 'error');
+        }
+    } catch (error) {
+        console.error('Error updating idle path:', error);
+        showNotification('Failed to update Steam Idle location', 'error');
+    }
+}
+
+async function updateIdlePath() {
+    try {
+        const response = await fetch('/api/get-idle-path');
+        const data = await response.json();
+        const pathElement = document.getElementById('currentIdlePath');
+        
+        if (data.path) {
+            pathElement.textContent = data.path;
+            pathElement.classList.remove('text-gray-500');
+            pathElement.classList.add('text-green-500');
+        } else {
+            pathElement.textContent = 'Not configured';
+            pathElement.classList.remove('text-green-500');
+            pathElement.classList.add('text-gray-500');
+        }
+    } catch (error) {
+        console.error('Error getting idle path:', error);
+        const pathElement = document.getElementById('currentIdlePath');
+        pathElement.textContent = 'Error loading path';
+        pathElement.classList.remove('text-green-500');
+        pathElement.classList.add('text-red-500');
+    }
+}
+
+// Add to the openSettings function to update the idle path when opening settings
+async function openSettings() {
+    const modal = document.getElementById('settingsModal');
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    
+    // Show loading state
+    const loadingElement = document.getElementById('settingsLoading');
+    if (loadingElement) loadingElement.classList.remove('hidden');
+    
+    try {
+        // Execute all settings updates in parallel but track their results individually
+        const results = await Promise.allSettled([
+            { name: 'Startup Status', promise: updateStartupToggle() },
+            { name: 'Minimize to Tray', promise: updateMinimizeToTrayToggle() },
+            { name: 'Auto Reconnect', promise: updateAutoReconnectToggle() },
+            { name: 'Theme Settings', promise: updateThemeButtons() },
+            { name: 'Steam Idle Path', promise: updateIdlePath() }
+        ].map(async ({ name, promise }) => {
+            try {
+                await promise;
+                return { name, success: true };
+            } catch (error) {
+                return { name, success: false, error: error.message };
+            }
+        }));
+
+        // Check for any failures
+        const failures = results.filter(result => result.status === 'rejected' || 
+            (result.status === 'fulfilled' && !result.value.success));
+
+        if (failures.length > 0) {
+            const failedSettings = failures.map(f => {
+                const settingName = f.status === 'rejected' ? f.reason.name : f.value.name;
+                return settingName;
+            });
+            showNotification(`Failed to load settings: ${failedSettings.join(', ')}`, 'error');
+        }
+    } catch (error) {
+        console.error('Error loading settings:', error);
+        showNotification('Failed to load all settings', 'error');
+    } finally {
+        // Hide loading state
+        if (loadingElement) loadingElement.classList.add('hidden');
+    }
+} 

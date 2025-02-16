@@ -11,6 +11,15 @@ let welcomeStartupEnabled = false;
 let welcomeMinimizeEnabled = false;
 let welcomeIdleExePath = null;
 
+// Initialize the application when the DOM is loaded
+document.addEventListener('DOMContentLoaded', async function() {
+    await checkFirstTimeSetup();
+    await updateSteamStatus();
+    await updateStatistics();
+    await updateQuickActions();
+    applyTheme(currentTheme);
+});
+
 // Add status checking intervals
 setInterval(updateGameStatuses, 5000); // Check every 5 seconds
 setInterval(updatePlaytimes, 1000); // Update playtimes every second
@@ -1473,28 +1482,25 @@ async function selectIdleExe() {
         const data = await response.json();
         
         if (data.status === 'success') {
-            // Update the global variable
             welcomeIdleExePath = data.path;
             
-            // Update both UI elements
+            // Update both welcome modal and settings modal paths
             const welcomePathElement = document.getElementById('welcomeIdlePath');
             const currentPathElement = document.getElementById('currentIdlePath');
             
-            // Update welcome modal path
             if (welcomePathElement) {
                 welcomePathElement.textContent = data.path;
                 welcomePathElement.classList.remove('text-gray-500');
                 welcomePathElement.classList.add('text-green-500');
             }
             
-            // Update settings modal path
             if (currentPathElement) {
                 currentPathElement.textContent = data.path;
                 currentPathElement.classList.remove('text-gray-500');
                 currentPathElement.classList.add('text-green-500');
             }
             
-            // Enable the complete setup button
+            // Enable the complete setup button in welcome modal
             const completeBtn = document.getElementById('welcomeCompleteBtn');
             if (completeBtn) {
                 completeBtn.disabled = false;
@@ -1502,19 +1508,18 @@ async function selectIdleExe() {
             
             showNotification('Steam Idle location updated successfully', 'success');
         } else {
-            // Reset everything if failed
             welcomeIdleExePath = null;
             
-            // Reset welcome modal path
+            // Reset path displays
             const welcomePathElement = document.getElementById('welcomeIdlePath');
+            const currentPathElement = document.getElementById('currentIdlePath');
+            
             if (welcomePathElement) {
                 welcomePathElement.textContent = 'No file selected';
                 welcomePathElement.classList.remove('text-green-500');
                 welcomePathElement.classList.add('text-gray-500');
             }
             
-            // Reset settings modal path
-            const currentPathElement = document.getElementById('currentIdlePath');
             if (currentPathElement) {
                 currentPathElement.textContent = 'Not configured';
                 currentPathElement.classList.remove('text-green-500');
@@ -1527,17 +1532,11 @@ async function selectIdleExe() {
                 completeBtn.disabled = true;
             }
             
-            showNotification(data.message || 'Failed to configure Steam Idle location', 'error');
+            showNotification(data.message || 'Failed to update Steam Idle location', 'error');
         }
     } catch (error) {
-        console.error('Error selecting idle exe:', error);
-        showNotification('Failed to select steam-idle.exe', 'error');
-        
-        // Disable the complete setup button
-        const completeBtn = document.getElementById('welcomeCompleteBtn');
-        if (completeBtn) {
-            completeBtn.disabled = true;
-        }
+        console.error('Error selecting idle executable:', error);
+        showNotification('Failed to select Steam Idle executable', 'error');
     }
 }
 
@@ -2167,4 +2166,51 @@ document.addEventListener('DOMContentLoaded', function() {
             this.classList.remove('recording');
         });
     }
-}); 
+});
+
+async function completeWelcomeSetup() {
+    try {
+        // Save all settings
+        const settings = {
+            run_on_startup: welcomeStartupEnabled,
+            minimize_to_tray: welcomeMinimizeEnabled,
+            setup_completed: true,
+            idler_path: welcomeIdleExePath
+        };
+
+        const response = await fetch('/api/settings', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(settings)
+        });
+
+        if (response.ok) {
+            // Close the welcome modal
+            const modal = document.getElementById('welcomeConfigModal');
+            modal.classList.remove('flex');
+            modal.classList.add('hidden');
+            
+            // Update the settings display
+            const pathElement = document.getElementById('currentIdlePath');
+            if (pathElement) {
+                pathElement.textContent = welcomeIdleExePath;
+                pathElement.classList.remove('text-gray-500');
+                pathElement.classList.add('text-green-500');
+            }
+            
+            // Show success notification
+            showNotification('Setup completed successfully', 'success');
+            
+            // Update startup and minimize toggles in settings
+            await updateStartupToggle();
+            await updateMinimizeToTrayToggle();
+        } else {
+            showNotification('Failed to save settings', 'error');
+        }
+    } catch (error) {
+        console.error('Error completing setup:', error);
+        showNotification('Failed to complete setup', 'error');
+    }
+} 

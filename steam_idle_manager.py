@@ -15,19 +15,20 @@ import threading
 import schedule
 import csv
 import time
-import tkinter as tk
-from tkinter import filedialog, messagebox
 
+# Initialize Flask app
 app = Flask(__name__)
-window = None
+
+# Global variables
 icon = None
+IDLER_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "steam-idle.exe")
 minimize_to_tray = False
+AUTO_RECONNECT = False
 
 # Set up AppData paths
 APPDATA_PATH = os.path.join(os.getenv('APPDATA'), 'SteamIdler')
 PRESETS_DIR = os.path.join(APPDATA_PATH, "presets")
 STATS_FILE = os.path.join(APPDATA_PATH, "stats.json")
-IDLER_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Idler", "steam-idle.exe")
 SETTINGS_FILE = os.path.join(APPDATA_PATH, "settings.json")
 
 # Add new constants after existing constants
@@ -37,7 +38,6 @@ SHORTCUTS_FILE = os.path.join(APPDATA_PATH, "shortcuts.json")
 
 # Add new constants
 SCHEDULES_FILE = os.path.join(APPDATA_PATH, "schedules.json")
-AUTO_RECONNECT = True  # Global flag for auto-reconnect feature
 RECONNECT_INTERVAL = 300  # 5 minutes in seconds
 
 # Create necessary directories if they don't exist
@@ -55,7 +55,7 @@ def load_settings():
             with open(SETTINGS_FILE, 'r') as f:
                 settings = json.load(f)
                 # Update IDLER_PATH if it was previously configured
-                global IDLER_PATH
+                global IDLER_PATH, minimize_to_tray, AUTO_RECONNECT
                 
                 # First check if there's a valid saved path
                 if 'idler_path' in settings and os.path.exists(settings['idler_path']):
@@ -70,29 +70,47 @@ def load_settings():
                 else:
                     settings['setup_completed'] = False
                     settings['idler_path'] = None
+                
+                # Set default values if not present
+                if 'theme' not in settings:
+                    settings['theme'] = 'dark'
+                if 'minimize_to_tray' not in settings:
+                    settings['minimize_to_tray'] = False
+                if 'auto_reconnect' not in settings:
+                    settings['auto_reconnect'] = False
+                if 'run_on_startup' not in settings:
+                    settings['run_on_startup'] = False
+                
+                # Update global variables
+                minimize_to_tray = settings['minimize_to_tray']
+                AUTO_RECONNECT = settings['auto_reconnect']
+                
+                # Configure startup based on settings
+                set_startup_status(settings.get('run_on_startup', False))
+                
+                save_settings(settings)
                 return settings
         except:
             return {
                 "minimize_to_tray": False,
                 "setup_completed": False,
-                "idler_path": None
+                "idler_path": None,
+                "theme": "dark",
+                "auto_reconnect": False,
+                "run_on_startup": False
             }
     
-    # If settings file doesn't exist, check for default path
-    if os.path.exists(IDLER_PATH):
-        settings = {
-            "minimize_to_tray": False,
-            "setup_completed": True,
-            "idler_path": IDLER_PATH
-        }
-        save_settings(settings)
-        return settings
-        
-    return {
+    # If settings file doesn't exist, create with defaults
+    settings = {
         "minimize_to_tray": False,
         "setup_completed": False,
-        "idler_path": None
+        "idler_path": None,
+        "theme": "dark",
+        "auto_reconnect": False,
+        "run_on_startup": False
     }
+    save_settings(settings)
+    return settings
 
 def save_settings(settings):
     try:
@@ -975,6 +993,7 @@ def on_closed():
         if settings.get('minimize_to_tray', False):
             # Just minimize to tray
             if icon:
+                window.hide()
                 icon.notify("Steam Idle Manager is still running in the background", "Minimized to Tray")
             return False
         else:
@@ -986,14 +1005,14 @@ def on_closed():
         print(f"Error in on_closed: {e}")
         sys.exit(0)
 
-def handle_minimize_event(window):
+def handle_minimize_event():
     settings = load_settings()
     if settings.get('minimize_to_tray', False):
         window.hide()
         # Show notification in system tray
         if icon:
             icon.notify("Steam Idle Manager is still running in the background", "Minimized to Tray")
-        return False  # Prevent default minimize
+        return True  # Prevent default minimize
     return True  # Allow default minimize if setting is disabled
 
 def check_and_restart_games():
@@ -1249,11 +1268,11 @@ def rename_preset():
 
 @app.route('/api/settings', methods=['GET', 'POST'])
 def manage_settings():
-    global minimize_to_tray, IDLER_PATH
+    global minimize_to_tray, IDLER_PATH, AUTO_RECONNECT
     if request.method == 'GET':
         settings = load_settings()
-        # Add the current idler path to the response
-        settings['idler_path'] = IDLER_PATH
+        # Add startup status
+        settings['run_on_startup'] = get_startup_status()
         return jsonify(settings)
     
     elif request.method == 'POST':
@@ -1264,8 +1283,19 @@ def manage_settings():
             settings['minimize_to_tray'] = data['minimize_to_tray']
             minimize_to_tray = data['minimize_to_tray']
         
+        if 'auto_reconnect' in data:
+            settings['auto_reconnect'] = data['auto_reconnect']
+            AUTO_RECONNECT = data['auto_reconnect']
+        
+        if 'run_on_startup' in data:
+            settings['run_on_startup'] = data['run_on_startup']
+            set_startup_status(data['run_on_startup'])
+        
         if 'setup_completed' in data:
             settings['setup_completed'] = data['setup_completed']
+            
+        if 'theme' in data:
+            settings['theme'] = data['theme']
         
         if save_settings(settings):
             save_recent_action("Updated settings")
@@ -1316,6 +1346,58 @@ def get_idle_path():
         "path": settings.get('idler_path', IDLER_PATH)
     })
 
+@app.route('/api/stop-preset', methods=['POST'])
+def stop_preset(preset_name=None):
+    """Stop all games in a preset"""
+    try:
+        if preset_name is None:
+            data = request.get_json()
+            preset_name = data.get('name')
+            
+        if not preset_name:
+            return jsonify({"status": "error", "message": "No preset name provided"}), 400
+            
+        json_path = os.path.join(PRESETS_DIR, f"{preset_name}.json")
+        if not os.path.exists(json_path):
+            return jsonify({"status": "error", "message": "Preset not found"}), 404
+            
+        # Read the games from the preset
+        with open(json_path, 'r') as f:
+            games = json.load(f)
+            
+        stopped_games = []
+        for game in games:
+            game_id = str(game['id'])
+            if game_id in running_games:
+                try:
+                    pid = running_games[game_id]
+                    process = psutil.Process(pid)
+                    for child in process.children(recursive=True):
+                        child.terminate()
+                    process.terminate()
+                    stopped_games.append(game_id)
+                    
+                    # Update game session
+                    if game_id in game_sessions and 'start_time' in game_sessions[game_id]:
+                        session_duration = (datetime.now() - game_sessions[game_id]['start_time']).total_seconds()
+                        game_sessions[game_id]['total_time'] += session_duration
+                        game_sessions[game_id].pop('start_time', None)
+                    
+                    del running_games[game_id]
+                except (psutil.NoSuchProcess, psutil.AccessDenied):
+                    del running_games[game_id]
+                    
+        # Save statistics
+        save_statistics()
+        save_recent_action(f"Stopped preset {preset_name}")
+        
+        return jsonify({
+            "status": "success",
+            "stopped_games": stopped_games
+        })
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
 if __name__ == '__main__':
     # Initialize settings
     settings = load_settings()
@@ -1326,6 +1408,7 @@ if __name__ == '__main__':
     
     # Set the window event handlers
     window.events.closed += on_closed
+    window.events.minimized += handle_minimize_event
     
     # Create tray icon
     create_tray_icon()

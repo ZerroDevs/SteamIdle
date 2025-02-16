@@ -423,94 +423,89 @@
 
     <!-- Add new modal for schedule management -->
     <div id="scheduleModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
-        <div class="bg-gray-800 rounded-lg p-6 w-[600px] max-h-[80vh] overflow-y-auto transform transition-all">
+        <div class="bg-gray-800 rounded-lg p-6 w-[600px] transform transition-all">
             <div class="flex justify-between items-center mb-6">
                 <h3 class="text-xl font-semibold">Schedule Manager</h3>
-                <button onclick="closeScheduleModal()" class="text-gray-400 hover:text-white">
+                <button onclick="closeScheduleModal()" class="text-gray-400 hover:text-gray-300">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
             
-            <div class="space-y-6">
-                <!-- Add New Schedule Form -->
-                <div class="bg-gray-700 rounded-lg p-4">
-                    <h4 class="text-lg font-medium mb-4">Add New Schedule</h4>
-                    <div class="space-y-4">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-300 mb-1">Schedule Name</label>
-                            <input type="text" id="scheduleName" 
-                                   class="w-full bg-gray-600 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                   placeholder="Enter schedule name">
-                        </div>
-                        
-                        <div>
-                            <label class="block text-sm font-medium text-gray-300 mb-1">Select Preset</label>
-                            <select id="schedulePreset" 
-                                    class="w-full bg-gray-600 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                <!-- Presets will be loaded dynamically -->
-                            </select>
-                        </div>
-                        
-                        <div class="grid grid-cols-2 gap-4">
-                            <div>
-                                <label class="block text-sm font-medium text-gray-300 mb-1">Start Time</label>
-                                <input type="time" id="scheduleStartTime" 
-                                       class="w-full bg-gray-600 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-300 mb-1">End Time</label>
-                                <input type="time" id="scheduleEndTime" 
-                                       class="w-full bg-gray-600 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                            </div>
-                        </div>
-                        
-                        <div>
-                            <label class="block text-sm font-medium text-gray-300 mb-2">Days of Week</label>
-                            <div class="flex flex-wrap gap-2">
-                                <button onclick="toggleDay(this, 'monday')" 
-                                        class="px-3 py-1 rounded bg-gray-600 hover:bg-gray-500 transition-colors">
-                                    Mon
-                                </button>
-                                <button onclick="toggleDay(this, 'tuesday')" 
-                                        class="px-3 py-1 rounded bg-gray-600 hover:bg-gray-500 transition-colors">
-                                    Tue
-                                </button>
-                                <button onclick="toggleDay(this, 'wednesday')" 
-                                        class="px-3 py-1 rounded bg-gray-600 hover:bg-gray-500 transition-colors">
-                                    Wed
-                                </button>
-                                <button onclick="toggleDay(this, 'thursday')" 
-                                        class="px-3 py-1 rounded bg-gray-600 hover:bg-gray-500 transition-colors">
-                                    Thu
-                                </button>
-                                <button onclick="toggleDay(this, 'friday')" 
-                                        class="px-3 py-1 rounded bg-gray-600 hover:bg-gray-500 transition-colors">
-                                    Fri
-                                </button>
-                                <button onclick="toggleDay(this, 'saturday')" 
-                                        class="px-3 py-1 rounded bg-gray-600 hover:bg-gray-500 transition-colors">
-                                    Sat
-                                </button>
-                                <button onclick="toggleDay(this, 'sunday')" 
-                                        class="px-3 py-1 rounded bg-gray-600 hover:bg-gray-500 transition-colors">
-                                    Sun
-                                </button>
-                            </div>
-                        </div>
-                        
-                        <button onclick="saveSchedule()" 
-                                class="w-full bg-blue-500 hover:bg-blue-600 px-4 py-2 rounded text-sm">
-                            <i class="fas fa-save mr-2"></i>Save Schedule
-                        </button>
+            <div class="mb-6">
+                <h4 class="text-lg font-medium mb-4">Add New Schedule</h4>
+                <form onsubmit="addSchedule(event)" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-2">Schedule Name</label>
+                        <input type="text" name="scheduleName" required
+                               class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2">
                     </div>
-                </div>
-                
-                <!-- Existing Schedules -->
-                <div>
-                    <h4 class="text-lg font-medium mb-4">Existing Schedules</h4>
-                    <div id="schedulesList" class="space-y-3">
-                        <!-- Schedules will be loaded dynamically -->
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-2">Preset</label>
+                        <select name="presetName" required
+                                class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2">
+                            <!-- Will be populated with presets -->
+                        </select>
                     </div>
+                    
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300 mb-2">Start Time</label>
+                            <input type="time" name="startTime" required
+                                   class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300 mb-2">End Time</label>
+                            <input type="time" name="endTime" required
+                                   class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2">
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-2">Days</label>
+                        <div class="grid grid-cols-7 gap-2">
+                            <label class="flex items-center">
+                                <input type="checkbox" name="days" value="Mon" class="mr-2">
+                                <span>Mon</span>
+                            </label>
+                            <label class="flex items-center">
+                                <input type="checkbox" name="days" value="Tue" class="mr-2">
+                                <span>Tue</span>
+                            </label>
+                            <label class="flex items-center">
+                                <input type="checkbox" name="days" value="Wed" class="mr-2">
+                                <span>Wed</span>
+                            </label>
+                            <label class="flex items-center">
+                                <input type="checkbox" name="days" value="Thu" class="mr-2">
+                                <span>Thu</span>
+                            </label>
+                            <label class="flex items-center">
+                                <input type="checkbox" name="days" value="Fri" class="mr-2">
+                                <span>Fri</span>
+                            </label>
+                            <label class="flex items-center">
+                                <input type="checkbox" name="days" value="Sat" class="mr-2">
+                                <span>Sat</span>
+                            </label>
+                            <label class="flex items-center">
+                                <input type="checkbox" name="days" value="Sun" class="mr-2">
+                                <span>Sun</span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <button type="submit" 
+                            class="w-full bg-blue-500 hover:bg-blue-600 px-4 py-2 rounded">
+                        Add Schedule
+                    </button>
+                </form>
+            </div>
+            
+            <div>
+                <h4 class="text-lg font-medium mb-4">Existing Schedules</h4>
+                <div id="schedulesList" class="space-y-4">
+                    <!-- Will be populated with schedules -->
                 </div>
             </div>
         </div>
@@ -708,6 +703,9 @@
                     <button onclick="selectIdleExe()" class="w-full bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded transition-colors">
                         <i class="fas fa-folder-open mr-2"></i>Select steam-idle.exe
                     </button>
+                    <p class="text-sm text-gray-400 mt-2">
+                        If you don't have Idler, <a href="https://github.com/JonasNilson/idle_master_extended/releases/download/v1.10.0/idle_master_extended_v1.10.0.zip" class="text-blue-400 hover:text-blue-300 underline">Download Now</a>
+                    </p>
                 </div>
 
                 <div class="bg-gray-700 p-6 rounded-lg">

@@ -1276,20 +1276,18 @@ async function openSettings() {
                 await promise;
                 return { name, success: true };
             } catch (error) {
+                console.error(`Error loading ${name}:`, error);
                 return { name, success: false, error: error.message };
             }
         }));
 
         // Check for any failures
-        const failures = results.filter(result => result.status === 'rejected' || 
-            (result.status === 'fulfilled' && !result.value.success));
+        const failures = results
+            .filter(result => result.status === 'fulfilled' && !result.value.success)
+            .map(result => result.value.name);
 
         if (failures.length > 0) {
-            const failedSettings = failures.map(f => {
-                const settingName = f.status === 'rejected' ? f.reason.name : f.value.name;
-                return settingName;
-            });
-            showNotification(`Failed to load settings: ${failedSettings.join(', ')}`, 'error');
+            showNotification(`Failed to load settings: ${failures.join(', ')}`, 'error');
         }
     } catch (error) {
         console.error('Error loading settings:', error);
@@ -1316,134 +1314,62 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
-function setTheme(theme) {
-    currentTheme = theme;
-    document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem('theme', theme);
-    updateThemeButtons();
-}
-
-function updateThemeButtons() {
-    const darkBtn = document.getElementById('darkThemeBtn');
-    const lightBtn = document.getElementById('lightThemeBtn');
-    
-    // Reset both buttons
-    darkBtn.classList.remove('border-blue-500');
-    lightBtn.classList.remove('border-blue-500');
-    
-    // Highlight active theme
-    if (currentTheme === 'dark') {
-        darkBtn.classList.add('border-blue-500');
-    } else {
-        lightBtn.classList.add('border-blue-500');
-    }
-}
-
-// Add after the theme functions
-async function updateStartupToggle() {
+async function setTheme(theme) {
     try {
-        const response = await fetch('/api/startup-status');
-        const data = await response.json();
-        const toggle = document.getElementById('startupToggle');
-        
-        if (data.enabled) {
-            toggle.classList.add('bg-blue-500');
-            toggle.classList.remove('bg-gray-500');
-            toggle.querySelector('span:last-child').classList.add('translate-x-5');
-        } else {
-            toggle.classList.add('bg-gray-500');
-            toggle.classList.remove('bg-blue-500');
-            toggle.querySelector('span:last-child').classList.remove('translate-x-5');
-        }
-    } catch (error) {
-        console.error('Error updating startup status:', error);
-    }
-}
-
-async function toggleStartup() {
-    try {
-        const toggle = document.getElementById('startupToggle');
-        const isEnabled = toggle.classList.contains('bg-blue-500');
-        
-        const response = await fetch('/api/startup-status', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                enabled: !isEnabled
-            })
-        });
-        
-        if (response.ok) {
-            showNotification(`Startup ${!isEnabled ? 'enabled' : 'disabled'}`, 'success');
-            updateStartupToggle();
-        } else {
-            const data = await response.json();
-            showNotification(data.message || 'Failed to update startup status', 'error');
-        }
-    } catch (error) {
-        console.error('Error toggling startup:', error);
-        showNotification('Failed to update startup status', 'error');
-    }
-}
-
-// Add after the startup toggle functions
-async function updateMinimizeToTrayToggle() {
-    try {
-        const response = await fetch('/api/settings');
-        const data = await response.json();
-        const toggle = document.getElementById('minimizeToTrayToggle');
-        
-        if (data.minimize_to_tray) {
-            toggle.classList.add('bg-blue-500');
-            toggle.classList.remove('bg-gray-500');
-            toggle.querySelector('span:last-child').classList.add('translate-x-5');
-        } else {
-            toggle.classList.add('bg-gray-500');
-            toggle.classList.remove('bg-blue-500');
-            toggle.querySelector('span:last-child').classList.remove('translate-x-5');
-        }
-    } catch (error) {
-        console.error('Error updating minimize to tray status:', error);
-    }
-}
-
-async function toggleMinimizeToTray() {
-    try {
-        const toggle = document.getElementById('minimizeToTrayToggle');
-        const isEnabled = toggle.classList.contains('bg-blue-500');
-        
+        // Save theme to settings
         const response = await fetch('/api/settings', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({
-                minimize_to_tray: !isEnabled
-            })
+            body: JSON.stringify({ theme })
         });
-        
+
         if (response.ok) {
-            showNotification(`Minimize to tray ${!isEnabled ? 'enabled' : 'disabled'}`, 'success');
-            updateMinimizeToTrayToggle();
-        } else {
-            const data = await response.json();
-            showNotification(data.message || 'Failed to update minimize to tray setting', 'error');
+            applyTheme(theme);
+            updateThemeButtons();
         }
     } catch (error) {
-        console.error('Error toggling minimize to tray:', error);
-        showNotification('Failed to update minimize to tray setting', 'error');
+        console.error('Error saving theme:', error);
+        showNotification('Failed to save theme setting', 'error');
     }
 }
 
-// Add to the existing DOMContentLoaded event listener
+async function updateThemeButtons() {
+    try {
+        const response = await fetch('/api/settings');
+        const settings = await response.json();
+        const currentTheme = settings.theme || 'dark';
+        
+        // Apply the saved theme
+        applyTheme(currentTheme);
+        
+        // Update theme buttons
+        const darkBtn = document.getElementById('darkThemeBtn');
+        const lightBtn = document.getElementById('lightThemeBtn');
+        
+        darkBtn.classList.toggle('border-blue-500', currentTheme === 'dark');
+        lightBtn.classList.toggle('border-blue-500', currentTheme === 'light');
+        
+        return true;
+    } catch (error) {
+        console.error('Error updating theme buttons:', error);
+        return false;
+    }
+}
+
+// Add this to your DOMContentLoaded event listener
 document.addEventListener('DOMContentLoaded', async function() {
-    // Add this line to the existing DOMContentLoaded event listener
-    await checkFirstTimeSetup();
-    
+    // ... existing code ...
+    await updateThemeButtons(); // This will load and apply the saved theme
     // ... rest of the existing code ...
 });
+
+function applyTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    currentTheme = theme;
+    localStorage.setItem('theme', theme);
+}
 
 async function checkFirstTimeSetup() {
     try {
@@ -1909,49 +1835,336 @@ async function updateIdlePath() {
     }
 }
 
-// Add to the openSettings function to update the idle path when opening settings
-async function openSettings() {
-    const modal = document.getElementById('settingsModal');
-    modal.classList.remove('hidden');
-    modal.classList.add('flex');
-    
-    // Show loading state
-    const loadingElement = document.getElementById('settingsLoading');
-    if (loadingElement) loadingElement.classList.remove('hidden');
-    
+async function updateStartupToggle() {
     try {
-        // Execute all settings updates in parallel but track their results individually
-        const results = await Promise.allSettled([
-            { name: 'Startup Status', promise: updateStartupToggle() },
-            { name: 'Minimize to Tray', promise: updateMinimizeToTrayToggle() },
-            { name: 'Auto Reconnect', promise: updateAutoReconnectToggle() },
-            { name: 'Theme Settings', promise: updateThemeButtons() },
-            { name: 'Steam Idle Path', promise: updateIdlePath() }
-        ].map(async ({ name, promise }) => {
-            try {
-                await promise;
-                return { name, success: true };
-            } catch (error) {
-                return { name, success: false, error: error.message };
-            }
-        }));
+        const response = await fetch('/api/settings');
+        const settings = await response.json();
+        const toggle = document.getElementById('startupToggle');
+        
+        if (settings.run_on_startup) {
+            toggle.classList.add('bg-blue-500');
+            toggle.classList.remove('bg-gray-500');
+            toggle.querySelector('span:last-child').classList.add('translate-x-5');
+        } else {
+            toggle.classList.add('bg-gray-500');
+            toggle.classList.remove('bg-blue-500');
+            toggle.querySelector('span:last-child').classList.remove('translate-x-5');
+        }
+        return true;
+    } catch (error) {
+        console.error('Error updating startup toggle:', error);
+        return false;
+    }
+}
 
-        // Check for any failures
-        const failures = results.filter(result => result.status === 'rejected' || 
-            (result.status === 'fulfilled' && !result.value.success));
-
-        if (failures.length > 0) {
-            const failedSettings = failures.map(f => {
-                const settingName = f.status === 'rejected' ? f.reason.name : f.value.name;
-                return settingName;
-            });
-            showNotification(`Failed to load settings: ${failedSettings.join(', ')}`, 'error');
+async function toggleStartup() {
+    try {
+        const toggle = document.getElementById('startupToggle');
+        const isEnabled = toggle.classList.contains('bg-blue-500');
+        
+        const response = await fetch('/api/settings', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                run_on_startup: !isEnabled
+            })
+        });
+        
+        if (response.ok) {
+            showNotification(`Run on startup ${!isEnabled ? 'enabled' : 'disabled'}`, 'success');
+            await updateStartupToggle();
+        } else {
+            const data = await response.json();
+            showNotification(data.message || 'Failed to update startup setting', 'error');
         }
     } catch (error) {
-        console.error('Error loading settings:', error);
-        showNotification('Failed to load all settings', 'error');
-    } finally {
-        // Hide loading state
-        if (loadingElement) loadingElement.classList.add('hidden');
+        console.error('Error toggling startup:', error);
+        showNotification('Failed to update startup setting', 'error');
+    }
+}
+
+async function updateMinimizeToTrayToggle() {
+    try {
+        const response = await fetch('/api/settings');
+        const settings = await response.json();
+        const toggle = document.getElementById('minimizeToTrayToggle');
+        
+        if (settings.minimize_to_tray) {
+            toggle.classList.add('bg-blue-500');
+            toggle.classList.remove('bg-gray-500');
+            toggle.querySelector('span:last-child').classList.add('translate-x-5');
+        } else {
+            toggle.classList.add('bg-gray-500');
+            toggle.classList.remove('bg-blue-500');
+            toggle.querySelector('span:last-child').classList.remove('translate-x-5');
+        }
+        return true;
+    } catch (error) {
+        console.error('Error updating minimize to tray toggle:', error);
+        return false;
+    }
+}
+
+async function toggleMinimizeToTray() {
+    try {
+        const toggle = document.getElementById('minimizeToTrayToggle');
+        const isEnabled = toggle.classList.contains('bg-blue-500');
+        
+        const response = await fetch('/api/settings', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                minimize_to_tray: !isEnabled
+            })
+        });
+        
+        if (response.ok) {
+            showNotification(`Minimize to tray ${!isEnabled ? 'enabled' : 'disabled'}`, 'success');
+            await updateMinimizeToTrayToggle();
+        } else {
+            const data = await response.json();
+            showNotification(data.message || 'Failed to update minimize to tray setting', 'error');
+        }
+    } catch (error) {
+        console.error('Error toggling minimize to tray:', error);
+        showNotification('Failed to update minimize to tray setting', 'error');
+    }
+}
+
+async function updateAutoReconnectToggle() {
+    try {
+        const response = await fetch('/api/settings');
+        const settings = await response.json();
+        const toggle = document.getElementById('autoReconnectToggle');
+        
+        if (settings.auto_reconnect) {
+            toggle.classList.add('bg-blue-500');
+            toggle.classList.remove('bg-gray-500');
+            toggle.querySelector('span:last-child').classList.add('translate-x-5');
+        } else {
+            toggle.classList.add('bg-gray-500');
+            toggle.classList.remove('bg-blue-500');
+            toggle.querySelector('span:last-child').classList.remove('translate-x-5');
+        }
+        return true;
+    } catch (error) {
+        console.error('Error updating auto reconnect toggle:', error);
+        return false;
+    }
+}
+
+async function toggleAutoReconnect() {
+    try {
+        const toggle = document.getElementById('autoReconnectToggle');
+        const isEnabled = toggle.classList.contains('bg-blue-500');
+        
+        const response = await fetch('/api/settings', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                auto_reconnect: !isEnabled
+            })
+        });
+        
+        if (response.ok) {
+            showNotification(`Auto reconnect ${!isEnabled ? 'enabled' : 'disabled'}`, 'success');
+            await updateAutoReconnectToggle();
+        } else {
+            const data = await response.json();
+            showNotification(data.message || 'Failed to update auto reconnect setting', 'error');
+        }
+    } catch (error) {
+        console.error('Error toggling auto reconnect:', error);
+        showNotification('Failed to update auto reconnect setting', 'error');
+    }
+}
+
+async function exportStats() {
+    try {
+        const response = await fetch('/api/export-stats', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ type: 'csv' })
+        });
+        
+        if (response.ok) {
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `steam_idle_stats_${new Date().toISOString().slice(0,10)}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            a.remove();
+            showNotification('success', 'Statistics exported successfully');
+        } else {
+            throw new Error('Failed to export statistics');
+        }
+    } catch (error) {
+        console.error('Error exporting stats:', error);
+        showNotification('error', 'Failed to export statistics');
+    }
+}
+
+function confirmResetStats() {
+    document.getElementById('resetStatsModal').classList.remove('hidden');
+    document.getElementById('resetStatsModal').classList.add('flex');
+}
+
+function closeResetStatsModal() {
+    document.getElementById('resetStatsModal').classList.add('hidden');
+    document.getElementById('resetStatsModal').classList.remove('flex');
+}
+
+async function resetStats() {
+    try {
+        const response = await fetch('/api/stats/reset', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (response.ok) {
+            showNotification('success', 'Statistics reset successfully');
+            closeResetStatsModal();
+            updateStatistics(); // Refresh the statistics display
+        } else {
+            throw new Error('Failed to reset statistics');
+        }
+    } catch (error) {
+        console.error('Error resetting stats:', error);
+        showNotification('error', 'Failed to reset statistics');
+    }
+}
+
+function openScheduleModal() {
+    document.getElementById('scheduleModal').classList.remove('hidden');
+    document.getElementById('scheduleModal').classList.add('flex');
+    loadSchedules();
+    loadPresetOptions();
+}
+
+function closeScheduleModal() {
+    document.getElementById('scheduleModal').classList.add('hidden');
+    document.getElementById('scheduleModal').classList.remove('flex');
+}
+
+async function loadSchedules() {
+    try {
+        const response = await fetch('/api/schedules');
+        const data = await response.json();
+        const schedulesList = document.getElementById('schedulesList');
+        schedulesList.innerHTML = '';
+        
+        data.schedules.forEach(schedule => {
+            const scheduleItem = document.createElement('div');
+            scheduleItem.className = 'bg-gray-700 p-4 rounded mb-4';
+            scheduleItem.innerHTML = `
+                <div class="flex justify-between items-center">
+                    <div>
+                        <h4 class="font-medium">${schedule.name}</h4>
+                        <p class="text-sm text-gray-400">Preset: ${schedule.preset_name}</p>
+                        <p class="text-sm text-gray-400">Time: ${schedule.start_time} - ${schedule.end_time}</p>
+                        <p class="text-sm text-gray-400">Days: ${schedule.days.join(', ')}</p>
+                    </div>
+                    <button onclick="deleteSchedule('${schedule.id}')" class="text-red-500 hover:text-red-600">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            `;
+            schedulesList.appendChild(scheduleItem);
+        });
+    } catch (error) {
+        console.error('Error loading schedules:', error);
+        showNotification('error', 'Failed to load schedules');
+    }
+}
+
+async function addSchedule(event) {
+    event.preventDefault();
+    
+    const formData = new FormData(event.target);
+    const data = {
+        name: formData.get('scheduleName'),
+        preset_name: formData.get('presetName'),
+        start_time: formData.get('startTime'),
+        end_time: formData.get('endTime'),
+        days: Array.from(formData.getAll('days'))
+    };
+    
+    try {
+        const response = await fetch('/api/schedules', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(data)
+        });
+        
+        if (response.ok) {
+            showNotification('success', 'Schedule added successfully');
+            event.target.reset();
+            loadSchedules();
+        } else {
+            throw new Error('Failed to add schedule');
+        }
+    } catch (error) {
+        console.error('Error adding schedule:', error);
+        showNotification('error', 'Failed to add schedule');
+    }
+}
+
+async function deleteSchedule(scheduleId) {
+    if (!confirm('Are you sure you want to delete this schedule?')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/schedules', {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ id: scheduleId })
+        });
+        
+        if (response.ok) {
+            showNotification('success', 'Schedule deleted successfully');
+            loadSchedules();
+        } else {
+            throw new Error('Failed to delete schedule');
+        }
+    } catch (error) {
+        console.error('Error deleting schedule:', error);
+        showNotification('error', 'Failed to delete schedule');
+    }
+}
+
+async function loadPresetOptions() {
+    try {
+        const response = await fetch('/api/get-presets');
+        const presets = await response.json();
+        const presetSelect = document.querySelector('select[name="presetName"]');
+        presetSelect.innerHTML = '<option value="">Select a preset</option>';
+        
+        presets.forEach(preset => {
+            const option = document.createElement('option');
+            option.value = preset.name;
+            option.textContent = preset.name;
+            presetSelect.appendChild(option);
+        });
+    } catch (error) {
+        console.error('Error loading presets:', error);
+        showNotification('error', 'Failed to load presets');
     }
 } 

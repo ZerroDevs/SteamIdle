@@ -1190,6 +1190,8 @@ function openSettings() {
     updateThemeButtons();
     // Update startup toggle state
     updateStartupToggle();
+    // Update minimize to tray toggle state
+    updateMinimizeToTrayToggle();
 }
 
 function closeSettings() {
@@ -1270,6 +1272,55 @@ async function toggleStartup() {
     }
 }
 
+// Add after the startup toggle functions
+async function updateMinimizeToTrayToggle() {
+    try {
+        const response = await fetch('/api/settings');
+        const data = await response.json();
+        const toggle = document.getElementById('minimizeToTrayToggle');
+        
+        if (data.minimize_to_tray) {
+            toggle.classList.add('bg-blue-500');
+            toggle.classList.remove('bg-gray-500');
+            toggle.querySelector('span:last-child').classList.add('translate-x-5');
+        } else {
+            toggle.classList.add('bg-gray-500');
+            toggle.classList.remove('bg-blue-500');
+            toggle.querySelector('span:last-child').classList.remove('translate-x-5');
+        }
+    } catch (error) {
+        console.error('Error updating minimize to tray status:', error);
+    }
+}
+
+async function toggleMinimizeToTray() {
+    try {
+        const toggle = document.getElementById('minimizeToTrayToggle');
+        const isEnabled = toggle.classList.contains('bg-blue-500');
+        
+        const response = await fetch('/api/settings', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                minimize_to_tray: !isEnabled
+            })
+        });
+        
+        if (response.ok) {
+            showNotification(`Minimize to tray ${!isEnabled ? 'enabled' : 'disabled'}`, 'success');
+            updateMinimizeToTrayToggle();
+        } else {
+            const data = await response.json();
+            showNotification(data.message || 'Failed to update minimize to tray setting', 'error');
+        }
+    } catch (error) {
+        console.error('Error toggling minimize to tray:', error);
+        showNotification('Failed to update minimize to tray setting', 'error');
+    }
+}
+
 // Add to the existing DOMContentLoaded event listener
 document.addEventListener('DOMContentLoaded', () => {
     // ... existing initialization code ...
@@ -1279,6 +1330,9 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Initialize startup toggle
     updateStartupToggle();
+    
+    // Initialize minimize to tray toggle
+    updateMinimizeToTrayToggle();
     
     // Add click outside handler for settings modal
     const settingsModal = document.getElementById('settingsModal');

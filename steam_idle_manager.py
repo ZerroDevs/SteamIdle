@@ -9,15 +9,21 @@ import winreg
 from flask import Flask, render_template, request, jsonify
 from bs4 import BeautifulSoup
 from datetime import datetime, timedelta
+import pystray
+from PIL import Image
+import threading
 
 app = Flask(__name__)
 window = None
+icon = None
+minimize_to_tray = False
 
 # Set up AppData paths
 APPDATA_PATH = os.path.join(os.getenv('APPDATA'), 'SteamIdler')
 PRESETS_DIR = os.path.join(APPDATA_PATH, "presets")
 STATS_FILE = os.path.join(APPDATA_PATH, "stats.json")
 IDLER_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Idler", "steam-idle.exe")
+SETTINGS_FILE = os.path.join(APPDATA_PATH, "settings.json")
 
 # Add new constants after existing constants
 FAVORITES_FILE = os.path.join(APPDATA_PATH, "favorites.json")
@@ -822,6 +828,125 @@ def set_startup_status(enable):
     finally:
         winreg.CloseKey(key)
 
+def load_settings():
+    if os.path.exists(SETTINGS_FILE):
+        try:
+            with open(SETTINGS_FILE, 'r') as f:
+                return json.load(f)
+        except:
+            return {"minimize_to_tray": False}
+    return {"minimize_to_tray": False}
+
+def save_settings(settings):
+    with open(SETTINGS_FILE, 'w') as f:
+        json.dump(settings, f)
+
+@app.route('/api/settings', methods=['GET', 'POST'])
+def manage_settings():
+    global minimize_to_tray
+    if request.method == 'GET':
+        settings = load_settings()
+        return jsonify(settings)
+    
+    elif request.method == 'POST':
+        data = request.get_json()
+        settings = load_settings()
+        
+        if 'minimize_to_tray' in data:
+            settings['minimize_to_tray'] = data['minimize_to_tray']
+            minimize_to_tray = data['minimize_to_tray']
+        
+        save_settings(settings)
+        save_recent_action(f"{'Enabled' if minimize_to_tray else 'Disabled'} minimize to tray")
+        return jsonify({"status": "success"})
+
+def create_tray_icon():
+    global icon
+    try:
+        # Load the icon image
+        image = Image.open("Logo.png")
+        
+        def show_window(icon, item):
+            window.show()
+            window.restore()
+            
+        def exit_app(icon, item):
+            icon.stop()
+            window.destroy()
+        
+        # Create the tray icon menu
+        menu = (
+            pystray.MenuItem("Show", show_window),
+            pystray.MenuItem("Exit", exit_app)
+        )
+        
+        # Create the icon
+        icon = pystray.Icon("SteamIdleManager", image, "Steam Idle Manager", menu)
+        
+        # Run the icon in a separate thread
+        icon_thread = threading.Thread(target=icon.run)
+        icon_thread.daemon = True
+        icon_thread.start()
+        
+    except Exception as e:
+        print(f"Error creating tray icon: {e}")
+
+def on_closed():
+    global window
+    settings = load_settings()
+    if settings.get('minimize_to_tray', False):
+        window.hide()
+        # Show notification in system tray
+        if icon:
+            icon.notify("Steam Idle Manager is still running in the background", "Minimized to Tray")
+    else:
+        # If minimize to tray is disabled, or if there's an error, close the app
+        if icon:
+            icon.stop()
+        window.destroy()
+
+def handle_minimize_event(window):
+    settings = load_settings()
+    if settings.get('minimize_to_tray', False):
+        window.hide()
+        # Show notification in system tray
+        if icon:
+            icon.notify("Steam Idle Manager is still running in the background", "Minimized to Tray")
+        return False  # Prevent default minimize
+    return True  # Allow default minimize if setting is disabled
+
 if __name__ == '__main__':
-    window = webview.create_window('Steam Idle Manager', app)
-    webview.start() 
+    # Load initial settings
+    settings = load_settings()
+    minimize_to_tray = settings.get('minimize_to_tray', False)
+    
+    # Create window with close event handler
+    window = webview.create_window('Steam Idle Manager', app, confirm_close=True)
+    
+    def handle_close_event(window):
+        settings = load_settings()
+        if settings.get('minimize_to_tray', False):
+            window.hide()
+            # Show notification in system tray
+            if icon:
+                icon.notify("Steam Idle Manager is still running in the background", "Minimized to Tray")
+            return False  # Prevent the window from closing
+        else:
+            # If minimize to tray is disabled, allow the window to close
+            if icon:
+                icon.stop()
+            return True
+    
+    # Set the window event handlers
+    window.events.closing += handle_close_event
+    window.events.minimized += lambda: handle_minimize_event(window)  # Fix: Wrap the handler in a lambda to pass window
+    
+    # Create tray icon
+    create_tray_icon()
+    
+    # Start the application
+    webview.start()
+    
+    # Clean up tray icon when exiting
+    if icon:
+        icon.stop() 

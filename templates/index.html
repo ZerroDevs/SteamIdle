@@ -322,16 +322,29 @@
                 <!-- Run on Startup Toggle -->
                 <div>
                     <label class="block text-sm font-medium text-gray-300 mb-2">Application Settings</label>
-                    <div class="flex items-center justify-between bg-gray-700 p-3 rounded">
-                        <div>
-                            <span class="block font-medium">Run on Startup</span>
-                            <span class="text-sm text-gray-400">Launch Steam Idle Manager when Windows starts</span>
+                    <div class="space-y-3">
+                        <div class="flex items-center justify-between bg-gray-700 p-3 rounded">
+                            <div>
+                                <span class="block font-medium">Run on Startup</span>
+                                <span class="text-sm text-gray-400">Launch Steam Idle Manager when Windows starts</span>
+                            </div>
+                            <button id="startupToggle" onclick="toggleStartup()" 
+                                    class="relative inline-flex items-center h-6 rounded-full w-11 transition-colors focus:outline-none">
+                                <span class="sr-only">Toggle startup</span>
+                                <span class="inline-block w-4 h-4 transform bg-white rounded-full transition-transform"></span>
+                            </button>
                         </div>
-                        <button id="startupToggle" onclick="toggleStartup()" 
-                                class="relative inline-flex items-center h-6 rounded-full w-11 transition-colors focus:outline-none">
-                            <span class="sr-only">Toggle startup</span>
-                            <span class="inline-block w-4 h-4 transform bg-white rounded-full transition-transform"></span>
-                        </button>
+                        <div class="flex items-center justify-between bg-gray-700 p-3 rounded">
+                            <div>
+                                <span class="block font-medium">Minimize to Tray</span>
+                                <span class="text-sm text-gray-400">Keep running in system tray when minimized</span>
+                            </div>
+                            <button id="minimizeToTrayToggle" onclick="toggleMinimizeToTray()" 
+                                    class="relative inline-flex items-center h-6 rounded-full w-11 transition-colors focus:outline-none">
+                                <span class="sr-only">Toggle minimize to tray</span>
+                                <span class="inline-block w-4 h-4 transform bg-white rounded-full transition-transform"></span>
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>

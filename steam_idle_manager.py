@@ -1144,6 +1144,39 @@ def reset_statistics():
             "message": str(e)
         }), 500
 
+@app.route('/api/rename-preset', methods=['POST'])
+def rename_preset():
+    data = request.get_json()
+    old_name = data.get('oldName')
+    new_name = data.get('newName')
+    
+    if not old_name or not new_name:
+        return jsonify({"status": "error", "message": "Missing preset names"}), 400
+    
+    try:
+        # Rename JSON file
+        old_json_path = os.path.join(PRESETS_DIR, f"{old_name}.json")
+        new_json_path = os.path.join(PRESETS_DIR, f"{new_name}.json")
+        
+        # Rename BAT file
+        old_bat_path = os.path.join(PRESETS_DIR, f"{old_name}.bat")
+        new_bat_path = os.path.join(PRESETS_DIR, f"{new_name}.bat")
+        
+        if os.path.exists(new_json_path) or os.path.exists(new_bat_path):
+            return jsonify({"status": "error", "message": "A preset with this name already exists"}), 400
+        
+        if os.path.exists(old_json_path):
+            os.rename(old_json_path, new_json_path)
+        if os.path.exists(old_bat_path):
+            os.rename(old_bat_path, new_bat_path)
+            
+        # Add to recent actions
+        save_recent_action(f"Renamed preset from '{old_name}' to '{new_name}'")
+        
+        return jsonify({"status": "success"})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
 if __name__ == '__main__':
     # Load initial settings
     settings = load_settings()

@@ -3,6 +3,8 @@ let runningGames = new Set();
 let runningPresets = new Set();
 let quickActionsEnabled = false; // Changed from true to false
 let currentTheme = localStorage.getItem('theme') || 'dark';
+let presetToDelete = null;
+let presetToRename = null;
 
 // Add status checking intervals
 setInterval(updateGameStatuses, 5000); // Check every 5 seconds
@@ -208,7 +210,19 @@ async function updatePresetsList(presets) {
 
         presetCard.innerHTML = `
             <div class="flex justify-between items-center mb-4">
-                <h3 class="text-lg font-semibold">${preset.name}</h3>
+                <div class="flex items-center gap-3">
+                    <h3 class="text-lg font-semibold">${preset.name}</h3>
+                    <div class="flex gap-2">
+                        <button onclick="${isFavorited ? 'removeFavorite' : 'addFavorite'}('${preset.name}')" 
+                                class="text-${isFavorited ? 'yellow' : 'gray'}-500 hover:text-yellow-400 transition-colors duration-200 ${isFavorited ? 'glow-yellow' : ''}">
+                            <i class="fas fa-star"></i>
+                        </button>
+                        <button onclick="showRenamePresetModal('${preset.name}')"
+                                class="text-blue-500 hover:text-blue-400 transition-colors">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                    </div>
+                </div>
                 <div class="flex gap-2">
                     <button onclick="${isPresetRunning ? 'stopPreset' : 'runPreset'}('${preset.name}')" 
                             class="bg-${isPresetRunning ? 'red' : 'green'}-500 hover:bg-${isPresetRunning ? 'red' : 'green'}-600 px-4 py-2 rounded text-sm">
@@ -217,10 +231,6 @@ async function updatePresetsList(presets) {
                     <button onclick="togglePresetInfo(this)" 
                             class="bg-blue-500 hover:bg-blue-600 px-4 py-2 rounded text-sm">
                         <i class="fas fa-info-circle mr-1"></i>Show Info
-                    </button>
-                    <button onclick="${isFavorited ? 'removeFavorite' : 'addFavorite'}('${preset.name}')" 
-                            class="bg-${isFavorited ? 'gray' : 'yellow'}-500 hover:bg-${isFavorited ? 'gray' : 'yellow'}-600 px-4 py-2 rounded text-sm">
-                        <i class="fas fa-star mr-1"></i>${isFavorited ? 'Unfavorite' : 'Favorite'}
                     </button>
                     <button onclick="deletePreset('${preset.name}')" 
                             class="bg-red-500 hover:bg-red-600 px-4 py-2 rounded text-sm"
@@ -320,6 +330,26 @@ async function launchSteam() {
     }
 }
 
+// Add these functions for the Steam launch modal
+function showSteamLaunchModal() {
+    const modal = document.getElementById('steamLaunchModal');
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+}
+
+function closeSteamLaunchModal() {
+    const modal = document.getElementById('steamLaunchModal');
+    modal.classList.remove('flex');
+    modal.classList.add('hidden');
+}
+
+async function confirmSteamLaunch() {
+    closeSteamLaunchModal();
+    await launchSteam();
+    showNotification('Please try starting the game again once Steam is running', 'info');
+}
+
+// Update the startGame function
 async function startGame(gameId) {
     try {
         // Check Steam status first
@@ -330,12 +360,7 @@ async function startGame(gameId) {
         }
         
         if (!steamStatus.running) {
-            const shouldLaunch = confirm('Steam is not running. Would you like to launch Steam now?');
-            if (shouldLaunch) {
-                await launchSteam();
-                showNotification('Please try starting the game again once Steam is running', 'info');
-                return;
-            }
+            showSteamLaunchModal();
             return;
         }
         
@@ -469,29 +494,52 @@ async function importBatFile(file) {
     reader.readAsText(file);
 }
 
-async function deletePreset(presetName) {
-    if (!confirm(`Are you sure you want to delete preset "${presetName}"?`)) {
-        return;
-    }
+function showDeletePresetModal(presetName) {
+    presetToDelete = presetName;
+    const modal = document.getElementById('deletePresetModal');
+    const presetNameSpan = document.getElementById('deletePresetName');
+    presetNameSpan.textContent = presetName;
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+}
 
+function closeDeletePresetModal() {
+    const modal = document.getElementById('deletePresetModal');
+    modal.classList.remove('flex');
+    modal.classList.add('hidden');
+    presetToDelete = null;
+}
+
+async function confirmDeletePreset() {
+    if (!presetToDelete) return;
+    
     try {
         const response = await fetch('/api/delete-preset', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ name: presetName })
+            body: JSON.stringify({ name: presetToDelete })
         });
 
-        if (!response.ok) {
-            throw new Error('Failed to delete preset');
+        if (response.ok) {
+            showNotification(`Preset "${presetToDelete}" deleted successfully`, 'success');
+            updatePresetsList(await loadPresets(true));
+            updateFavoritePresets();
+        } else {
+            showNotification('Failed to delete preset', 'error');
         }
-
-        loadPresets();
     } catch (error) {
         console.error('Error deleting preset:', error);
-        alert('Failed to delete preset');
+        showNotification('Failed to delete preset', 'error');
     }
+    
+    closeDeletePresetModal();
+}
+
+// Update the existing deletePreset function
+async function deletePreset(presetName) {
+    showDeletePresetModal(presetName);
 }
 
 async function stopPreset(presetName) {
@@ -590,6 +638,7 @@ async function updatePlaytimes() {
     }
 }
 
+// Update the runPreset function
 async function runPreset(presetName) {
     try {
         // Check Steam status first
@@ -600,12 +649,7 @@ async function runPreset(presetName) {
         }
         
         if (!steamStatus.running) {
-            const shouldLaunch = confirm('Steam is not running. Would you like to launch Steam now?');
-            if (shouldLaunch) {
-                await launchSteam();
-                showNotification('Please try starting the preset again once Steam is running', 'info');
-                return;
-            }
+            showSteamLaunchModal();
             return;
         }
         
@@ -858,8 +902,16 @@ async function addFavorite(presetName) {
         });
         
         if (response.ok) {
+            // Update star icon
+            const starButton = document.querySelector(`button[onclick="removeFavorite('${presetName}')"]`);
+            if (starButton) {
+                starButton.classList.remove('text-gray-500');
+                starButton.classList.add('text-yellow-500', 'glow-yellow');
+                starButton.setAttribute('onclick', `removeFavorite('${presetName}')`);
+            }
             showNotification(`Added ${presetName} to favorites`, 'success');
             updateFavoritePresets();
+            updatePresetsList(await loadPresets(true));
         }
     } catch (error) {
         console.error('Error adding favorite:', error);
@@ -878,8 +930,16 @@ async function removeFavorite(presetName) {
         });
         
         if (response.ok) {
+            // Update star icon
+            const starButton = document.querySelector(`button[onclick="addFavorite('${presetName}')"]`);
+            if (starButton) {
+                starButton.classList.remove('text-yellow-500', 'glow-yellow');
+                starButton.classList.add('text-gray-500');
+                starButton.setAttribute('onclick', `addFavorite('${presetName}')`);
+            }
             showNotification(`Removed ${presetName} from favorites`, 'success');
             updateFavoritePresets();
+            updatePresetsList(await loadPresets(true));
         }
     } catch (error) {
         console.error('Error removing favorite:', error);
@@ -1701,4 +1761,71 @@ document.addEventListener('DOMContentLoaded', () => {
             closeResetStatsModal();
         }
     });
-}); 
+});
+
+function showRenamePresetModal(presetName) {
+    presetToRename = presetName;
+    const modal = document.getElementById('renamePresetModal');
+    const currentNameSpan = document.getElementById('currentPresetName');
+    const newNameInput = document.getElementById('newPresetName');
+    
+    currentNameSpan.textContent = presetName;
+    newNameInput.value = presetName;
+    
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    
+    // Focus and select the input text
+    setTimeout(() => {
+        newNameInput.focus();
+        newNameInput.select();
+    }, 100);
+}
+
+function closeRenamePresetModal() {
+    const modal = document.getElementById('renamePresetModal');
+    modal.classList.remove('flex');
+    modal.classList.add('hidden');
+    presetToRename = null;
+}
+
+async function confirmRenamePreset() {
+    if (!presetToRename) return;
+    
+    const newName = document.getElementById('newPresetName').value.trim();
+    if (!newName) {
+        showNotification('Please enter a valid name', 'error');
+        return;
+    }
+    
+    if (newName === presetToRename) {
+        closeRenamePresetModal();
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/rename-preset', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ 
+                oldName: presetToRename,
+                newName: newName 
+            })
+        });
+
+        if (response.ok) {
+            showNotification(`Preset renamed to "${newName}" successfully`, 'success');
+            updatePresetsList(await loadPresets(true));
+            updateFavoritePresets();
+        } else {
+            showNotification('Failed to rename preset', 'error');
+        }
+    } catch (error) {
+        console.error('Error renaming preset:', error);
+        showNotification('Failed to rename preset', 'error');
+    }
+    
+    closeRenamePresetModal();
+} 

@@ -552,5 +552,81 @@
             </div>
         </div>
     </div>
+
+    <!-- Steam Launch Confirmation Modal -->
+    <div id="steamLaunchModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+        <div class="bg-gray-800 rounded-lg p-6 w-96 transform transition-all">
+            <div class="text-center mb-6">
+                <div class="bg-blue-500 w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center">
+                    <i class="fas fa-steam text-2xl text-white"></i>
+                </div>
+                <h3 class="text-xl font-semibold mb-2">Steam Not Running</h3>
+                <p class="text-gray-400">Steam is not running. Would you like to launch Steam now?</p>
+            </div>
+            <div class="flex justify-center gap-4">
+                <button onclick="closeSteamLaunchModal()" 
+                        class="px-6 py-2 bg-gray-600 hover:bg-gray-500 rounded font-medium">
+                    Cancel
+                </button>
+                <button onclick="confirmSteamLaunch()" 
+                        class="px-6 py-2 bg-blue-500 hover:bg-blue-600 rounded font-medium">
+                    Launch Steam
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Preset Confirmation Modal -->
+    <div id="deletePresetModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+        <div class="bg-gray-800 rounded-lg p-6 w-96 transform transition-all">
+            <div class="text-center mb-6">
+                <div class="bg-red-500 w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center">
+                    <i class="fas fa-trash-alt text-2xl text-white"></i>
+                </div>
+                <h3 class="text-xl font-semibold mb-2">Delete Preset</h3>
+                <p class="text-gray-400">Are you sure you want to delete preset "<span id="deletePresetName" class="font-medium text-white"></span>"? This action cannot be undone.</p>
+            </div>
+            <div class="flex justify-center gap-4">
+                <button onclick="closeDeletePresetModal()" 
+                        class="px-6 py-2 bg-gray-600 hover:bg-gray-500 rounded font-medium">
+                    Cancel
+                </button>
+                <button onclick="confirmDeletePreset()" 
+                        class="px-6 py-2 bg-red-500 hover:bg-red-600 rounded font-medium">
+                    Delete
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Rename Preset Modal -->
+    <div id="renamePresetModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+        <div class="bg-gray-800 rounded-lg p-6 w-96 transform transition-all">
+            <div class="text-center mb-6">
+                <div class="bg-blue-500 w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center">
+                    <i class="fas fa-edit text-2xl text-white"></i>
+                </div>
+                <h3 class="text-xl font-semibold mb-2">Rename Preset</h3>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-2">Current Name: <span id="currentPresetName" class="text-white"></span></label>
+                        <input type="text" id="newPresetName" 
+                               class="w-full bg-gray-700 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                               placeholder="Enter new name">
+                    </div>
+                </div>
+            </div>
+            <div class="flex justify-center gap-4">
+                <button onclick="closeRenamePresetModal()" 
+                        class="px-6 py-2 bg-gray-600 hover:bg-gray-500 rounded font-medium">
+                    Cancel
+                </button>
+                <button onclick="confirmRenamePreset()" 
+                        class="px-6 py-2 bg-blue-500 hover:bg-blue-600 rounded font-medium">
+                    Rename
+                </button>
+            </div>
+        </div>
+    </div>
 </body>
 </html> 

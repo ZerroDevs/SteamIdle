@@ -1,6 +1,6 @@
 """
 Steam Idle Manager
-Copyright (c) 2024 ZerroDevs
+Copyright (c) 2025 ZerroDevs
 https://github.com/ZerroDevs
 
 A powerful Steam game idling manager with modern UI and extensive functionality.

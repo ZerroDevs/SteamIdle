@@ -5,16 +5,9 @@ Copyright (c) 2025 ZerroDevs
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
 in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, and/or distribute copies of the Software for
-personal use only, and to permit persons to whom the Software is furnished to
-do so, subject to the following conditions:
-
-1. The Software may only be used for personal, non-commercial purposes.
-2. The Software may not be sold, sublicensed, or used for commercial purposes
-   without explicit written permission from ZerroDevs.
-3. Any distribution of the Software must retain this license and copyright notice.
-4. The Software may not be modified for commercial purposes or redistributed
-   as part of a commercial product.
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
 
 The above copyright notice and this permission notice shall be included in all
 copies or substantial portions of the Software.
@@ -26,6 +19,25 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+Additional Terms:
+1. Commercial Use: Any commercial use, including but not limited to:
+   - Selling the Software
+   - Including the Software in a commercial product
+   - Using the Software for business purposes
+   - Offering the Software as a service
+   is strictly prohibited without explicit written permission from ZerroDevs.
+
+2. Personal Use: The Software is provided for personal use only, which includes:
+   - Individual, non-commercial use
+   - Personal game management
+   - Private, non-commercial automation
+
+3. Distribution Requirements:
+   - Any redistribution must give credit to ZerroDevs
+   - Must include a link to the original repository
+   - Must include this complete license text
+   - Must not be distributed as part of a paid or commercial product
 
 Additional Terms and Restrictions:
 1. Commercial Use: Any commercial use, including but not limited to:

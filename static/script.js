@@ -53,6 +53,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     // Update library display when games are started/stopped
     document.addEventListener('gameStateChanged', function() {
         updateLibraryDisplay();
+        updateGamesList();
     });
 });
 

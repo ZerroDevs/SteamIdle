@@ -6,6 +6,7 @@ import webview
 import requests
 import psutil
 import winreg
+import socket
 from flask import Flask, render_template, request, jsonify, send_file
 from bs4 import BeautifulSoup
 from datetime import datetime, timedelta
@@ -1799,7 +1800,145 @@ def resume_game():
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
+def check_internet_connection():
+    try:
+        # Try to connect to a reliable host
+        socket.create_connection(("8.8.8.8", 53), timeout=3)
+        return True
+    except OSError:
+        return False
+
+def show_no_internet_error():
+    import tkinter as tk
+    from tkinter import ttk
+    
+    def retry_connection():
+        if check_internet_connection():
+            dialog.destroy()
+            return True
+        else:
+            # Show the notification label with animation
+            notification_label.config(text="There's no connection")
+            notification_label.pack(pady=(0, 10))
+            dialog.after(100, lambda: notification_label.config(fg='#FF4444'))  # Fade in red color
+            dialog.after(2000, lambda: notification_label.pack_forget())  # Hide after 2 seconds
+            return False
+    
+    def close_app():
+        dialog.destroy()
+        sys.exit(1)
+    
+    # Create the custom dialog
+    dialog = tk.Tk()
+    dialog.title("Connection Error")
+    dialog.configure(bg='#1E1E1E')
+    dialog.overrideredirect(True)  # Remove window decorations
+    
+    # Set dialog size
+    dialog_width = 350
+    dialog_height = 249
+    dialog.geometry(f"{dialog_width}x{dialog_height}")
+    
+    # Main frame
+    main_frame = tk.Frame(dialog, bg='#1E1E1E')
+    main_frame.pack(fill='both', expand=True)
+    
+    # Title bar
+    title_frame = tk.Frame(main_frame, bg='#1E1E1E')
+    title_frame.pack(fill='x', padx=10, pady=5)
+    
+    title_label = tk.Label(title_frame, text="Connection Error", fg='#CCCCCC', bg='#1E1E1E', font=('Segoe UI', 11))
+    title_label.pack(side='left')
+    
+    close_btn = tk.Label(title_frame, text="×", fg='#CCCCCC', bg='#1E1E1E', font=('Segoe UI', 11))
+    close_btn.pack(side='right')
+    close_btn.bind('<Button-1>', lambda e: close_app())
+    
+    # Warning icon (triangle with exclamation mark)
+    icon_text = "⚠"
+    icon_label = tk.Label(main_frame, text=icon_text, fg='#FFA500', bg='#1E1E1E', font=('Segoe UI', 36))
+    icon_label.pack(pady=(10, 5))
+    
+    # Error message
+    message_label = tk.Label(main_frame, 
+                           text="No internet connection detected!\n\nPlease check your connection and try again.",
+                           fg='#CCCCCC',
+                           bg='#1E1E1E',
+                           font=('Segoe UI', 9),
+                           justify='center')
+    message_label.pack(pady=(0, 10))
+    
+    # Notification label (hidden by default)
+    notification_label = tk.Label(main_frame,
+                                text="",
+                                fg='#FF4444',
+                                bg='#1E1E1E',
+                                font=('Segoe UI', 8))
+    
+    # Buttons frame
+    button_frame = tk.Frame(main_frame, bg='#1E1E1E')
+    button_frame.pack(pady=(0, 15))
+    
+    # Button style
+    retry_btn = tk.Button(button_frame,
+                         text="Retry",
+                         command=retry_connection,
+                         bg='#333333',
+                         fg='#FFFFFF',
+                         activebackground='#404040',
+                         activeforeground='#FFFFFF',
+                         relief='flat',
+                         font=('Segoe UI', 9),
+                         width=10)
+    retry_btn.pack(side='left', padx=5)
+    
+    ok_btn = tk.Button(button_frame,
+                      text="OK",
+                      command=close_app,
+                      bg='#333333',
+                      fg='#FFFFFF',
+                      activebackground='#404040',
+                      activeforeground='#FFFFFF',
+                      relief='flat',
+                      font=('Segoe UI', 9),
+                      width=10)
+    ok_btn.pack(side='left', padx=5)
+    
+    # Center window
+    dialog.update_idletasks()
+    screen_width = dialog.winfo_screenwidth()
+    screen_height = dialog.winfo_screenheight()
+    x = (screen_width - dialog_width) // 2
+    y = (screen_height - dialog_height) // 2
+    dialog.geometry(f"+{x}+{y}")
+    
+    # Make window draggable
+    def start_move(event):
+        dialog.x = event.x
+        dialog.y = event.y
+
+    def stop_move(event):
+        dialog.x = None
+        dialog.y = None
+
+    def do_move(event):
+        deltax = event.x - dialog.x
+        deltay = event.y - dialog.y
+        x = dialog.winfo_x() + deltax
+        y = dialog.winfo_y() + deltay
+        dialog.geometry(f"+{x}+{y}")
+
+    title_frame.bind('<Button-1>', start_move)
+    title_frame.bind('<ButtonRelease-1>', stop_move)
+    title_frame.bind('<B1-Motion>', do_move)
+    
+    dialog.mainloop()
+
 if __name__ == '__main__':
+    # Check for internet connection before starting the app
+    while not check_internet_connection():
+        show_no_internet_error()
+    
     # Initialize settings
     settings = load_settings()
     minimize_to_tray = settings.get('minimize_to_tray', False)

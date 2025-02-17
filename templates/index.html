@@ -432,6 +432,21 @@
                 <p class="mt-2 text-gray-400">Loading settings...</p>
             </div>
             <div class="p-6 space-y-6">
+                <!-- Theme Settings -->
+                <div class="bg-gray-700 p-4 rounded">
+                    <h3 class="text-lg font-semibold mb-4">Theme Settings</h3>
+                    <div class="flex gap-4">
+                        <button id="darkThemeBtn" onclick="setTheme('dark')" 
+                                class="flex-1 bg-gray-800 hover:bg-gray-900 px-4 py-2 rounded border-2 border-transparent">
+                            <i class="fas fa-moon mr-2"></i>Dark Theme
+                        </button>
+                        <button id="lightThemeBtn" onclick="setTheme('light')" 
+                                class="flex-1 bg-gray-800 hover:bg-gray-900 px-4 py-2 rounded border-2 border-transparent">
+                            <i class="fas fa-sun mr-2"></i>Light Theme
+                        </button>
+                    </div>
+                </div>
+
                 <!-- Steam Idle Location -->
                 <div class="bg-gray-700 p-4 rounded">
                     <h3 class="text-lg font-semibold mb-4">Steam Idle Location</h3>
@@ -478,21 +493,6 @@
                         <button id="autoReconnectToggle" onclick="toggleAutoReconnect()" 
                                 class="relative inline-flex items-center h-6 rounded-full w-11 bg-gray-500 transition-colors">
                             <span class="inline-block w-4 h-4 transform transition-transform bg-white rounded-full"></span>
-                        </button>
-                    </div>
-                </div>
-                
-                <!-- Theme Settings -->
-                <div class="bg-gray-700 p-4 rounded">
-                    <h3 class="text-lg font-semibold mb-4">Theme Settings</h3>
-                    <div class="flex gap-4">
-                        <button id="darkThemeBtn" onclick="setTheme('dark')" 
-                                class="flex-1 bg-gray-800 hover:bg-gray-900 px-4 py-2 rounded border-2 border-transparent">
-                            <i class="fas fa-moon mr-2"></i>Dark Theme
-                        </button>
-                        <button id="lightThemeBtn" onclick="setTheme('light')" 
-                                class="flex-1 bg-gray-800 hover:bg-gray-900 px-4 py-2 rounded border-2 border-transparent">
-                            <i class="fas fa-sun mr-2"></i>Light Theme
                         </button>
                     </div>
                 </div>

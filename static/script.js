@@ -37,6 +37,22 @@ document.addEventListener('DOMContentLoaded', async function() {
             }
         });
     }
+
+    // Library action buttons
+    const createPresetBtn = document.querySelector('button[onclick="createPresetFromSelected()"]');
+    if (createPresetBtn) {
+        createPresetBtn.addEventListener('click', createPresetFromSelected);
+    }
+
+    const startSelectedBtn = document.querySelector('button[onclick="startSelectedGames()"]');
+    if (startSelectedBtn) {
+        startSelectedBtn.addEventListener('click', startSelectedGames);
+    }
+
+    // Update library display when games are started/stopped
+    document.addEventListener('gameStateChanged', function() {
+        updateLibraryDisplay();
+    });
 });
 
 // Add status checking intervals
@@ -443,23 +459,6 @@ async function confirmSteamLaunch() {
 // Update the startGame function
 async function startGame(gameId) {
     try {
-        // Check Steam status first
-        const steamStatus = await updateSteamStatus();
-        if (!steamStatus) {
-            showNotification('Unable to check Steam status', 'error');
-            return;
-        }
-        
-        if (!steamStatus.running) {
-            showSteamLaunchModal();
-            return;
-        }
-        
-        if (!steamStatus.online) {
-            showNotification('Steam appears to be offline. Please ensure Steam is online.', 'error');
-            return;
-        }
-        
         const response = await fetch('/api/start-game', {
             method: 'POST',
             headers: {
@@ -468,18 +467,16 @@ async function startGame(gameId) {
             body: JSON.stringify({ gameId })
         });
 
-        const data = await response.json();
         if (response.ok) {
-            runningGames.add(gameId);
-            updateGamesList();
-            updatePresetsList(await loadPresets(true));
+            runningGames.add(gameId.toString());
+            triggerGameStateChange();
             showNotification('Game started successfully', 'success');
         } else {
-            showNotification(data.message || 'Failed to start game', 'error');
+            showNotification('Failed to start game', 'error');
         }
     } catch (error) {
         console.error('Error starting game:', error);
-        showNotification('Failed to start game', 'error');
+        showNotification('Error starting game', 'error');
     }
 }
 
@@ -493,17 +490,16 @@ async function stopGame(gameId) {
             body: JSON.stringify({ gameId })
         });
 
-        if (!response.ok) {
-            throw new Error('Failed to stop game');
+        if (response.ok) {
+            runningGames.delete(gameId.toString());
+            triggerGameStateChange();
+            showNotification('Game stopped successfully', 'success');
+        } else {
+            showNotification('Failed to stop game', 'error');
         }
-        
-        runningGames.delete(gameId);
-        updateGamesList();
-        updatePresetsList(await loadPresets(true));
-        showNotification('Game stopped successfully', 'success');
     } catch (error) {
         console.error('Error stopping game:', error);
-        showNotification('Failed to stop game', 'error');
+        showNotification('Error stopping game', 'error');
     }
 }
 
@@ -2305,8 +2301,7 @@ function updateLibraryDisplay() {
     const filteredGames = libraryGames.filter(game => {
         const matchesFilter = 
             currentFilter === 'all' ||
-            (currentFilter === 'installed' && game.installed) ||
-            (currentFilter === 'notInstalled' && !game.installed);
+            (currentFilter === 'installed' && game.installed === true);
             
         const matchesSearch = 
             !searchQuery ||
@@ -2316,6 +2311,7 @@ function updateLibraryDisplay() {
     });
     
     filteredGames.forEach(game => {
+        const isRunning = runningGames.has(game.id.toString());
         const gameCard = document.createElement('div');
         gameCard.className = 'bg-gray-700 rounded-lg overflow-hidden game-card transform transition-all duration-300 hover:scale-105 hover:shadow-xl';
         gameCard.innerHTML = `
@@ -2343,12 +2339,12 @@ function updateLibraryDisplay() {
                 </div>
                 <div class="flex gap-2">
                     ${game.installed ? `
-                        <button onclick="startGame('${game.id}')" 
-                                class="bg-blue-500 hover:bg-blue-600 px-4 py-2 rounded text-sm flex-1 transition-colors">
-                            <i class="fas fa-play mr-2"></i>Start
+                        <button onclick="${isRunning ? 'stopGame' : 'startGame'}('${game.id}')" 
+                                class="bg-${isRunning ? 'red' : 'blue'}-500 hover:bg-${isRunning ? 'red' : 'blue'}-600 px-4 py-2 rounded text-sm flex-1 transition-colors">
+                            <i class="fas fa-${isRunning ? 'stop' : 'play'} mr-2"></i>${isRunning ? 'Stop' : 'Start'}
                         </button>
                     ` : ''}
-                    <button onclick="addToNewPreset('${game.id}')" 
+                    <button onclick="addGameToNewPreset('${game.id}')" 
                             class="bg-green-500 hover:bg-green-600 px-4 py-2 rounded text-sm flex-1 transition-colors">
                         <i class="fas fa-plus mr-2"></i>Add to Preset
                     </button>
@@ -2372,6 +2368,21 @@ function updateLibraryDisplay() {
 
 function toggleFilter(filter) {
     currentFilter = filter;
+    
+    // Remove active class from all filter buttons
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.classList.remove('active', 'bg-blue-500', 'text-white');
+        btn.classList.add('text-gray-400', 'hover:text-white');
+    });
+    
+    // Add active class to clicked filter button
+    const activeFilter = document.getElementById(`filter${filter.charAt(0).toUpperCase() + filter.slice(1)}`);
+    if (activeFilter) {
+        activeFilter.classList.add('active', 'bg-blue-500', 'text-white');
+        activeFilter.classList.remove('text-gray-400', 'hover:text-white');
+    }
+    
+    // Update the library display
     updateLibraryDisplay();
 }
 
@@ -2508,3 +2519,206 @@ document.addEventListener('click', function(event) {
 });
 
 // ... rest of the existing code ...
+
+// Add function to handle adding a game to a new preset
+async function addGameToNewPreset(gameId) {
+    const game = libraryGames.find(g => g.id.toString() === gameId.toString());
+    if (!game) return;
+    
+    // Add to current games list
+    if (!currentGames.some(g => g.id === game.id)) {
+        currentGames.push(game);
+    }
+    
+    // Show save preset modal
+    showSavePresetModal();
+    showNotification('Game added to new preset. Please enter a name for the preset.', 'info');
+}
+
+// Add function to create preset from selected games
+async function createPresetFromSelected() {
+    if (selectedLibraryGames.size === 0) {
+        showNotification('Please select games first', 'error');
+        return;
+    }
+    
+    // Get selected games info
+    const selectedGames = libraryGames.filter(game => selectedLibraryGames.has(game.id));
+    currentGames = selectedGames;
+    
+    // Show save preset modal
+    showSavePresetModal();
+    showNotification(`${selectedGames.length} games added to new preset. Please enter a name for the preset.`, 'info');
+}
+
+// Add function to start selected games
+async function startSelectedGames() {
+    if (selectedLibraryGames.size === 0) {
+        showNotification('Please select games first', 'error');
+        return;
+    }
+    
+    // Check Steam status first
+    const steamStatus = await updateSteamStatus();
+    if (!steamStatus) {
+        showNotification('Unable to check Steam status', 'error');
+        return;
+    }
+    
+    if (!steamStatus.running) {
+        showSteamLaunchModal();
+        return;
+    }
+    
+    if (!steamStatus.online) {
+        showNotification('Steam appears to be offline. Please ensure Steam is online.', 'error');
+        return;
+    }
+    
+    let successCount = 0;
+    let failCount = 0;
+    
+    // Start each selected game
+    for (const gameId of selectedLibraryGames) {
+        try {
+            const response = await fetch('/api/start-game', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ gameId })
+            });
+
+            if (response.ok) {
+                runningGames.add(gameId.toString());
+                successCount++;
+            } else {
+                failCount++;
+            }
+        } catch (error) {
+            console.error('Error starting game:', error);
+            failCount++;
+        }
+    }
+    
+    // Update display
+    updateLibraryDisplay();
+    
+    // Show result notification
+    if (successCount > 0) {
+        showNotification(`Successfully started ${successCount} games${failCount > 0 ? `, failed to start ${failCount} games` : ''}`, 
+            failCount > 0 ? 'warning' : 'success');
+    } else {
+        showNotification('Failed to start any games', 'error');
+    }
+}
+
+// Add this function to trigger the game state change event
+function triggerGameStateChange() {
+    document.dispatchEvent(new Event('gameStateChanged'));
+}
+
+// Add save preset modal functions
+function showSavePresetModal() {
+    const savePresetModal = document.getElementById('savePresetModal');
+    if (!savePresetModal) {
+        // Create modal if it doesn't exist
+        const modalHtml = `
+            <div id="savePresetModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+                <div class="bg-gray-800 rounded-lg p-6 w-96">
+                    <h3 class="text-xl font-semibold mb-4">Save Preset</h3>
+                    <div class="mb-4">
+                        <label for="savePresetNameInput" class="block text-sm font-medium mb-2">Preset Name</label>
+                        <input type="text" id="savePresetNameInput" 
+                               class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 focus:outline-none focus:border-blue-500"
+                               placeholder="Enter preset name">
+                    </div>
+                    <div class="flex justify-end gap-3">
+                        <button onclick="closeSavePresetModal()" 
+                                class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded">
+                            Cancel
+                        </button>
+                        <button onclick="confirmSavePreset()" 
+                                class="px-4 py-2 bg-blue-500 hover:bg-blue-600 rounded">
+                            Save
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+    }
+
+    const modalElement = document.getElementById('savePresetModal');
+    modalElement.classList.remove('hidden');
+    modalElement.classList.add('flex');
+    
+    // Focus the input
+    document.getElementById('savePresetNameInput').focus();
+}
+
+function closeSavePresetModal() {
+    const modalElement = document.getElementById('savePresetModal');
+    if (modalElement) {
+        modalElement.classList.remove('flex');
+        modalElement.classList.add('hidden');
+        document.getElementById('savePresetNameInput').value = '';
+    }
+}
+
+async function confirmSavePreset() {
+    const presetName = document.getElementById('savePresetNameInput').value.trim();
+    
+    if (!presetName) {
+        showNotification('Please enter a preset name', 'error');
+        return;
+    }
+    
+    if (currentGames.length === 0) {
+        showNotification('No games selected for the preset', 'error');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/save-preset', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                name: presetName,
+                games: currentGames
+            })
+        });
+        
+        if (response.ok) {
+            showNotification('Preset saved successfully', 'success');
+            currentGames = []; // Clear current games
+            closeSavePresetModal();
+            loadPresets(); // Refresh presets list
+        } else {
+            const data = await response.json();
+            showNotification(data.message || 'Failed to save preset', 'error');
+        }
+    } catch (error) {
+        console.error('Error saving preset:', error);
+        showNotification('Failed to save preset', 'error');
+    }
+}
+
+// Add event listener for the save preset name input
+document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            closeSavePresetModal();
+        }
+    });
+    
+    // Add click outside listener for save preset modal
+    document.addEventListener('click', function(e) {
+        const modal = document.getElementById('savePresetModal');
+        if (modal && e.target === modal) {
+            closeSavePresetModal();
+        }
+    });
+});

@@ -2613,9 +2613,14 @@ async function addGameToNewPreset(gameId) {
     const game = libraryGames.find(g => g.id.toString() === gameId.toString());
     if (!game) return;
     
-    // Add to current games list
+    // Add to current games list with all necessary properties
     if (!currentGames.some(g => g.id === game.id)) {
-        currentGames.push(game);
+        currentGames.push({
+            id: game.id,
+            name: game.name,
+            image: game.image || `https://cdn.cloudflare.steamstatic.com/steam/apps/${game.id}/header.jpg`,
+            appid: game.id // Ensure appid is included for compatibility
+        });
     }
     
     // Show save preset modal
@@ -2630,8 +2635,16 @@ async function createPresetFromSelected() {
         return;
     }
     
-    // Get selected games info
-    const selectedGames = libraryGames.filter(game => selectedLibraryGames.has(game.id));
+    // Get selected games info with all necessary properties
+    const selectedGames = libraryGames
+        .filter(game => selectedLibraryGames.has(game.id))
+        .map(game => ({
+            id: game.id,
+            name: game.name,
+            image: game.image || `https://cdn.cloudflare.steamstatic.com/steam/apps/${game.id}/header.jpg`,
+            appid: game.id // Ensure appid is included for compatibility
+        }));
+    
     currentGames = selectedGames;
     
     // Show save preset modal

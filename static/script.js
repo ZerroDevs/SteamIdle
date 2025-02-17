@@ -152,8 +152,8 @@ async function fetchGame() {
 }
 
 function addGameToList(gameInfo) {
-    if (currentGames.some(game => game.id === gameInfo.id)) {
-        alert('This game is already in the list!');
+    if (currentGames.some(game => game.id === gameInfo.id)) {  
+        showNotification('This game is already in the preset', 'error');
         return;
     }
 
@@ -242,17 +242,35 @@ async function savePreset() {
     }
 }
 
-// Add this function to clean up the save button highlighting
+// Function to clean up save button highlight and form
 function cleanupSaveHighlight() {
     const saveButton = document.querySelector('button[onclick="savePreset()"]');
-    const reminderText = document.querySelector('.save-reminder');
-    
     if (saveButton) {
         saveButton.classList.remove('save-button-highlight', 'pulse-animation');
+        const reminder = saveButton.parentElement.querySelector('.save-reminder');
+        if (reminder) {
+            reminder.remove();
+        }
     }
-    if (reminderText) {
-        reminderText.remove();
-    }
+}
+
+// Function to dismiss the current preset
+function dismissPreset() {
+    // Clear the current games array
+    currentGames = [];
+    
+    // Clear the preset name input
+    document.getElementById('presetName').value = '';
+    
+    // Clean up any save highlights and reminders
+    cleanupSaveHighlight();
+    
+    // Clear the file input
+    const fileInput = document.getElementById('presetFile');
+    fileInput.value = '';
+    
+    // Show notification
+    showNotification('Preset dismissed', 'info');
 }
 
 // Add event listener for the save preset input to handle Enter key
@@ -556,41 +574,74 @@ function switchTab(tabName) {
 
 async function importBatFile(file) {
     const loadingOverlay = document.getElementById('importLoadingOverlay');
+    loadingOverlay.classList.remove('hidden');
     const statusText = document.getElementById('importStatus');
     const saveButton = document.querySelector('button[onclick="savePreset()"]');
     
     try {
-        loadingOverlay.classList.remove('hidden');
-        statusText.textContent = 'Analyzing BAT file...';
+        statusText.textContent = 'Analyzing file...';
         
         const reader = new FileReader();
-        
-        reader.onload = async function(e) {
+        reader.onload = async function() {
             try {
-                const content = e.target.result;
-                statusText.textContent = 'Extracting game IDs...';
+                const content = reader.result;
+                let gameIds = [];
                 
-                // Extract game IDs from the BAT file
-                const gameIds = content.match(/steam-idle\.exe\s+(\d+)/g)
-                    ?.map(match => match.match(/\d+/)[0]) || [];
-                
-                if (gameIds.length === 0) {
-                    throw new Error('No valid game IDs found in the BAT file');
+                // Check file type and parse accordingly
+                if (file.name.endsWith('.bat')) {
+                    // Parse BAT file for steam-idle.exe commands
+                    gameIds = content.match(/steam-idle\.exe\s+(\d+)/g)
+                        ?.map(match => match.match(/\d+/)[0]) || [];
+                } else if (file.name.endsWith('.txt')) {
+                    // Parse TXT file - split by newlines and clean up each line
+                    const lines = content.split(/\r?\n/).filter(line => line.trim());
+                    
+                    for (const line of lines) {
+                        const trimmedLine = line.trim();
+                        if (/^\d+$/.test(trimmedLine)) {
+                            // Line contains only numbers - treat as game ID
+                            gameIds.push(trimmedLine);
+                        } else if (trimmedLine) {
+                            // Line contains text - treat as game name
+                            statusText.textContent = `Searching for game: ${trimmedLine}...`;
+                            try {
+                                const searchResponse = await fetch('/api/fetch-game', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ gameId: trimmedLine })
+                                });
+                                
+                                if (searchResponse.ok) {
+                                    const gameInfo = await searchResponse.json();
+                                    if (gameInfo && gameInfo.id) {
+                                        gameIds.push(gameInfo.id.toString());
+                                    }
+                                }
+                                // Add delay between searches
+                                await new Promise(resolve => setTimeout(resolve, 500));
+                            } catch (error) {
+                                console.warn(`Could not find game: ${trimmedLine}`, error);
+                            }
+                        }
+                    }
                 }
                 
-                // Clear current games list
+                if (gameIds.length === 0) {
+                    throw new Error('No valid game IDs or names found in the file');
+                }
+                
+                // Clear current games
                 currentGames = [];
                 
-                // Fetch game info for each ID
-                for (let i = 0; i < gameIds.length; i++) {
-                    statusText.textContent = `Fetching game info (${i + 1}/${gameIds.length})...`;
+                // Fetch info for each game
+                const uniqueGameIds = [...new Set(gameIds)]; // Remove duplicates
+                for (let i = 0; i < uniqueGameIds.length; i++) {
+                    statusText.textContent = `Fetching game info (${i + 1}/${uniqueGameIds.length})...`;
                     
                     const response = await fetch('/api/fetch-game', {
                         method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({ gameId: gameIds[i] })
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ gameId: uniqueGameIds[i] })
                     });
                     
                     if (response.ok) {
@@ -600,34 +651,29 @@ async function importBatFile(file) {
                         }
                     }
                     
-                    // Add a small delay to prevent overwhelming the Steam API
+                    // Add delay to prevent overwhelming Steam API
                     await new Promise(resolve => setTimeout(resolve, 500));
                 }
                 
-                statusText.textContent = 'Finalizing import...';
-                
-                // Set the preset name from the file name
-                const fileName = file.name.replace('.bat', '');
+                // Set preset name from file name
+                const fileName = file.name.replace(/\.(bat|txt)$/, '');
                 document.getElementById('presetName').value = fileName;
                 
-                // Show success notification with save reminder
-                showNotification(`Successfully imported ${currentGames.length} games. Please click Save to confirm the preset.`, 'info');
+                // Show success UI
+                showNotification(`Successfully imported ${currentGames.length} games. Click Save to confirm or Dismiss to cancel.`, 'info');
                 
-                // Highlight save button with animation
-                saveButton.classList.add('save-button-highlight');
+                // Add visual cues to save
+                saveButton.classList.add('save-button-highlight', 'pulse-animation');
                 
-                // Add pulsing animation to save button
-                saveButton.classList.add('pulse-animation');
-                
-                // Show save reminder text
+                // Add save reminder with dismiss option
                 const reminderText = document.createElement('div');
                 reminderText.className = 'text-sm text-blue-400 mt-2 text-center save-reminder';
-                reminderText.innerHTML = '<i class="fas fa-arrow-left animate-slide-left mr-2"></i>Click Save to confirm preset';
+                reminderText.innerHTML = '<i class="fas fa-arrow-left animate-slide-left mr-2"></i>Click Save to confirm preset or Dismiss to cancel';
                 saveButton.parentElement.appendChild(reminderText);
                 
             } catch (error) {
-                console.error('Error processing BAT file:', error);
-                showNotification(error.message || 'Failed to process BAT file', 'error');
+                console.error('Error processing file:', error);
+                showNotification(error.message || 'Failed to process file', 'error');
             } finally {
                 loadingOverlay.classList.add('hidden');
             }
@@ -635,14 +681,14 @@ async function importBatFile(file) {
         
         reader.onerror = function() {
             loadingOverlay.classList.add('hidden');
-            showNotification('Error reading BAT file', 'error');
+            showNotification('Error reading file', 'error');
         };
         
         reader.readAsText(file);
         
     } catch (error) {
-        console.error('Error importing BAT file:', error);
-        showNotification('Failed to import BAT file', 'error');
+        console.error('Error importing file:', error);
+        showNotification('Failed to import file', 'error');
         loadingOverlay.classList.add('hidden');
     }
 }

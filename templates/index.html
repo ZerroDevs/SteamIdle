@@ -663,5 +663,52 @@
             </div>
         </div>
     </div>
+
+    <!-- Rename Preset Modal -->
+    <div id="renamePresetModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-[100]">
+        <div class="bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4">
+            <div class="text-center mb-6">
+                <h3 class="text-xl font-semibold mb-2">Rename Preset</h3>
+                <p class="text-gray-300">Current name: <span id="currentPresetName" class="font-medium"></span></p>
+            </div>
+            <div class="mb-6">
+                <input type="text" id="newPresetName" 
+                       class="w-full bg-gray-700 rounded px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                       placeholder="Enter new name">
+            </div>
+            <div class="flex justify-center gap-4">
+                <button onclick="closeRenamePresetModal()" 
+                        class="px-6 py-2 bg-gray-700 hover:bg-gray-600 rounded transition-colors">
+                    <i class="fas fa-times mr-2"></i>Cancel
+                </button>
+                <button onclick="confirmRenamePreset()" 
+                        class="px-6 py-2 bg-blue-500 hover:bg-blue-600 rounded transition-colors">
+                    <i class="fas fa-check mr-2"></i>Rename
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Preset Modal -->
+    <div id="deletePresetModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-[100]">
+        <div class="bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4">
+            <div class="text-center mb-6">
+                <i class="fas fa-trash text-red-500 text-4xl mb-4"></i>
+                <h3 class="text-xl font-semibold mb-2">Delete Preset</h3>
+                <p class="text-gray-300">Are you sure you want to delete <span id="deletePresetName" class="font-medium"></span>?</p>
+                <p class="text-sm text-gray-400 mt-2">This action cannot be undone.</p>
+            </div>
+            <div class="flex justify-center gap-4">
+                <button onclick="closeDeletePresetModal()" 
+                        class="px-6 py-2 bg-gray-700 hover:bg-gray-600 rounded transition-colors">
+                    <i class="fas fa-times mr-2"></i>Cancel
+                </button>
+                <button onclick="confirmDeletePreset()" 
+                        class="px-6 py-2 bg-red-500 hover:bg-red-600 rounded transition-colors">
+                    <i class="fas fa-trash mr-2"></i>Delete
+                </button>
+            </div>
+        </div>
+    </div>
 </body>
 </html> 

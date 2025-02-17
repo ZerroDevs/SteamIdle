@@ -628,8 +628,10 @@ async function importBatFile(file) {
 function showDeletePresetModal(presetName) {
     presetToDelete = presetName;
     const modal = document.getElementById('deletePresetModal');
-    const presetNameSpan = document.getElementById('deletePresetName');
-    presetNameSpan.textContent = presetName;
+    const nameSpan = document.getElementById('deletePresetName');
+    
+    nameSpan.textContent = presetName;
+    
     modal.classList.remove('hidden');
     modal.classList.add('flex');
 }
@@ -650,15 +652,18 @@ async function confirmDeletePreset() {
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ name: presetToDelete })
+            body: JSON.stringify({
+                name: presetToDelete
+            })
         });
-
+        
         if (response.ok) {
             showNotification(`Preset "${presetToDelete}" deleted successfully`, 'success');
             updatePresetsList(await loadPresets(true));
             updateFavoritePresets();
         } else {
-            showNotification('Failed to delete preset', 'error');
+            const data = await response.json();
+            showNotification(data.message || 'Failed to delete preset', 'error');
         }
     } catch (error) {
         console.error('Error deleting preset:', error);
@@ -670,6 +675,10 @@ async function confirmDeletePreset() {
 
 // Update the existing deletePreset function
 async function deletePreset(presetName) {
+    if (runningGames.size > 0) {
+        showNotification('Please stop all running games before deleting the preset', 'error');
+        return;
+    }
     showDeletePresetModal(presetName);
 }
 

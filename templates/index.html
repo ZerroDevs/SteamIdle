@@ -496,6 +496,42 @@
                         </button>
                     </div>
                 </div>
+
+                <!-- Statistics Management -->
+                <div class="bg-gray-700 p-4 rounded">
+                    <h3 class="text-lg font-semibold mb-4">Statistics Management</h3>
+                    <div class="flex gap-4">
+                        <button onclick="exportStats()" 
+                                class="flex-1 bg-blue-500 hover:bg-blue-600 px-4 py-2 rounded font-semibold transition-colors">
+                            <i class="fas fa-download mr-2"></i>Export Statistics
+                        </button>
+                        <button onclick="confirmResetStats()" 
+                                class="flex-1 bg-red-500 hover:bg-red-600 px-4 py-2 rounded font-semibold transition-colors">
+                            <i class="fas fa-trash mr-2"></i>Reset Statistics
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Reset Statistics Confirmation Modal -->
+    <div id="resetStatsModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-[100]">
+        <div class="bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4 transform transition-all duration-200">
+            <div class="text-center mb-6">
+                <i class="fas fa-exclamation-triangle text-red-500 text-4xl mb-4"></i>
+                <h3 class="text-xl font-semibold mb-2">Reset Statistics</h3>
+                <p class="text-gray-300">Are you sure you want to reset all statistics? This action cannot be undone.</p>
+            </div>
+            <div class="flex justify-center gap-4">
+                <button onclick="closeResetStatsModal()" 
+                        class="px-6 py-2 bg-gray-700 hover:bg-gray-600 rounded transition-colors">
+                    <i class="fas fa-times mr-2"></i>Cancel
+                </button>
+                <button onclick="resetStats()" 
+                        class="px-6 py-2 bg-red-500 hover:bg-red-600 rounded transition-colors">
+                    <i class="fas fa-trash mr-2"></i>Reset Statistics
+                </button>
             </div>
         </div>
     </div>
@@ -577,6 +613,53 @@
                         </button>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Preset Modal -->
+    <div id="editPresetModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+        <div class="bg-gray-800 rounded-lg p-6 w-[800px] max-h-[90vh] overflow-y-auto">
+            <!-- Header -->
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-2xl font-semibold">Edit Preset: <span id="editPresetName" class="text-blue-400"></span></h3>
+                <button onclick="closeEditPresetModal()" class="text-gray-400 hover:text-white transition-colors">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <!-- Current Games Section -->
+            <div class="mb-6">
+                <h4 class="text-xl font-semibold mb-4">Current Games</h4>
+                <div id="editPresetCurrentGames" class="space-y-3 max-h-[50vh] overflow-y-auto pr-2 custom-scrollbar">
+                    <!-- Games will be added here dynamically -->
+                </div>
+            </div>
+            
+            <!-- Add New Game Section -->
+            <div class="mt-8">
+                <h4 class="text-xl font-semibold mb-4">Add New Game</h4>
+                <div class="flex gap-4">
+                    <input type="text" id="editPresetGameId" 
+                           placeholder="Enter Steam Game ID or Name" 
+                           class="flex-1 bg-gray-700 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <button onclick="addGameToPreset()" 
+                            class="bg-green-500 hover:bg-green-600 px-8 py-3 rounded font-semibold transition-colors">
+                        <i class="fas fa-plus mr-2"></i>Add Game
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Footer Actions -->
+            <div class="flex justify-end gap-4 mt-8 pt-6 border-t border-gray-700">
+                <button onclick="closeEditPresetModal()" 
+                        class="px-6 py-2 bg-gray-700 hover:bg-gray-600 rounded transition-colors">
+                    Cancel
+                </button>
+                <button onclick="saveEditedPreset()" 
+                        class="px-6 py-2 bg-blue-500 hover:bg-blue-600 rounded font-semibold transition-colors">
+                    Save Changes
+                </button>
             </div>
         </div>
     </div>

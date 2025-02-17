@@ -1718,16 +1718,16 @@ function closeEditPresetModal() {
 function updateEditPresetGamesList() {
     const gamesList = document.getElementById('editPresetCurrentGames');
     gamesList.innerHTML = editedGames.map(game => `
-        <div class="flex items-center justify-between bg-gray-700 p-2 rounded">
-            <div class="flex items-center gap-2">
-                <img src="${game.image}" alt="${game.name}" class="w-8 h-8 rounded">
+        <div class="flex items-center justify-between bg-gray-700 p-4 rounded">
+            <div class="flex items-center gap-4">
+                <img src="${game.image}" alt="${game.name}" class="w-12 h-12 rounded">
                 <div>
-                    <div class="font-medium">${game.name}</div>
+                    <div class="text-lg font-medium">${game.name}</div>
                     <div class="text-sm text-gray-400">ID: ${game.id}</div>
                 </div>
             </div>
             <button onclick="removeGameFromPreset('${game.id}')" 
-                    class="bg-red-500 hover:bg-red-600 px-3 py-1 rounded text-xs">
+                    class="bg-red-500 hover:bg-red-600 px-4 py-2 rounded text-sm font-medium transition-colors">
                 <i class="fas fa-times mr-1"></i>Remove
             </button>
         </div>

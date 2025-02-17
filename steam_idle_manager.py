@@ -1819,6 +1819,55 @@ def import_from_library():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route('/api/suspend-game', methods=['POST'])
+def suspend_game():
+    data = request.get_json()
+    game_id = str(data.get('gameId'))
+    
+    if game_id not in running_games:
+        return jsonify({"status": "error", "message": "Game is not running"}), 400
+    
+    try:
+        # Get the process
+        pid = running_games[game_id]
+        process = psutil.Process(pid)
+        
+        # Suspend the process
+        process.suspend()
+        
+        return jsonify({"status": "success"})
+    except psutil.NoSuchProcess:
+        # If process doesn't exist, remove it from running games
+        running_games.pop(game_id, None)
+        return jsonify({"status": "error", "message": "Game process not found"}), 404
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+# Add resume game route for future use
+@app.route('/api/resume-game', methods=['POST'])
+def resume_game():
+    data = request.get_json()
+    game_id = str(data.get('gameId'))
+    
+    if game_id not in running_games:
+        return jsonify({"status": "error", "message": "Game is not running"}), 400
+    
+    try:
+        # Get the process
+        pid = running_games[game_id]
+        process = psutil.Process(pid)
+        
+        # Resume the process
+        process.resume()
+        
+        return jsonify({"status": "success"})
+    except psutil.NoSuchProcess:
+        # If process doesn't exist, remove it from running games
+        running_games.pop(game_id, None)
+        return jsonify({"status": "error", "message": "Game process not found"}), 404
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
 if __name__ == '__main__':
     # Initialize settings
     settings = load_settings()

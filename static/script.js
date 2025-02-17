@@ -54,6 +54,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     document.addEventListener('gameStateChanged', async function() {
         updateLibraryDisplay();
         updateGamesList();
+        updateRunningGamesList(); // Add this line
         const presets = await loadPresets(true);
         updatePresetsList(presets);
     });
@@ -477,6 +478,7 @@ async function startGame(gameId) {
             runningGames.add(gameId.toString());
             triggerGameStateChange();
             showNotification('Game started successfully', 'success');
+            updateRunningGamesList(); // Add this line
         } else {
             showNotification('Failed to start game', 'error');
         }
@@ -500,6 +502,7 @@ async function stopGame(gameId) {
             runningGames.delete(gameId.toString());
             triggerGameStateChange();
             showNotification('Game stopped successfully', 'success');
+            updateRunningGamesList(); // Add this line
         } else {
             showNotification('Failed to stop game', 'error');
         }
@@ -1080,18 +1083,6 @@ async function removeFavorite(presetName) {
 }
 
 async function emergencyStop() {
-    const modal = document.getElementById('emergencyStopModal');
-    modal.classList.remove('hidden');
-    modal.classList.add('flex');
-}
-
-function closeEmergencyStopModal() {
-    const modal = document.getElementById('emergencyStopModal');
-    modal.classList.add('hidden');
-    modal.classList.remove('flex');
-}
-
-async function confirmEmergencyStop() {
     try {
         const response = await fetch('/api/emergency-stop');
         const data = await response.json();
@@ -1100,13 +1091,13 @@ async function confirmEmergencyStop() {
             runningGames.clear();
             updateGamesList();
             updatePresetsList(await loadPresets(true));
+            updateRunningGamesList(); // Add this line
             showNotification(`Emergency stop successful - Stopped ${data.stopped_games.length} games`, 'success');
+            closeRunningGames(); // Close the modal after emergency stop
         }
     } catch (error) {
         console.error('Error during emergency stop:', error);
         showNotification('Failed to stop all games', 'error');
-    } finally {
-        closeEmergencyStopModal();
     }
 }
 
@@ -2798,3 +2789,131 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 });
+
+// Add these functions after the existing updatePlaytimes function
+
+function showRunningGames() {
+    const modal = document.getElementById('runningGamesModal');
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    updateRunningGamesList();
+}
+
+function closeRunningGames() {
+    const modal = document.getElementById('runningGamesModal');
+    modal.classList.remove('flex');
+    modal.classList.add('hidden');
+}
+
+async function updateRunningGamesList() {
+    const gamesList = document.getElementById('runningGamesList');
+    const modalCount = document.getElementById('runningGamesModalCount');
+    const headerCount = document.getElementById('runningGamesCount');
+    
+    // Update counts
+    const runningCount = runningGames.size;
+    modalCount.textContent = `(${runningCount} ${runningCount === 1 ? 'game' : 'games'})`;
+    
+    // Update header badge
+    if (runningCount > 0) {
+        headerCount.textContent = runningCount;
+        headerCount.classList.remove('hidden');
+    } else {
+        headerCount.classList.add('hidden');
+    }
+    
+    // Clear the list
+    gamesList.innerHTML = '';
+    
+    // Get playtime for each running game
+    for (const gameId of runningGames) {
+        try {
+            // Get game session time
+            const timeResponse = await fetch('/api/game-session-time', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ gameId })
+            });
+            const timeData = await timeResponse.json();
+            
+            // Find game info from current games
+            const gameInfo = currentGames.find(g => g.id.toString() === gameId.toString());
+            if (!gameInfo) continue;
+            
+            // Create game card
+            const gameCard = document.createElement('div');
+            gameCard.className = 'bg-gray-700 rounded-lg p-4 flex items-center gap-4';
+            gameCard.innerHTML = `
+                <img src="${gameInfo.image || 'https://via.placeholder.com/460x215/374151/FFFFFF?text=No+Image'}" 
+                     alt="${gameInfo.name}" 
+                     class="w-16 h-16 rounded object-cover">
+                <div class="flex-1">
+                    <h3 class="font-semibold text-lg">${gameInfo.name}</h3>
+                    <div class="text-sm text-gray-400">ID: ${gameInfo.id}</div>
+                    <div class="mt-1">
+                        <div class="text-green-400 text-sm">Session: ${timeData.current_session}</div>
+                        <div class="text-blue-400 text-sm">Total: ${timeData.total_time}</div>
+                    </div>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="stopGame('${gameId}')" 
+                            class="bg-red-500 hover:bg-red-600 px-4 py-2 rounded text-sm font-medium transition-colors">
+                        <i class="fas fa-stop mr-1"></i>Stop
+                    </button>
+                </div>
+            `;
+            gamesList.appendChild(gameCard);
+        } catch (error) {
+            console.error('Error updating running game:', error);
+        }
+    }
+    
+    // If no games are running, show a message
+    if (runningCount === 0) {
+        gamesList.innerHTML = `
+            <div class="text-center text-gray-400 py-8">
+                <i class="fas fa-gamepad text-4xl mb-2"></i>
+                <p>No games currently running</p>
+            </div>
+        `;
+    }
+}
+
+function showEmergencyStopConfirmation() {
+    const modal = document.getElementById('emergencyStopConfirmModal');
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+}
+
+function closeEmergencyStopConfirmation() {
+    const modal = document.getElementById('emergencyStopConfirmModal');
+    modal.classList.remove('flex');
+    modal.classList.add('hidden');
+}
+
+async function confirmEmergencyStop() {
+    closeEmergencyStopConfirmation();
+    await emergencyStop();
+}
+
+async function suspendGame(gameId) {
+    try {
+        const response = await fetch('/api/suspend-game', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ gameId })
+        });
+        
+        if (response.ok) {
+            showNotification('Game suspended successfully', 'success');
+            updateRunningGamesList();
+        } else {
+            showNotification('Failed to suspend game', 'error');
+        }
+    } catch (error) {
+        console.error('Error suspending game:', error);
+        showNotification('Error suspending game', 'error');
+    }
+}

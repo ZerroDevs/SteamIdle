@@ -1814,7 +1814,9 @@ def show_no_internet_error():
     
     def retry_connection():
         if check_internet_connection():
-            dialog.destroy()
+            # Show success message before closing
+            message_label.config(text="Connection detected!\nStarting the program...", fg='#00FF00')
+            dialog.after(1500, dialog.destroy)  # Close after 1.5 seconds
             return True
         else:
             # Show the notification label with animation
@@ -1931,6 +1933,18 @@ def show_no_internet_error():
     title_frame.bind('<Button-1>', start_move)
     title_frame.bind('<ButtonRelease-1>', stop_move)
     title_frame.bind('<B1-Motion>', do_move)
+    
+    # Auto-check connection every 5 seconds
+    def auto_check_connection():
+        if check_internet_connection():
+            # Show success message and close
+            message_label.config(text="Connection detected!\nStarting the program...", fg='#00FF00')
+            dialog.after(1500, dialog.destroy)
+        else:
+            dialog.after(5000, auto_check_connection)  # Check again in 5 seconds
+    
+    # Start auto-checking
+    auto_check_connection()
     
     dialog.mainloop()
 

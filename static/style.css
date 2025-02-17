@@ -296,7 +296,12 @@ button:active {
     --bg-tertiary: #374151;
     --text-primary: #FFFFFF;
     --text-secondary: #9CA3AF;
+    --text-tertiary: #D1D5DB;
     --border-color: #374151;
+    --input-bg: #374151;
+    --modal-bg: #1F2937;
+    --card-bg: #1F2937;
+    --hover-bg: #374151;
 }
 
 :root[data-theme="light"] {
@@ -305,7 +310,12 @@ button:active {
     --bg-tertiary: #E5E7EB;
     --text-primary: #111827;
     --text-secondary: #4B5563;
+    --text-tertiary: #6B7280;
     --border-color: #D1D5DB;
+    --input-bg: #FFFFFF;
+    --modal-bg: #FFFFFF;
+    --card-bg: #FFFFFF;
+    --hover-bg: #F3F4F6;
 }
 
 /* Apply theme variables */
@@ -314,15 +324,203 @@ body {
     color: var(--text-primary);
 }
 
+/* Background Colors */
 .bg-gray-900 { background-color: var(--bg-primary) !important; }
 .bg-gray-800 { background-color: var(--bg-secondary) !important; }
 .bg-gray-700 { background-color: var(--bg-tertiary) !important; }
 
+/* Text Colors */
 .text-gray-400 { color: var(--text-secondary) !important; }
+.text-gray-300 { color: var(--text-tertiary) !important; }
+.text-white { color: var(--text-primary) !important; }
+
+/* Modal and Card Styles */
+.modal-content, .card {
+    background-color: var(--modal-bg);
+    color: var(--text-primary);
+}
+
+/* Input Styles */
+input, select, textarea {
+    background-color: var(--input-bg) !important;
+    color: var(--text-primary) !important;
+    border-color: var(--border-color) !important;
+}
+
+input::placeholder {
+    color: var(--text-secondary) !important;
+}
+
+/* Button Text Colors */
+button:not(.bg-blue-500):not(.bg-red-500):not(.bg-green-500) {
+    color: var(--text-primary) !important;
+}
+
+/* Card and Modal Content */
+.game-card, .preset-card {
+    background-color: var(--card-bg) !important;
+}
+
+.game-card:hover, .preset-card:hover {
+    background-color: var(--hover-bg) !important;
+}
+
+/* Modal Headers and Content */
+.modal-header {
+    color: var(--text-primary) !important;
+}
+
+.modal-body {
+    color: var(--text-secondary) !important;
+}
+
+/* Specific Modal Fixes */
+#settingsModal .text-gray-300,
+#welcomeConfigModal .text-gray-300,
+#libraryModal .text-gray-300,
+#editPresetModal .text-gray-300,
+#runningGamesModal .text-gray-300 {
+    color: var(--text-tertiary) !important;
+}
+
+/* Game and Preset Names */
+.game-name, .preset-name {
+    color: var(--text-primary) !important;
+}
+
+/* Status Text */
+.status-text {
+    color: var(--text-secondary) !important;
+}
+
+/* Quick Actions Panel */
+#quickActionsPanel {
+    background-color: var(--bg-secondary) !important;
+}
+
+#quickActionsPanel .bg-gray-700 {
+    background-color: var(--bg-tertiary) !important;
+}
+
+/* Library Modal Specific */
+#libraryModal .bg-gray-800 {
+    background-color: var(--modal-bg) !important;
+}
+
+#libraryModal #steamLibrary {
+    background-color: var(--bg-secondary) !important;
+}
+
+#libraryModal .game-card {
+    background-color: var(--card-bg) !important;
+    color: var(--text-primary) !important;
+}
+
+#libraryModal .game-card:hover {
+    background-color: var(--hover-bg) !important;
+}
+
+#libraryModal .header {
+    background-color: var(--bg-secondary) !important;
+    border-color: var(--border-color) !important;
+}
+
+#libraryModal #libraryActions {
+    background-color: var(--bg-secondary) !important;
+    border-color: var(--border-color) !important;
+}
+
+/* Preset Card Specific */
+.preset-card {
+    background-color: var(--card-bg) !important;
+    border: 1px solid var(--border-color) !important;
+}
+
+.preset-card:hover {
+    background-color: var(--hover-bg) !important;
+}
+
+.preset-card .text-yellow-400,
+.preset-card .text-blue-400,
+.preset-card .fas {
+    color: currentColor !important;
+}
+
+/* Icon colors in light theme */
+:root[data-theme="light"] {
+    --icon-star: #EAB308;
+    --icon-edit: #3B82F6;
+    --icon-delete: #EF4444;
+    --icon-default: #4B5563;
+}
+
+:root[data-theme="dark"] {
+    --icon-star: #FBBF24;
+    --icon-edit: #60A5FA;
+    --icon-delete: #F87171;
+    --icon-default: #9CA3AF;
+}
+
+/* Preset Icons */
+.preset-card .fas.fa-star {
+    color: var(--icon-star) !important;
+}
+
+.preset-card .fas.fa-edit,
+.preset-card .fas.fa-pencil-alt {
+    color: var(--icon-edit) !important;
+}
+
+.preset-card .fas.fa-trash,
+.preset-card .fas.fa-trash-alt {
+    color: var(--icon-delete) !important;
+}
+
+.preset-card .fas:not(.fa-star):not(.fa-edit):not(.fa-pencil-alt):not(.fa-trash):not(.fa-trash-alt) {
+    color: var(--icon-default) !important;
+}
+
+/* Library Search Input */
+#libraryModal #librarySearch {
+    background-color: var(--input-bg) !important;
+    color: var(--text-primary) !important;
+    border: 1px solid var(--border-color) !important;
+}
+
+#libraryModal #librarySearch::placeholder {
+    color: var(--text-secondary) !important;
+}
+
+/* Library Filter Buttons */
+#libraryModal .filter-btn {
+    background-color: var(--bg-tertiary) !important;
+    color: var(--text-secondary) !important;
+}
+
+#libraryModal .filter-btn:hover {
+    background-color: var(--hover-bg) !important;
+    color: var(--text-primary) !important;
+}
+
+#libraryModal .filter-btn.active {
+    background-color: #3b82f6 !important;
+    color: #ffffff !important;
+}
 
 /* Theme transition */
-body, div, button {
+body, div, button, input, select, textarea {
     transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Dropdown and Select Styles */
+select option {
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+}
+
+/* Modal Backdrops */
+.modal-backdrop {
+    background-color: rgba(0, 0, 0, 0.5);
 }
 
 /* Settings Toggle Buttons */

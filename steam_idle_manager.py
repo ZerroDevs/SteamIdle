@@ -60,6 +60,7 @@ def resource_path(relative_path):
     return os.path.join(base_path, relative_path)
 
 def load_settings():
+    """Load settings from the settings file"""
     if os.path.exists(SETTINGS_FILE):
         try:
             with open(SETTINGS_FILE, 'r') as f:
@@ -81,46 +82,22 @@ def load_settings():
                     settings['setup_completed'] = False
                     settings['idler_path'] = None
                 
-                # Set default values if not present
+                # Load minimize to tray setting
+                minimize_to_tray = settings.get('minimize_to_tray', False)
+                
+                # Load auto reconnect setting
+                AUTO_RECONNECT = settings.get('auto_reconnect', False)
+                
+                # Ensure theme setting exists
                 if 'theme' not in settings:
-                    settings['theme'] = 'dark'
-                if 'minimize_to_tray' not in settings:
-                    settings['minimize_to_tray'] = False
-                if 'auto_reconnect' not in settings:
-                    settings['auto_reconnect'] = False
-                if 'run_on_startup' not in settings:
-                    settings['run_on_startup'] = False
+                    settings['theme'] = 'dark'  # Default theme
+                    save_settings(settings)
                 
-                # Update global variables
-                minimize_to_tray = settings['minimize_to_tray']
-                AUTO_RECONNECT = settings['auto_reconnect']
-                
-                # Configure startup based on settings
-                set_startup_status(settings.get('run_on_startup', False))
-                
-                save_settings(settings)
                 return settings
-        except:
-            return {
-                "minimize_to_tray": False,
-                "setup_completed": False,
-                "idler_path": None,
-                "theme": "dark",
-                "auto_reconnect": False,
-                "run_on_startup": False
-            }
-    
-    # If settings file doesn't exist, create with defaults
-    settings = {
-        "minimize_to_tray": False,
-        "setup_completed": False,
-        "idler_path": None,
-        "theme": "dark",
-        "auto_reconnect": False,
-        "run_on_startup": False
-    }
-    save_settings(settings)
-    return settings
+        except Exception as e:
+            print(f"Error loading settings: {e}")
+            return {'setup_completed': False, 'theme': 'dark'}
+    return {'setup_completed': False, 'theme': 'dark'}
 
 def save_settings(settings):
     try:
@@ -325,7 +302,9 @@ def fetch_game_info(game_input):
 
 @app.route('/')
 def home():
-    return render_template('index.html')
+    """Serve the main application page"""
+    settings = load_settings()
+    return render_template('index.html', theme=settings.get('theme', 'dark'))
 
 @app.route('/api/fetch-game', methods=['POST'])
 def fetch_game():
@@ -1319,16 +1298,14 @@ def rename_preset():
 
 @app.route('/api/settings', methods=['GET', 'POST'])
 def manage_settings():
-    global minimize_to_tray, IDLER_PATH, AUTO_RECONNECT
-    if request.method == 'GET':
-        settings = load_settings()
-        # Add startup status
-        settings['run_on_startup'] = get_startup_status()
-        return jsonify(settings)
-    
-    elif request.method == 'POST':
+    global minimize_to_tray, AUTO_RECONNECT
+    if request.method == 'POST':
         data = request.get_json()
         settings = load_settings()
+        
+        # Handle all settings
+        if 'theme' in data:
+            settings['theme'] = data['theme']
         
         if 'minimize_to_tray' in data:
             settings['minimize_to_tray'] = data['minimize_to_tray']
@@ -1342,20 +1319,17 @@ def manage_settings():
             settings['run_on_startup'] = data['run_on_startup']
             set_startup_status(data['run_on_startup'])
         
-        if 'setup_completed' in data:
-            settings['setup_completed'] = data['setup_completed']
-            
-        if 'theme' in data:
-            settings['theme'] = data['theme']
-        
         if save_settings(settings):
             save_recent_action("Updated settings")
-            return jsonify({"status": "success"})
+            return jsonify({"status": "success", "message": "Settings updated successfully"})
         else:
-            return jsonify({
-                "status": "error",
-                "message": "Failed to save settings"
-            }), 500
+            return jsonify({"status": "error", "message": "Failed to save settings"}), 500
+    else:
+        # GET request - return current settings
+        settings = load_settings()
+        # Add startup status
+        settings['run_on_startup'] = get_startup_status()
+        return jsonify(settings)
 
 @app.route('/api/reconfigure-idle', methods=['POST'])
 def reconfigure_idle():

@@ -1,8 +1,16 @@
+// At the top of the file, add theme initialization
+let currentTheme = 'dark';  // Default theme
+
+// Initialize theme from localStorage if available
+if (localStorage.getItem('theme')) {
+    currentTheme = localStorage.getItem('theme');
+    document.documentElement.setAttribute('data-theme', currentTheme);
+}
+
 let currentGames = [];
 let runningGames = new Set();
 let runningPresets = new Set();
 let quickActionsEnabled = false;
-let currentTheme = localStorage.getItem('theme') || 'dark';
 let presetToDelete = null;
 let presetToRename = null;
 let presetToEdit = null;
@@ -58,6 +66,20 @@ document.addEventListener('DOMContentLoaded', async function() {
         const presets = await loadPresets(true);
         updatePresetsList(presets);
     });
+
+    // Load saved theme from backend
+    try {
+        const response = await fetch('/api/settings');
+        const settings = await response.json();
+        if (settings.theme) {
+            currentTheme = settings.theme;
+            document.documentElement.setAttribute('data-theme', currentTheme);
+            applyTheme(currentTheme);
+            updateThemeButtons();
+        }
+    } catch (error) {
+        console.error('Error loading theme:', error);
+    }
 });
 
 // Add status checking intervals
@@ -1472,22 +1494,102 @@ document.addEventListener('DOMContentLoaded', function() {
 
 async function setTheme(theme) {
     try {
-        // Save theme to settings
         const response = await fetch('/api/settings', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ theme })
+            body: JSON.stringify({ theme: theme })
         });
 
         if (response.ok) {
+            currentTheme = theme;
+            localStorage.setItem('theme', theme);
+            document.documentElement.setAttribute('data-theme', theme);
             applyTheme(theme);
             updateThemeButtons();
+            showNotification(`${theme.charAt(0).toUpperCase() + theme.slice(1)} theme applied successfully`, 'success');
         }
     } catch (error) {
-        console.error('Error saving theme:', error);
-        showNotification('Failed to save theme setting', 'error');
+        console.error('Error setting theme:', error);
+        showNotification('Failed to set theme', 'error');
+    }
+}
+
+function applyTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    
+    // Update specific elements that might need explicit color changes
+    const elements = {
+        modals: [
+            'settingsModal',
+            'welcomeConfigModal',
+            'libraryModal',
+            'editPresetModal',
+            'runningGamesModal',
+            'shortcutModal',
+            'emergencyStopConfirmModal',
+            'resetStatsModal',
+            'renamePresetModal',
+            'deletePresetModal'
+        ],
+        inputs: document.querySelectorAll('input, select, textarea'),
+        buttons: document.querySelectorAll('button:not(.bg-blue-500):not(.bg-red-500):not(.bg-green-500)'),
+        cards: document.querySelectorAll('.game-card, .preset-card'),
+        labels: document.querySelectorAll('.text-gray-300, .text-gray-400, .text-white')
+    };
+
+    // Update modal backgrounds and text
+    elements.modals.forEach(modalId => {
+        const modal = document.getElementById(modalId);
+        if (modal) {
+            modal.querySelectorAll('.bg-gray-800').forEach(el => {
+                el.style.backgroundColor = theme === 'light' ? '#FFFFFF' : '#1F2937';
+            });
+            modal.querySelectorAll('.text-gray-300, .text-gray-400').forEach(el => {
+                el.style.color = theme === 'light' ? '#4B5563' : '#9CA3AF';
+            });
+        }
+    });
+
+    // Update input backgrounds and text
+    elements.inputs.forEach(input => {
+        input.style.backgroundColor = theme === 'light' ? '#FFFFFF' : '#374151';
+        input.style.color = theme === 'light' ? '#111827' : '#FFFFFF';
+    });
+
+    // Update button text colors
+    elements.buttons.forEach(button => {
+        if (!button.classList.contains('bg-blue-500') && 
+            !button.classList.contains('bg-red-500') && 
+            !button.classList.contains('bg-green-500')) {
+            button.style.color = theme === 'light' ? '#111827' : '#FFFFFF';
+        }
+    });
+
+    // Update card backgrounds
+    elements.cards.forEach(card => {
+        card.style.backgroundColor = theme === 'light' ? '#FFFFFF' : '#1F2937';
+    });
+
+    // Update text colors
+    elements.labels.forEach(label => {
+        if (label.classList.contains('text-white')) {
+            label.style.color = theme === 'light' ? '#111827' : '#FFFFFF';
+        } else if (label.classList.contains('text-gray-400')) {
+            label.style.color = theme === 'light' ? '#4B5563' : '#9CA3AF';
+        } else if (label.classList.contains('text-gray-300')) {
+            label.style.color = theme === 'light' ? '#6B7280' : '#D1D5DB';
+        }
+    });
+
+    // Update Quick Actions Panel
+    const quickActionsPanel = document.getElementById('quickActionsPanel');
+    if (quickActionsPanel) {
+        quickActionsPanel.style.backgroundColor = theme === 'light' ? '#FFFFFF' : '#1F2937';
+        quickActionsPanel.querySelectorAll('.bg-gray-700').forEach(el => {
+            el.style.backgroundColor = theme === 'light' ? '#F3F4F6' : '#374151';
+        });
     }
 }
 
@@ -1520,12 +1622,6 @@ document.addEventListener('DOMContentLoaded', async function() {
     await updateThemeButtons(); // This will load and apply the saved theme
     // ... rest of the existing code ...
 });
-
-function applyTheme(theme) {
-    document.documentElement.setAttribute('data-theme', theme);
-    currentTheme = theme;
-    localStorage.setItem('theme', theme);
-}
 
 async function checkFirstTimeSetup() {
     try {
@@ -1891,26 +1987,24 @@ async function updateStartupToggle() {
 }
 
 async function toggleStartup() {
+    const toggle = document.getElementById('startupToggle');
+    const isEnabled = toggle.classList.contains('bg-blue-500');
+    const newState = !isEnabled;
+
     try {
-        const toggle = document.getElementById('startupToggle');
-        const isEnabled = toggle.classList.contains('bg-blue-500');
-        
         const response = await fetch('/api/settings', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({
-                run_on_startup: !isEnabled
-            })
+            body: JSON.stringify({ run_on_startup: newState })
         });
-        
+
         if (response.ok) {
-            showNotification(`Run on startup ${!isEnabled ? 'enabled' : 'disabled'}`, 'success');
-            await updateStartupToggle();
-        } else {
-            const data = await response.json();
-            showNotification(data.message || 'Failed to update startup setting', 'error');
+            toggle.classList.toggle('bg-blue-500');
+            toggle.classList.toggle('bg-gray-500');
+            toggle.querySelector('span').style.transform = newState ? 'translateX(20px)' : 'translateX(0)';
+            showNotification(`${newState ? 'Enabled' : 'Disabled'} run on startup`, 'success');
         }
     } catch (error) {
         console.error('Error toggling startup:', error);
@@ -1941,26 +2035,24 @@ async function updateMinimizeToTrayToggle() {
 }
 
 async function toggleMinimizeToTray() {
+    const toggle = document.getElementById('minimizeToTrayToggle');
+    const isEnabled = toggle.classList.contains('bg-blue-500');
+    const newState = !isEnabled;
+
     try {
-        const toggle = document.getElementById('minimizeToTrayToggle');
-        const isEnabled = toggle.classList.contains('bg-blue-500');
-        
         const response = await fetch('/api/settings', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({
-                minimize_to_tray: !isEnabled
-            })
+            body: JSON.stringify({ minimize_to_tray: newState })
         });
-        
+
         if (response.ok) {
-            showNotification(`Minimize to tray ${!isEnabled ? 'enabled' : 'disabled'}`, 'success');
-            await updateMinimizeToTrayToggle();
-        } else {
-            const data = await response.json();
-            showNotification(data.message || 'Failed to update minimize to tray setting', 'error');
+            toggle.classList.toggle('bg-blue-500');
+            toggle.classList.toggle('bg-gray-500');
+            toggle.querySelector('span').style.transform = newState ? 'translateX(20px)' : 'translateX(0)';
+            showNotification(`${newState ? 'Enabled' : 'Disabled'} minimize to tray`, 'success');
         }
     } catch (error) {
         console.error('Error toggling minimize to tray:', error);
@@ -1991,26 +2083,24 @@ async function updateAutoReconnectToggle() {
 }
 
 async function toggleAutoReconnect() {
+    const toggle = document.getElementById('autoReconnectToggle');
+    const isEnabled = toggle.classList.contains('bg-blue-500');
+    const newState = !isEnabled;
+
     try {
-        const toggle = document.getElementById('autoReconnectToggle');
-        const isEnabled = toggle.classList.contains('bg-blue-500');
-        
         const response = await fetch('/api/settings', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({
-                auto_reconnect: !isEnabled
-            })
+            body: JSON.stringify({ auto_reconnect: newState })
         });
-        
+
         if (response.ok) {
-            showNotification(`Auto reconnect ${!isEnabled ? 'enabled' : 'disabled'}`, 'success');
-            await updateAutoReconnectToggle();
-        } else {
-            const data = await response.json();
-            showNotification(data.message || 'Failed to update auto reconnect setting', 'error');
+            toggle.classList.toggle('bg-blue-500');
+            toggle.classList.toggle('bg-gray-500');
+            toggle.querySelector('span').style.transform = newState ? 'translateX(20px)' : 'translateX(0)';
+            showNotification(`${newState ? 'Enabled' : 'Disabled'} auto reconnect`, 'success');
         }
     } catch (error) {
         console.error('Error toggling auto reconnect:', error);
@@ -3042,3 +3132,18 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
+
+function updateToggleState(toggleId, enabled) {
+    const toggle = document.getElementById(toggleId);
+    if (!toggle) return;
+    
+    if (enabled) {
+        toggle.classList.add('bg-blue-500');
+        toggle.classList.remove('bg-gray-500');
+        toggle.querySelector('span').style.transform = 'translateX(20px)';
+    } else {
+        toggle.classList.remove('bg-blue-500');
+        toggle.classList.add('bg-gray-500');
+        toggle.querySelector('span').style.transform = 'translateX(0)';
+    }
+}

@@ -12,7 +12,7 @@ from datetime import datetime, timedelta
 import pystray
 from PIL import Image
 import threading
-import schedule
+
 import csv
 import time
 import re
@@ -38,7 +38,6 @@ RECENT_ACTIONS_FILE = os.path.join(APPDATA_PATH, "recent_actions.json")
 SHORTCUTS_FILE = os.path.join(APPDATA_PATH, "shortcuts.json")
 
 # Add new constants
-SCHEDULES_FILE = os.path.join(APPDATA_PATH, "schedules.json")
 RECONNECT_INTERVAL = 300  # 5 minutes in seconds
 
 # Create necessary directories if they don't exist
@@ -1203,25 +1202,6 @@ def save_goals(goals):
     with open(goals_file, 'w') as f:
         json.dump(goals, f)
 
-def load_schedules():
-    if os.path.exists(SCHEDULES_FILE):
-        try:
-            with open(SCHEDULES_FILE, 'r') as f:
-                return json.load(f)
-        except:
-            return {"schedules": []}
-    return {"schedules": []}
-
-def save_schedules(schedules):
-    with open(SCHEDULES_FILE, 'w') as f:
-        json.dump(schedules, f)
-
-def run_scheduled_tasks():
-    """Run scheduled tasks in a separate thread"""
-    while True:
-        schedule.run_pending()
-        time.sleep(60)
-
 @app.route('/api/export-stats', methods=['POST'])
 def export_stats():
     try:
@@ -1270,55 +1250,6 @@ def export_stats():
             "message": str(e)
         }), 500
 
-@app.route('/api/schedules', methods=['GET', 'POST', 'DELETE'])
-def manage_schedules():
-    if request.method == 'GET':
-        return jsonify(load_schedules())
-    
-    elif request.method == 'POST':
-        data = request.get_json()
-        schedules = load_schedules()
-        
-        schedule_id = str(len(schedules['schedules']) + 1)
-        new_schedule = {
-            'id': schedule_id,
-            'name': data.get('name'),
-            'preset_name': data.get('preset_name'),
-            'start_time': data.get('start_time'),
-            'end_time': data.get('end_time'),
-            'days': data.get('days', []),
-            'enabled': True
-        }
-        
-        schedules['schedules'].append(new_schedule)
-        save_schedules(schedules)
-        
-        # Add the schedule to the scheduler
-        for day in new_schedule['days']:
-            schedule.every().day.at(new_schedule['start_time']).do(
-                run_preset, new_schedule['preset_name']
-            ).tag(f'schedule_{schedule_id}')
-            
-            schedule.every().day.at(new_schedule['end_time']).do(
-                stop_preset, new_schedule['preset_name']
-            ).tag(f'schedule_{schedule_id}')
-        
-        save_recent_action(f"Added schedule for {new_schedule['name']}")
-        return jsonify({"status": "success"})
-    
-    elif request.method == 'DELETE':
-        data = request.get_json()
-        schedule_id = data.get('id')
-        
-        schedules = load_schedules()
-        schedules['schedules'] = [s for s in schedules['schedules'] if s['id'] != schedule_id]
-        save_schedules(schedules)
-        
-        # Remove the schedule from the scheduler
-        schedule.clear(f'schedule_{schedule_id}')
-        
-        save_recent_action(f"Removed schedule {schedule_id}")
-        return jsonify({"status": "success"})
 
 @app.route('/api/auto-reconnect', methods=['POST'])
 def toggle_auto_reconnect():
@@ -1893,28 +1824,11 @@ if __name__ == '__main__':
     goals_thread.daemon = True
     goals_thread.start()
     
-    # Start the scheduler thread
-    scheduler_thread = threading.Thread(target=run_scheduled_tasks)
-    scheduler_thread.daemon = True
-    scheduler_thread.start()
     
     # Start the tray menu update thread
     tray_update_thread = threading.Thread(target=update_tray_periodically)
     tray_update_thread.daemon = True
     tray_update_thread.start()
-    
-    # Load existing schedules
-    schedules = load_schedules()
-    for schedule_item in schedules['schedules']:
-        if schedule_item['enabled']:
-            for day in schedule_item['days']:
-                schedule.every().day.at(schedule_item['start_time']).do(
-                    run_preset, schedule_item['preset_name']
-                ).tag(f'schedule_{schedule_item["id"]}')
-                
-                schedule.every().day.at(schedule_item['end_time']).do(
-                    stop_preset, schedule_item['preset_name']
-                ).tag(f'schedule_{schedule_item["id"]}')
     
     # Start the application
     webview.start()

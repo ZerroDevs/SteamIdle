@@ -18,6 +18,25 @@ document.addEventListener('DOMContentLoaded', async function() {
     await updateStatistics();
     await updateQuickActions();
     applyTheme(currentTheme);
+    
+    // Add event listeners for library functionality
+    const librarySearch = document.getElementById('librarySearch');
+    if (librarySearch) {
+        librarySearch.addEventListener('input', (e) => {
+            searchQuery = e.target.value;
+            updateLibraryDisplay();
+        });
+    }
+    
+    // Add click outside listener for library modal
+    const libraryModal = document.getElementById('libraryModal');
+    if (libraryModal) {
+        libraryModal.addEventListener('click', (e) => {
+            if (e.target === libraryModal) {
+                closeLibrary();
+            }
+        });
+    }
 });
 
 // Add status checking intervals
@@ -2247,4 +2266,245 @@ async function completeWelcomeSetup() {
         console.error('Error completing setup:', error);
         showNotification('Failed to complete setup', 'error');
     }
-} 
+}
+
+// Add to the existing JavaScript code
+
+let selectedLibraryGames = new Set();
+let libraryGames = [];
+let currentFilter = 'all';
+let searchQuery = '';
+
+async function loadSteamLibrary() {
+    const modal = document.getElementById('libraryModal');
+    if (!modal) return;
+    
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    
+    try {
+        const response = await fetch('/api/steam-library');
+        const data = await response.json();
+        
+        if (data.error) {
+            showNotification(data.error, 'error');
+            return;
+        }
+        
+        libraryGames = data.games;
+        updateLibraryDisplay();
+    } catch (error) {
+        showNotification('Error loading Steam library: ' + error, 'error');
+    }
+}
+
+function updateLibraryDisplay() {
+    const libraryDiv = document.getElementById('steamLibrary');
+    libraryDiv.innerHTML = ''; // Clear existing content
+    
+    const filteredGames = libraryGames.filter(game => {
+        const matchesFilter = 
+            currentFilter === 'all' ||
+            (currentFilter === 'installed' && game.installed) ||
+            (currentFilter === 'notInstalled' && !game.installed);
+            
+        const matchesSearch = 
+            !searchQuery ||
+            game.name.toLowerCase().includes(searchQuery.toLowerCase());
+            
+        return matchesFilter && matchesSearch;
+    });
+    
+    filteredGames.forEach(game => {
+        const gameCard = document.createElement('div');
+        gameCard.className = 'bg-gray-700 rounded-lg overflow-hidden game-card transform transition-all duration-300 hover:scale-105 hover:shadow-xl';
+        gameCard.innerHTML = `
+            <div class="relative">
+                <img src="${game.icon || 'path/to/default-image.jpg'}" 
+                     alt="${game.name}" 
+                     class="w-full h-40 object-cover">
+                <div class="absolute top-2 right-2 flex gap-2">
+                    <input type="checkbox" id="game-${game.id}" 
+                           class="w-5 h-5 rounded border-gray-600 text-blue-500 focus:ring-blue-500"
+                           onchange="toggleGameSelection('${game.id}')"
+                           ${selectedLibraryGames.has(game.id) ? 'checked' : ''}>
+                </div>
+                ${game.installed ? 
+                    '<span class="absolute top-2 left-2 bg-green-500 text-white px-2 py-1 rounded text-xs">Installed</span>' :
+                    '<span class="absolute top-2 left-2 bg-gray-500 text-white px-2 py-1 rounded text-xs">Not Installed</span>'
+                }
+            </div>
+            <div class="p-4">
+                <h3 class="text-lg font-semibold mb-2 truncate" title="${game.name}">${game.name}</h3>
+                <div class="text-sm text-gray-400 mb-3">
+                    <p>ID: ${game.id}</p>
+                    <p>Playtime: ${game.hours} hours</p>
+                    ${game.last_played ? `<p>Last played: ${new Date(game.last_played * 1000).toLocaleDateString()}</p>` : ''}
+                </div>
+                <div class="flex gap-2">
+                    ${game.installed ? `
+                        <button onclick="startGame('${game.id}')" 
+                                class="bg-blue-500 hover:bg-blue-600 px-4 py-2 rounded text-sm flex-1 transition-colors">
+                            <i class="fas fa-play mr-2"></i>Start
+                        </button>
+                    ` : ''}
+                    <button onclick="addToNewPreset('${game.id}')" 
+                            class="bg-green-500 hover:bg-green-600 px-4 py-2 rounded text-sm flex-1 transition-colors">
+                        <i class="fas fa-plus mr-2"></i>Add to Preset
+                    </button>
+                </div>
+            </div>
+        `;
+        libraryDiv.appendChild(gameCard);
+    });
+
+    // Update filter buttons
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.classList.remove('active', 'bg-blue-500', 'text-white');
+        btn.classList.add('text-gray-400', 'hover:text-white');
+    });
+    const activeFilter = document.getElementById(`filter${currentFilter.charAt(0).toUpperCase() + currentFilter.slice(1)}`);
+    if (activeFilter) {
+        activeFilter.classList.add('active', 'bg-blue-500', 'text-white');
+        activeFilter.classList.remove('text-gray-400', 'hover:text-white');
+    }
+}
+
+function toggleFilter(filter) {
+    currentFilter = filter;
+    updateLibraryDisplay();
+}
+
+// Add event listener for search input
+document.getElementById('librarySearch').addEventListener('input', (e) => {
+    searchQuery = e.target.value;
+    updateLibraryDisplay();
+});
+
+function refreshLibrary() {
+    clearLibrarySelection();
+    loadSteamLibrary();
+}
+
+// Update existing functions
+function toggleGameSelection(gameId) {
+    if (selectedLibraryGames.has(gameId)) {
+        selectedLibraryGames.delete(gameId);
+    } else {
+        selectedLibraryGames.add(gameId);
+    }
+    
+    const actionsDiv = document.getElementById('libraryActions');
+    const selectedCount = document.getElementById('selectedGamesCount');
+    
+    if (selectedCount) {
+        selectedCount.textContent = selectedLibraryGames.size;
+    }
+    
+    actionsDiv.classList.toggle('hidden', selectedLibraryGames.size === 0);
+}
+
+function clearLibrarySelection() {
+    selectedLibraryGames.clear();
+    const actionsDiv = document.getElementById('libraryActions');
+    const selectedCount = document.getElementById('selectedGamesCount');
+    
+    if (selectedCount) {
+        selectedCount.textContent = '0';
+    }
+    
+    if (actionsDiv) {
+        actionsDiv.classList.add('hidden');
+    }
+}
+
+// Add to window.onload
+window.onload = function() {
+    // ... existing onload code ...
+    loadSteamLibrary();
+}; 
+
+// Add modal HTML when document loads
+window.onload = function() {
+    // ... existing onload code ...
+    
+    // Create library modal
+    const modal = document.createElement('div');
+    modal.id = 'libraryModal';
+    modal.className = 'fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50';
+    modal.innerHTML = `
+        <div class="bg-gray-800 rounded-lg p-6 w-11/12 max-w-6xl max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center mb-6">
+                <div class="flex items-center gap-4">
+                    <h2 class="text-2xl font-semibold">Steam Library</h2>
+                    <div class="flex gap-2">
+                        <button onclick="toggleFilter('all')" id="filterAll" 
+                                class="filter-btn active px-3 py-1 rounded text-sm">
+                            All Games
+                        </button>
+                        <button onclick="toggleFilter('installed')" id="filterInstalled" 
+                                class="filter-btn px-3 py-1 rounded text-sm">
+                            Installed
+                        </button>
+                        <button onclick="toggleFilter('notInstalled')" id="filterNotInstalled" 
+                                class="filter-btn px-3 py-1 rounded text-sm">
+                            Not Installed
+                        </button>
+                    </div>
+                </div>
+                <div class="flex items-center gap-4">
+                    <div class="relative">
+                        <input type="text" id="librarySearch" placeholder="Search games..." 
+                               class="bg-gray-700 rounded px-4 py-2 pl-10 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                    </div>
+                    <button onclick="refreshLibrary()" class="text-gray-400 hover:text-white">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                    <button onclick="closeLibrary()" class="text-gray-400 hover:text-white">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div id="steamLibrary" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                <!-- Steam library games will be added here dynamically -->
+            </div>
+
+            <div id="libraryActions" class="mt-6 flex gap-4 hidden">
+                <button onclick="createPresetFromSelected()" 
+                        class="bg-green-500 hover:bg-green-600 px-6 py-2 rounded font-semibold transition-colors">
+                    <i class="fas fa-plus mr-2"></i>Create Preset from Selected
+                </button>
+                <button onclick="startSelectedGames()" 
+                        class="bg-blue-500 hover:bg-blue-600 px-6 py-2 rounded font-semibold transition-colors">
+                    <i class="fas fa-play mr-2"></i>Start Selected Games
+                </button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+    
+    loadSteamLibrary();
+};
+
+function closeLibrary() {
+    const modal = document.getElementById('libraryModal');
+    if (!modal) return;
+    
+    modal.classList.remove('flex');
+    modal.classList.add('hidden');
+    clearLibrarySelection();
+}
+
+// Add event listener for closing modal when clicking outside
+document.addEventListener('click', function(event) {
+    const modal = document.getElementById('libraryModal');
+    const modalContent = modal.querySelector('.bg-gray-800');
+    
+    if (event.target === modal) {
+        closeLibrary();
+    }
+});
+
+// ... rest of the existing code ...

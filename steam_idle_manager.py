@@ -15,6 +15,7 @@ import threading
 import schedule
 import csv
 import time
+import re
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -1687,6 +1688,136 @@ def get_most_idled_game():
     if most_idled:
         return f"{most_idled['name']} ({format_duration(max_time)})"
     return "None"
+
+def get_steam_id():
+    """Get user's Steam ID from registry or config"""
+    try:
+        # Try to get Steam ID from registry
+        hkey = winreg.OpenKey(winreg.HKEY_CURRENT_USER, "Software\\Valve\\Steam\\ActiveProcess")
+        steam_id = winreg.QueryValueEx(hkey, "ActiveUser")[0]
+        winreg.CloseKey(hkey)
+        return str(steam_id) if steam_id != 0 else None
+    except:
+        return None
+
+def get_steam_library():
+    """Get list of games from user's Steam library"""
+    try:
+        steam_id = get_steam_id()
+        if not steam_id:
+            return {"error": "Steam ID not found. Please make sure you're logged into Steam."}
+
+        # Get installed games from Steam installation
+        steam_path = get_steam_path()
+        if not steam_path:
+            return {"error": "Steam installation not found"}
+
+        # Get all games from Steam Web API
+        all_games = {}
+        try:
+            # First try to get games from Steam Community profile
+            profile_url = f"https://steamcommunity.com/profiles/{steam_id}/games?tab=all"
+            response = requests.get(profile_url)
+            if response.ok:
+                # Extract games list from JavaScript variable in the page
+                games_match = re.search(r'var rgGames = (\[.*?\]);', response.text)
+                if games_match:
+                    games_data = json.loads(games_match.group(1))
+                    for game in games_data:
+                        game_id = str(game.get('appid'))
+                        all_games[game_id] = {
+                            "id": game_id,
+                            "name": game.get('name', 'Unknown Game'),
+                            "icon": game.get('logo', ''),
+                            "installed": False,
+                            "hours": game.get('hours_forever', '0'),
+                            "last_played": game.get('last_played', 0)
+                        }
+        except Exception as e:
+            print(f"Error fetching games from Steam Community: {e}")
+
+        # Get installed games from local machine
+        libraryfolders_path = os.path.join(steam_path, "steamapps", "libraryfolders.vdf")
+        if os.path.exists(libraryfolders_path):
+            library_folders = []
+            with open(libraryfolders_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+                for line in content.split('\n'):
+                    if '"path"' in line:
+                        path = line.split('"')[3].replace('\\\\', '\\')
+                        library_folders.append(path)
+
+            # Mark installed games
+            for library in library_folders:
+                apps_path = os.path.join(library, "steamapps")
+                if os.path.exists(apps_path):
+                    for file in os.listdir(apps_path):
+                        if file.startswith("appmanifest_") and file.endswith(".acf"):
+                            with open(os.path.join(apps_path, file), 'r', encoding='utf-8') as f:
+                                manifest = f.read()
+                                game_id = file.replace("appmanifest_", "").replace(".acf", "")
+                                name_match = re.search(r'"name"\s*"([^"]+)"', manifest)
+                                game_name = name_match.group(1) if name_match else "Unknown Game"
+                                
+                                if game_id in all_games:
+                                    all_games[game_id]['installed'] = True
+                                else:
+                                    # Get game icon from Steam API
+                                    icon_url = f"https://steamcdn-a.akamaihd.net/steam/apps/{game_id}/header.jpg"
+                                    all_games[game_id] = {
+                                        "id": game_id,
+                                        "name": game_name,
+                                        "icon": icon_url,
+                                        "installed": True,
+                                        "hours": "0",
+                                        "last_played": 0
+                                    }
+
+        return {"games": list(all_games.values())}
+    except Exception as e:
+        return {"error": str(e)}
+
+@app.route('/api/steam-library')
+def steam_library():
+    """API endpoint to get user's Steam library"""
+    return jsonify(get_steam_library())
+
+@app.route('/api/import-from-library', methods=['POST'])
+def import_from_library():
+    """Import selected games from Steam library to create a preset"""
+    try:
+        data = request.get_json()
+        game_ids = data.get('gameIds', [])
+        preset_name = data.get('presetName')
+
+        if not game_ids or not preset_name:
+            return jsonify({"error": "Missing game IDs or preset name"}), 400
+
+        # Get game info for each selected game
+        games = []
+        for game_id in game_ids:
+            game_info = fetch_game_info(str(game_id))
+            if 'error' not in game_info:
+                games.append(game_info)
+
+        # Save as preset
+        preset_json_path = os.path.join(PRESETS_DIR, f"{preset_name}.json")
+        with open(preset_json_path, 'w') as f:
+            json.dump(games, f)
+
+        # Create BAT file
+        bat_content = "@echo off\n"
+        bat_content += f'cd "{os.path.dirname(IDLER_PATH)}"\n'
+        for game in games:
+            bat_content += f'start steam-idle.exe {game["id"]}\n'
+
+        bat_path = os.path.join(PRESETS_DIR, f"{preset_name}.bat")
+        with open(bat_path, 'w') as f:
+            f.write(bat_content)
+
+        return jsonify({"status": "success"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
     # Initialize settings

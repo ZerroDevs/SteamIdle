@@ -65,7 +65,7 @@
                 <i id="quickActionsIcon" class="fas fa-chevron-down transform transition-transform"></i>
                 <span class="text-lg font-semibold">Quick Actions</span>
             </button>
-            <button onclick="emergencyStop()" class="bg-red-500 hover:bg-red-600 px-6 py-2 rounded font-semibold transition-colors">
+            <button onclick="showEmergencyStopConfirmation()" class="bg-red-500 hover:bg-red-600 px-6 py-2 rounded font-semibold transition-colors">
                 <i class="fas fa-stop-circle mr-2"></i>Emergency Stop
             </button>
         </div>
@@ -226,6 +226,90 @@
 
     <script src="{{ url_for('static', filename='script.js') }}"></script>
 
+    <!-- Welcome Configuration Modal -->
+    <div id="welcomeConfigModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-[70]">
+        <div class="bg-gray-800 rounded-lg p-6 w-[600px]">
+            <div class="text-center mb-8">
+                <svg class="w-24 h-24 mx-auto mb-4" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <!-- Outer Circle -->
+                    <circle cx="50" cy="50" r="45" stroke="#3B82F6" stroke-width="2" class="animate-pulse"/>
+                    
+                    <!-- Inner Circle with Gradient -->
+                    <circle cx="50" cy="50" r="35" fill="url(#blueGradient)"/>
+                    
+                    <!-- Steam Controller Icon -->
+                    <path d="M35 45C35 42.2386 37.2386 40 40 40H60C62.7614 40 65 42.2386 65 45V55C65 57.7614 62.7614 60 60 60H40C37.2386 60 35 57.7614 35 55V45Z" fill="#1F2937"/>
+                    <path d="M42 48C42 46.8954 42.8954 46 44 46H46C47.1046 46 48 46.8954 48 48V52C48 53.1046 47.1046 54 46 54H44C42.8954 54 42 53.1046 42 52V48Z" fill="#3B82F6"/>
+                    <path d="M52 48C52 46.8954 52.8954 46 54 46H56C57.1046 46 58 46.8954 58 48V52C58 53.1046 57.1046 54 56 54H54C52.8954 54 52 53.1046 52 52V48Z" fill="#3B82F6"/>
+                    
+                    <!-- Pause Symbol -->
+                    <rect x="38" y="65" width="10" height="20" rx="2" fill="#3B82F6" class="animate-pulse"/>
+                    <rect x="52" y="65" width="10" height="20" rx="2" fill="#3B82F6" class="animate-pulse"/>
+                    
+                    <!-- Gradient Definition -->
+                    <defs>
+                        <linearGradient id="blueGradient" x1="15" y1="15" x2="85" y2="85" gradientUnits="userSpaceOnUse">
+                            <stop offset="0%" stop-color="#2563EB"/>
+                            <stop offset="100%" stop-color="#1D4ED8"/>
+                        </linearGradient>
+                    </defs>
+                </svg>
+                <h2 class="text-2xl font-semibold mb-2">Welcome to Steam Idle Manager</h2>
+                <p class="text-gray-400">Let's get you set up with a quick configuration</p>
+            </div>
+            
+            <div class="space-y-6">
+                <!-- Steam Idle Location -->
+                <div class="bg-gray-700 p-4 rounded">
+                    <h3 class="text-lg font-semibold mb-4">Steam Idle Location</h3>
+                    <p class="text-gray-400 mb-4">Please select the location of your steam-idle.exe file. This is required for the program to function.</p>
+                    <div class="flex items-center justify-between">
+                        <div class="flex-1 mr-4">
+                            <p id="welcomeIdlePath" class="text-gray-500">No file selected</p>
+                        </div>
+                        <button onclick="selectIdleExe()" 
+                                class="bg-blue-500 hover:bg-blue-600 px-4 py-2 rounded text-sm">
+                            <i class="fas fa-folder-open mr-2"></i>Select File
+                        </button>
+                    </div>
+                    <p class="text-gray-400 mt-4">If you don't have Idler, <a href="https://github.com/JonasNilson/idle_master_extended/releases/download/v1.10.0/idle_master_extended_v1.10.0.zip" class="text-blue-400 hover:text-blue-300 underline">Download Now</a></p>
+                </div>
+                
+                <!-- Startup Settings -->
+                <div class="bg-gray-700 p-4 rounded">
+                    <h3 class="text-lg font-semibold mb-4">Startup Settings</h3>
+                    <div class="flex items-center justify-between">
+                        <label class="text-gray-300">Run on Windows Startup</label>
+                        <button id="welcomeStartupToggle" onclick="toggleStartup()" 
+                                class="relative inline-flex items-center h-6 rounded-full w-11 bg-gray-500 transition-colors">
+                            <span class="inline-block w-4 h-4 transform transition-transform bg-white rounded-full"></span>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- System Tray Settings -->
+                <div class="bg-gray-700 p-4 rounded">
+                    <h3 class="text-lg font-semibold mb-4">System Tray Settings</h3>
+                    <div class="flex items-center justify-between">
+                        <label class="text-gray-300">Minimize to System Tray</label>
+                        <button id="welcomeMinimizeToggle" onclick="toggleMinimizeToTray()" 
+                                class="relative inline-flex items-center h-6 rounded-full w-11 bg-gray-500 transition-colors">
+                            <span class="inline-block w-4 h-4 transform transition-transform bg-white rounded-full"></span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-8 text-center">
+                <button id="welcomeCompleteBtn" onclick="completeWelcomeSetup()" 
+                        class="bg-blue-500 hover:bg-blue-600 px-8 py-3 rounded font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        disabled>
+                    Complete Setup
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Shortcut Configuration Modal -->
     <div id="shortcutModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
         <div class="bg-gray-800 rounded-lg p-6 w-96 transform transition-all">
@@ -314,19 +398,185 @@
     </div>
 
     <!-- Emergency Stop Confirmation Modal -->
-    <div id="emergencyStopConfirmModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-[60]">
-        <div class="bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4">
-            <h3 class="text-xl font-semibold mb-4">Emergency Stop Confirmation</h3>
-            <p class="text-gray-300 mb-6">Are you sure you want to stop all running games? This action cannot be undone.</p>
-            <div class="flex justify-end gap-3">
+    <div id="emergencyStopConfirmModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-[100]">
+        <div class="bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4 transform transition-all duration-200">
+            <div class="text-center mb-6">
+                <i class="fas fa-exclamation-triangle text-red-500 text-4xl mb-4"></i>
+                <h3 class="text-xl font-semibold mb-2">Emergency Stop</h3>
+                <p class="text-gray-300">Are you sure you want to stop all running games? This action cannot be undone.</p>
+            </div>
+            <div class="flex justify-center gap-4">
                 <button onclick="closeEmergencyStopConfirmation()" 
-                        class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded transition-colors">
-                    Cancel
+                        class="px-6 py-2 bg-gray-700 hover:bg-gray-600 rounded transition-colors">
+                    <i class="fas fa-times mr-2"></i>Cancel
                 </button>
                 <button onclick="confirmEmergencyStop()" 
-                        class="px-4 py-2 bg-red-500 hover:bg-red-600 rounded transition-colors">
-                    Stop All Games
+                        class="px-6 py-2 bg-red-500 hover:bg-red-600 rounded transition-colors">
+                    <i class="fas fa-stop-circle mr-2"></i>Stop All Games
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+        <div class="bg-gray-800 rounded-lg w-[800px] max-h-[90vh] overflow-y-auto">
+            <div class="p-6 border-b border-gray-700 flex justify-between items-center">
+                <h2 class="text-2xl font-semibold">Settings</h2>
+                <button onclick="closeSettings()" class="text-gray-400 hover:text-white transition-colors">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <div id="settingsLoading" class="hidden p-6 text-center">
+                <i class="fas fa-spinner fa-spin text-2xl text-blue-500"></i>
+                <p class="mt-2 text-gray-400">Loading settings...</p>
+            </div>
+            <div class="p-6 space-y-6">
+                <!-- Steam Idle Location -->
+                <div class="bg-gray-700 p-4 rounded">
+                    <h3 class="text-lg font-semibold mb-4">Steam Idle Location</h3>
+                    <div class="flex items-center justify-between">
+                        <div class="flex-1 mr-4">
+                            <p id="currentIdlePath" class="text-gray-500">Not configured</p>
+                        </div>
+                        <button onclick="reconfigureIdlePath()" 
+                                class="bg-blue-500 hover:bg-blue-600 px-4 py-2 rounded text-sm">
+                            <i class="fas fa-folder-open mr-2"></i>Change Location
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Startup Settings -->
+                <div class="bg-gray-700 p-4 rounded">
+                    <h3 class="text-lg font-semibold mb-4">Startup Settings</h3>
+                    <div class="flex items-center justify-between">
+                        <label class="text-gray-300">Run on Windows Startup</label>
+                        <button id="startupToggle" onclick="toggleStartup()" 
+                                class="relative inline-flex items-center h-6 rounded-full w-11 bg-gray-500 transition-colors">
+                            <span class="inline-block w-4 h-4 transform transition-transform bg-white rounded-full"></span>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- System Tray Settings -->
+                <div class="bg-gray-700 p-4 rounded">
+                    <h3 class="text-lg font-semibold mb-4">System Tray Settings</h3>
+                    <div class="flex items-center justify-between">
+                        <label class="text-gray-300">Minimize to System Tray</label>
+                        <button id="minimizeToTrayToggle" onclick="toggleMinimizeToTray()" 
+                                class="relative inline-flex items-center h-6 rounded-full w-11 bg-gray-500 transition-colors">
+                            <span class="inline-block w-4 h-4 transform transition-transform bg-white rounded-full"></span>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Auto Reconnect Settings -->
+                <div class="bg-gray-700 p-4 rounded">
+                    <h3 class="text-lg font-semibold mb-4">Auto Reconnect Settings</h3>
+                    <div class="flex items-center justify-between">
+                        <label class="text-gray-300">Auto Reconnect on Disconnect</label>
+                        <button id="autoReconnectToggle" onclick="toggleAutoReconnect()" 
+                                class="relative inline-flex items-center h-6 rounded-full w-11 bg-gray-500 transition-colors">
+                            <span class="inline-block w-4 h-4 transform transition-transform bg-white rounded-full"></span>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Theme Settings -->
+                <div class="bg-gray-700 p-4 rounded">
+                    <h3 class="text-lg font-semibold mb-4">Theme Settings</h3>
+                    <div class="flex gap-4">
+                        <button id="darkThemeBtn" onclick="setTheme('dark')" 
+                                class="flex-1 bg-gray-800 hover:bg-gray-900 px-4 py-2 rounded border-2 border-transparent">
+                            <i class="fas fa-moon mr-2"></i>Dark Theme
+                        </button>
+                        <button id="lightThemeBtn" onclick="setTheme('light')" 
+                                class="flex-1 bg-gray-800 hover:bg-gray-900 px-4 py-2 rounded border-2 border-transparent">
+                            <i class="fas fa-sun mr-2"></i>Light Theme
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Library Modal -->
+    <div id="libraryModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+        <div class="bg-gray-800 rounded-lg">
+            <!-- Header -->
+            <div class="header p-6 border-b border-gray-700">
+                <div class="flex justify-between items-center">
+                    <div class="flex flex-col gap-2">
+                        <h2 class="text-2xl font-semibold">Steam Library</h2>
+                        <div id="gameCountDisplay" class="text-gray-400 text-sm">
+                            <i class="fas fa-gamepad mr-2"></i>Loading games...
+                        </div>
+                        <div class="flex gap-2 mt-2">
+                            <button onclick="toggleFilter('all')" id="filterAll" 
+                                    class="filter-btn active px-3 py-1 rounded text-sm">
+                                All Games
+                            </button>
+                            <button onclick="toggleFilter('installed')" id="filterInstalled" 
+                                    class="filter-btn px-3 py-1 rounded text-sm">
+                                Installed
+                            </button>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-4">
+                        <!-- View Size Controls -->
+                        <div class="flex items-center gap-2 border-r border-gray-600 pr-4">
+                            <button onclick="setViewSize('compact')" id="viewCompact" 
+                                    class="view-size-btn text-gray-400 hover:text-white transition-colors" title="Compact View">
+                                <i class="fas fa-th text-lg"></i>
+                            </button>
+                            <button onclick="setViewSize('normal')" id="viewNormal" 
+                                    class="view-size-btn text-blue-500 hover:text-white transition-colors" title="Normal View">
+                                <i class="fas fa-th-large text-lg"></i>
+                            </button>
+                            <button onclick="setViewSize('large')" id="viewLarge" 
+                                    class="view-size-btn text-gray-400 hover:text-white transition-colors" title="Large View">
+                                <i class="fas fa-square text-lg"></i>
+                            </button>
+                        </div>
+                        <div class="relative">
+                            <input type="text" id="librarySearch" placeholder="Search games..." 
+                                   class="bg-gray-700 rounded px-4 py-2 pl-10 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                        </div>
+                        <button onclick="refreshLibrary()" class="text-gray-400 hover:text-white transition-colors">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
+                        <button onclick="closeLibrary()" class="text-gray-400 hover:text-white transition-colors">
+                            <i class="fas fa-times text-xl"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Games Grid with Scrollbar -->
+            <div class="flex-1 overflow-y-auto custom-scrollbar" style="max-height: calc(90vh - 180px);">
+                <div id="steamLibrary" class="p-6">
+                    <!-- Steam library games will be added here dynamically -->
+                </div>
+            </div>
+
+            <!-- Footer Actions -->
+            <div id="libraryActions" class="hidden p-4 border-t border-gray-700">
+                <div class="flex justify-between items-center">
+                    <span class="text-gray-400">
+                        <span id="selectedGamesCount">0</span> games selected
+                    </span>
+                    <div class="flex gap-4">
+                        <button onclick="createPresetFromSelected()" 
+                                class="bg-green-500 hover:bg-green-600 px-6 py-2 rounded font-semibold transition-colors">
+                            <i class="fas fa-plus mr-2"></i>Create Preset from Selected
+                        </button>
+                        <button onclick="startSelectedGames()" 
+                                class="bg-blue-500 hover:bg-blue-600 px-6 py-2 rounded font-semibold transition-colors">
+                            <i class="fas fa-play mr-2"></i>Start Selected Games
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

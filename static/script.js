@@ -54,7 +54,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     document.addEventListener('gameStateChanged', async function() {
         updateLibraryDisplay();
         updateGamesList();
-        updateRunningGamesList(); // Add this line
+        updateRunningGamesList();
         const presets = await loadPresets(true);
         updatePresetsList(presets);
     });
@@ -792,6 +792,16 @@ async function runPreset(presetName) {
             showNotification('Steam appears to be offline. Please ensure Steam is online.', 'error');
             return;
         }
+
+        // Get the preset data first
+        const presetsResponse = await fetch('/api/get-presets');
+        const presets = await presetsResponse.json();
+        const preset = presets.find(p => p.name === presetName);
+        
+        if (!preset) {
+            showNotification('Preset not found', 'error');
+            return;
+        }
         
         const response = await fetch('/api/run-preset', {
             method: 'POST',
@@ -814,12 +824,20 @@ async function runPreset(presetName) {
                 runningGames.add(gameId.toString());
             });
 
+            // Add preset games to currentGames if they're not already there
+            preset.games.forEach(game => {
+                if (!currentGames.some(g => g.id === game.id)) {
+                    currentGames.push(game);
+                }
+            });
+
             // Add to running presets
             runningPresets.add(presetName);
 
             // Update UI
             updateGamesList();
             updatePresetsList(await loadPresets(true));
+            updateRunningGamesList(); // Add this line
             
             // Show success message
             const message = `Started ${data.gameIds.length} games from preset "${presetName}"`;
@@ -1366,6 +1384,11 @@ document.addEventListener('keydown', async (e) => {
 // Add these functions before the DOMContentLoaded event listener
 async function openSettings() {
     const modal = document.getElementById('settingsModal');
+    if (!modal) {
+        showNotification('Settings modal not found', 'error');
+        return;
+    }
+    
     modal.classList.remove('hidden');
     modal.classList.add('flex');
     
@@ -1410,18 +1433,32 @@ async function openSettings() {
 
 function closeSettings() {
     const modal = document.getElementById('settingsModal');
+    if (!modal) return;
+    
     modal.classList.remove('flex');
     modal.classList.add('hidden');
 }
 
-// Add event listener for clicking outside the modal to close it
-document.addEventListener('DOMContentLoaded', () => {
+// Add event listeners for clicking outside modals to close them
+document.addEventListener('DOMContentLoaded', function() {
     const settingsModal = document.getElementById('settingsModal');
-    settingsModal.addEventListener('click', (e) => {
-        if (e.target === settingsModal) {
-            closeSettings();
-        }
-    });
+    const libraryModal = document.getElementById('libraryModal');
+    
+    if (settingsModal) {
+        settingsModal.addEventListener('click', (e) => {
+            if (e.target === settingsModal) {
+                closeSettings();
+            }
+        });
+    }
+    
+    if (libraryModal) {
+        libraryModal.addEventListener('click', (e) => {
+            if (e.target === libraryModal) {
+                closeLibrary();
+            }
+        });
+    }
 });
 
 async function setTheme(theme) {
@@ -1499,8 +1536,12 @@ async function checkFirstTimeSetup() {
             // Reset UI elements
             document.getElementById('welcomeStartupToggle').classList.remove('bg-blue-500');
             document.getElementById('welcomeStartupToggle').classList.add('bg-gray-500');
+            document.getElementById('welcomeStartupToggle').querySelector('span').classList.remove('translate-x-5');
+            
             document.getElementById('welcomeMinimizeToggle').classList.remove('bg-blue-500');
             document.getElementById('welcomeMinimizeToggle').classList.add('bg-gray-500');
+            document.getElementById('welcomeMinimizeToggle').querySelector('span').classList.remove('translate-x-5');
+            
             document.getElementById('welcomeIdlePath').textContent = 'No file selected';
             document.getElementById('welcomeCompleteBtn').disabled = true;
         } else if (settings.idler_path) {
@@ -2270,7 +2311,10 @@ let searchQuery = '';
 
 async function loadSteamLibrary() {
     const modal = document.getElementById('libraryModal');
-    if (!modal) return;
+    if (!modal) {
+        showNotification('Library modal not found', 'error');
+        return;
+    }
     
     modal.classList.remove('hidden');
     modal.classList.add('flex');
@@ -2290,6 +2334,94 @@ async function loadSteamLibrary() {
         showNotification('Error loading Steam library: ' + error, 'error');
     }
 }
+
+function closeLibrary() {
+    const modal = document.getElementById('libraryModal');
+    if (!modal) return;
+    
+    modal.classList.remove('flex');
+    modal.classList.add('hidden');
+    clearLibrarySelection();
+}
+
+async function openSettings() {
+    const modal = document.getElementById('settingsModal');
+    if (!modal) {
+        showNotification('Settings modal not found', 'error');
+        return;
+    }
+    
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    
+    // Show loading state
+    const loadingElement = document.getElementById('settingsLoading');
+    if (loadingElement) loadingElement.classList.remove('hidden');
+    
+    try {
+        // Execute all settings updates in parallel but track their results individually
+        const results = await Promise.allSettled([
+            { name: 'Startup Status', promise: updateStartupToggle() },
+            { name: 'Minimize to Tray', promise: updateMinimizeToTrayToggle() },
+            { name: 'Auto Reconnect', promise: updateAutoReconnectToggle() },
+            { name: 'Theme Settings', promise: updateThemeButtons() },
+            { name: 'Steam Idle Path', promise: updateIdlePath() }
+        ].map(async ({ name, promise }) => {
+            try {
+                await promise;
+                return { name, success: true };
+            } catch (error) {
+                console.error(`Error loading ${name}:`, error);
+                return { name, success: false, error: error.message };
+            }
+        }));
+
+        // Check for any failures
+        const failures = results
+            .filter(result => result.status === 'fulfilled' && !result.value.success)
+            .map(result => result.value.name);
+
+        if (failures.length > 0) {
+            showNotification(`Failed to load settings: ${failures.join(', ')}`, 'error');
+        }
+    } catch (error) {
+        console.error('Error loading settings:', error);
+        showNotification('Failed to load all settings', 'error');
+    } finally {
+        // Hide loading state
+        if (loadingElement) loadingElement.classList.add('hidden');
+    }
+}
+
+function closeSettings() {
+    const modal = document.getElementById('settingsModal');
+    if (!modal) return;
+    
+    modal.classList.remove('flex');
+    modal.classList.add('hidden');
+}
+
+// Add event listeners for clicking outside modals to close them
+document.addEventListener('DOMContentLoaded', function() {
+    const settingsModal = document.getElementById('settingsModal');
+    const libraryModal = document.getElementById('libraryModal');
+    
+    if (settingsModal) {
+        settingsModal.addEventListener('click', (e) => {
+            if (e.target === settingsModal) {
+                closeSettings();
+            }
+        });
+    }
+    
+    if (libraryModal) {
+        libraryModal.addEventListener('click', (e) => {
+            if (e.target === libraryModal) {
+                closeLibrary();
+            }
+        });
+    }
+});
 
 function updateLibraryDisplay() {
     const libraryDiv = document.getElementById('steamLibrary');
@@ -2566,25 +2698,6 @@ window.onload = function() {
     loadSteamLibrary();
 };
 
-function closeLibrary() {
-    const modal = document.getElementById('libraryModal');
-    if (!modal) return;
-    
-    modal.classList.remove('flex');
-    modal.classList.add('hidden');
-    clearLibrarySelection();
-}
-
-// Add event listener for closing modal when clicking outside
-document.addEventListener('click', function(event) {
-    const modal = document.getElementById('libraryModal');
-    const modalContent = modal.querySelector('.bg-gray-800');
-    
-    if (event.target === modal) {
-        closeLibrary();
-    }
-});
-
 // ... rest of the existing code ...
 
 // Add function to handle adding a game to a new preset
@@ -2822,98 +2935,189 @@ async function updateRunningGamesList() {
         headerCount.classList.add('hidden');
     }
     
-    // Clear the list
-    gamesList.innerHTML = '';
+    // Clear the list and show loading state if there are games
+    if (runningCount > 0) {
+        gamesList.innerHTML = `
+            <div class="text-center text-gray-400 py-4">
+                <i class="fas fa-spinner fa-spin text-2xl mb-2"></i>
+                <p>Loading ${runningCount} games...</p>
+            </div>
+        `;
+    }
+    
+    // Prepare array to hold all game data
+    const gamePromises = [];
     
     // Get playtime for each running game
     for (const gameId of runningGames) {
-        try {
-            // Get game session time
-            const timeResponse = await fetch('/api/game-session-time', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ gameId })
-            });
-            const timeData = await timeResponse.json();
-            
-            // Find game info from current games
-            const gameInfo = currentGames.find(g => g.id.toString() === gameId.toString());
-            if (!gameInfo) continue;
-            
-            // Create game card
-            const gameCard = document.createElement('div');
-            gameCard.className = 'bg-gray-700 rounded-lg p-4 flex items-center gap-4';
-            gameCard.innerHTML = `
-                <img src="${gameInfo.image || 'https://via.placeholder.com/460x215/374151/FFFFFF?text=No+Image'}" 
-                     alt="${gameInfo.name}" 
-                     class="w-16 h-16 rounded object-cover">
-                <div class="flex-1">
-                    <h3 class="font-semibold text-lg">${gameInfo.name}</h3>
-                    <div class="text-sm text-gray-400">ID: ${gameInfo.id}</div>
-                    <div class="mt-1">
-                        <div class="text-green-400 text-sm">Session: ${timeData.current_session}</div>
-                        <div class="text-blue-400 text-sm">Total: ${timeData.total_time}</div>
-                    </div>
-                </div>
-                <div class="flex gap-2">
-                    <button onclick="stopGame('${gameId}')" 
-                            class="bg-red-500 hover:bg-red-600 px-4 py-2 rounded text-sm font-medium transition-colors">
-                        <i class="fas fa-stop mr-1"></i>Stop
-                    </button>
-                </div>
-            `;
-            gamesList.appendChild(gameCard);
-        } catch (error) {
-            console.error('Error updating running game:', error);
-        }
+        const promise = (async () => {
+            try {
+                // Get game session time
+                const timeResponse = await fetch('/api/game-session-time', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ gameId })
+                });
+                const timeData = await timeResponse.json();
+                
+                // First try to find game info in currentGames
+                let gameInfo = currentGames.find(g => g.id.toString() === gameId.toString());
+                
+                // If not found in currentGames, try to fetch it
+                if (!gameInfo) {
+                    const gameResponse = await fetch('/api/fetch-game', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ gameId })
+                    });
+                    gameInfo = await gameResponse.json();
+                    
+                    // Add to currentGames if not already there
+                    if (gameInfo && !currentGames.some(g => g.id === gameInfo.id)) {
+                        currentGames.push(gameInfo);
+                    }
+                }
+                
+                if (!gameInfo) return null;
+                
+                return {
+                    gameInfo,
+                    timeData,
+                    gameId
+                };
+            } catch (error) {
+                console.error('Error fetching game data:', error);
+                return null;
+            }
+        })();
+        
+        gamePromises.push(promise);
     }
     
-    // If no games are running, show a message
-    if (runningCount === 0) {
+    // Wait for all game data to be fetched
+    const gamesData = await Promise.all(gamePromises);
+    
+    // Clear the list again to remove loading state
+    gamesList.innerHTML = '';
+    
+    // Filter out null results and sort games by name
+    const validGamesData = gamesData.filter(data => data !== null)
+        .sort((a, b) => a.gameInfo.name.localeCompare(b.gameInfo.name));
+    
+    // If no valid games are running, show a message
+    if (validGamesData.length === 0) {
         gamesList.innerHTML = `
             <div class="text-center text-gray-400 py-8">
                 <i class="fas fa-gamepad text-4xl mb-2"></i>
                 <p>No games currently running</p>
             </div>
         `;
+        return;
     }
+    
+    // Create and append all game cards
+    validGamesData.forEach(({ gameInfo, timeData, gameId }) => {
+        const gameCard = document.createElement('div');
+        gameCard.className = 'bg-gray-700 rounded-lg p-4 flex items-center gap-4 mb-4 last:mb-0';
+        gameCard.innerHTML = `
+            <img src="${gameInfo.image || 'https://via.placeholder.com/460x215/374151/FFFFFF?text=No+Image'}" 
+                 alt="${gameInfo.name}" 
+                 class="w-16 h-16 rounded object-cover">
+            <div class="flex-1 min-w-0">
+                <h3 class="font-semibold text-lg truncate" title="${gameInfo.name}">${gameInfo.name}</h3>
+                <div class="text-sm text-gray-400 truncate">ID: ${gameInfo.id}</div>
+                <div class="mt-1">
+                    <div class="text-green-400 text-sm">Session: ${timeData.current_session}</div>
+                    <div class="text-blue-400 text-sm">Total: ${timeData.total_time}</div>
+                </div>
+            </div>
+            <div class="flex gap-2 flex-shrink-0">
+                <button onclick="stopGame('${gameId}')" 
+                        class="bg-red-500 hover:bg-red-600 px-4 py-2 rounded text-sm font-medium transition-colors">
+                    <i class="fas fa-stop mr-1"></i>Stop
+                </button>
+            </div>
+        `;
+        gamesList.appendChild(gameCard);
+    });
 }
 
 function showEmergencyStopConfirmation() {
     const modal = document.getElementById('emergencyStopConfirmModal');
+    const messageElement = modal.querySelector('p');
+    const runningGamesCount = runningGames.size;
+    
+    if (runningGamesCount === 0) {
+        showNotification('No games are currently running', 'info');
+        return;
+    }
+    
+    // Update the confirmation message with the number of running games
+    messageElement.textContent = `Are you sure you want to stop ${runningGamesCount} running ${runningGamesCount === 1 ? 'game' : 'games'}? This action cannot be undone.`;
+    
+    // Show the modal with animation
     modal.classList.remove('hidden');
     modal.classList.add('flex');
+    
+    // Add animation to the modal content
+    const modalContent = modal.querySelector('.bg-gray-800');
+    modalContent.style.opacity = '0';
+    modalContent.style.transform = 'scale(0.95)';
+    
+    // Trigger animation
+    setTimeout(() => {
+        modalContent.style.opacity = '1';
+        modalContent.style.transform = 'scale(1)';
+    }, 10);
 }
 
 function closeEmergencyStopConfirmation() {
     const modal = document.getElementById('emergencyStopConfirmModal');
-    modal.classList.remove('flex');
-    modal.classList.add('hidden');
+    const modalContent = modal.querySelector('.bg-gray-800');
+    
+    // Animate out
+    modalContent.style.opacity = '0';
+    modalContent.style.transform = 'scale(0.95)';
+    
+    // Hide modal after animation
+    setTimeout(() => {
+        modal.classList.remove('flex');
+        modal.classList.add('hidden');
+        // Reset transform for next time
+        modalContent.style.transform = 'scale(1)';
+    }, 200);
 }
 
 async function confirmEmergencyStop() {
-    closeEmergencyStopConfirmation();
-    await emergencyStop();
-}
-
-async function suspendGame(gameId) {
     try {
-        const response = await fetch('/api/suspend-game', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ gameId })
-        });
+        closeEmergencyStopConfirmation();
+        const response = await fetch('/api/emergency-stop');
+        const data = await response.json();
         
-        if (response.ok) {
-            showNotification('Game suspended successfully', 'success');
+        if (data.status === 'success') {
+            runningGames.clear();
+            updateGamesList();
+            updatePresetsList(await loadPresets(true));
             updateRunningGamesList();
+            showNotification(`Emergency stop successful - Stopped ${data.stopped_games.length} games`, 'success');
+            closeRunningGames();
         } else {
-            showNotification('Failed to suspend game', 'error');
+            showNotification('Failed to stop games', 'error');
         }
     } catch (error) {
-        console.error('Error suspending game:', error);
-        showNotification('Error suspending game', 'error');
+        console.error('Error during emergency stop:', error);
+        showNotification('Failed to stop all games', 'error');
     }
 }
+
+// Add event listener for clicking outside the emergency stop modal
+document.addEventListener('DOMContentLoaded', function() {
+    const emergencyStopModal = document.getElementById('emergencyStopConfirmModal');
+    if (emergencyStopModal) {
+        emergencyStopModal.addEventListener('click', (e) => {
+            if (e.target === emergencyStopModal) {
+                closeEmergencyStopConfirmation();
+            }
+        });
+    }
+});

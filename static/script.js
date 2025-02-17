@@ -10,6 +10,7 @@ let editedGames = [];
 let welcomeStartupEnabled = false;
 let welcomeMinimizeEnabled = false;
 let welcomeIdleExePath = null;
+let currentViewSize = localStorage.getItem('libraryViewSize') || 'normal'; // compact, normal, large
 
 // Initialize the application when the DOM is loaded
 document.addEventListener('DOMContentLoaded', async function() {
@@ -2296,8 +2297,12 @@ async function loadSteamLibrary() {
 
 function updateLibraryDisplay() {
     const libraryDiv = document.getElementById('steamLibrary');
-    libraryDiv.innerHTML = ''; // Clear existing content
+    libraryDiv.innerHTML = '';
     
+    // Set view size class
+    libraryDiv.className = `${currentViewSize}-view p-6`;
+    
+    // Filter games based on current filter and search
     const filteredGames = libraryGames.filter(game => {
         const matchesFilter = 
             currentFilter === 'all' ||
@@ -2309,16 +2314,34 @@ function updateLibraryDisplay() {
             
         return matchesFilter && matchesSearch;
     });
-    
+
+    // Update game counter display
+    const totalGames = libraryGames.length;
+    const installedGames = libraryGames.filter(game => game.installed === true).length;
+    const filteredCount = filteredGames.length;
+    const gameCountDisplay = document.getElementById('gameCountDisplay');
+    if (gameCountDisplay) {
+        if (searchQuery) {
+            gameCountDisplay.textContent = `(${totalGames} total • ${installedGames} installed • ${filteredCount} matches)`;
+        } else {
+            gameCountDisplay.textContent = `(${totalGames} total • ${installedGames} installed)`;
+        }
+    }
+
+    // Continue with existing game cards display
     filteredGames.forEach(game => {
         const isRunning = runningGames.has(game.id.toString());
         const gameCard = document.createElement('div');
-        gameCard.className = 'bg-gray-700 rounded-lg overflow-hidden game-card transform transition-all duration-300 hover:scale-105 hover:shadow-xl';
+        gameCard.className = `game-card ${currentViewSize}-card`;
+        
+        // Convert Steam minutes to hours and round to 1 decimal place
+        const steamHours = (game.playtime_forever / 60).toFixed(1);
+        
         gameCard.innerHTML = `
             <div class="relative">
                 <img src="${game.icon || 'path/to/default-image.jpg'}" 
                      alt="${game.name}" 
-                     class="w-full h-40 object-cover">
+                     class="w-full">
                 <div class="absolute top-2 right-2 flex gap-2">
                     <input type="checkbox" id="game-${game.id}" 
                            class="w-5 h-5 rounded border-gray-600 text-blue-500 focus:ring-blue-500"
@@ -2334,7 +2357,10 @@ function updateLibraryDisplay() {
                 <h3 class="text-lg font-semibold mb-2 truncate" title="${game.name}">${game.name}</h3>
                 <div class="text-sm text-gray-400 mb-3">
                     <p>ID: ${game.id}</p>
-                    <p>Playtime: ${game.hours} hours</p>
+                    <div class="flex justify-between items-center">
+                        <p>Steam Hours: ${steamHours}</p>
+                        <p>Idle Hours: ${game.hours || '0'}</p>
+                    </div>
                     ${game.last_played ? `<p>Last played: ${new Date(game.last_played * 1000).toLocaleDateString()}</p>` : ''}
                 </div>
                 <div class="flex gap-2">
@@ -2364,6 +2390,23 @@ function updateLibraryDisplay() {
         activeFilter.classList.add('active', 'bg-blue-500', 'text-white');
         activeFilter.classList.remove('text-gray-400', 'hover:text-white');
     }
+
+    // Update view size buttons
+    document.querySelectorAll('.view-size-btn').forEach(btn => {
+        btn.classList.remove('active');
+        btn.classList.add('text-gray-400');
+    });
+    const activeViewBtn = document.getElementById(`view${currentViewSize.charAt(0).toUpperCase() + currentViewSize.slice(1)}`);
+    if (activeViewBtn) {
+        activeViewBtn.classList.add('active');
+        activeViewBtn.classList.remove('text-gray-400');
+    }
+}
+
+function setViewSize(size) {
+    currentViewSize = size;
+    localStorage.setItem('libraryViewSize', size);
+    updateLibraryDisplay();
 }
 
 function toggleFilter(filter) {
@@ -2444,53 +2487,81 @@ window.onload = function() {
     modal.id = 'libraryModal';
     modal.className = 'fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50';
     modal.innerHTML = `
-        <div class="bg-gray-800 rounded-lg p-6 w-11/12 max-w-6xl max-h-[90vh] overflow-y-auto">
-            <div class="flex justify-between items-center mb-6">
-                <div class="flex items-center gap-4">
-                    <h2 class="text-2xl font-semibold">Steam Library</h2>
-                    <div class="flex gap-2">
-                        <button onclick="toggleFilter('all')" id="filterAll" 
-                                class="filter-btn active px-3 py-1 rounded text-sm">
-                            All Games
+        <div class="bg-gray-800 rounded-lg">
+            <!-- Header -->
+            <div class="header p-6 border-b border-gray-700">
+                <div class="flex justify-between items-center">
+                    <div class="flex flex-col gap-2">
+                        <h2 class="text-2xl font-semibold">Steam Library</h2>
+                        <div id="gameCountDisplay" class="text-gray-400 text-sm">
+                            <i class="fas fa-gamepad mr-2"></i>Loading games...
+                        </div>
+                        <div class="flex gap-2 mt-2">
+                            <button onclick="toggleFilter('all')" id="filterAll" 
+                                    class="filter-btn active px-3 py-1 rounded text-sm">
+                                All Games
+                            </button>
+                            <button onclick="toggleFilter('installed')" id="filterInstalled" 
+                                    class="filter-btn px-3 py-1 rounded text-sm">
+                                Installed
+                            </button>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-4">
+                        <!-- View Size Controls -->
+                        <div class="flex items-center gap-2 border-r border-gray-600 pr-4">
+                            <button onclick="setViewSize('compact')" id="viewCompact" 
+                                    class="view-size-btn text-gray-400 hover:text-white transition-colors" title="Compact View">
+                                <i class="fas fa-th text-lg"></i>
+                            </button>
+                            <button onclick="setViewSize('normal')" id="viewNormal" 
+                                    class="view-size-btn text-blue-500 hover:text-white transition-colors" title="Normal View">
+                                <i class="fas fa-th-large text-lg"></i>
+                            </button>
+                            <button onclick="setViewSize('large')" id="viewLarge" 
+                                    class="view-size-btn text-gray-400 hover:text-white transition-colors" title="Large View">
+                                <i class="fas fa-square text-lg"></i>
+                            </button>
+                        </div>
+                        <div class="relative">
+                            <input type="text" id="librarySearch" placeholder="Search games..." 
+                                   class="bg-gray-700 rounded px-4 py-2 pl-10 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                        </div>
+                        <button onclick="refreshLibrary()" class="text-gray-400 hover:text-white transition-colors">
+                            <i class="fas fa-sync-alt"></i>
                         </button>
-                        <button onclick="toggleFilter('installed')" id="filterInstalled" 
-                                class="filter-btn px-3 py-1 rounded text-sm">
-                            Installed
-                        </button>
-                        <button onclick="toggleFilter('notInstalled')" id="filterNotInstalled" 
-                                class="filter-btn px-3 py-1 rounded text-sm">
-                            Not Installed
+                        <button onclick="closeLibrary()" class="text-gray-400 hover:text-white transition-colors">
+                            <i class="fas fa-times text-xl"></i>
                         </button>
                     </div>
                 </div>
-                <div class="flex items-center gap-4">
-                    <div class="relative">
-                        <input type="text" id="librarySearch" placeholder="Search games..." 
-                               class="bg-gray-700 rounded px-4 py-2 pl-10 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
-                    </div>
-                    <button onclick="refreshLibrary()" class="text-gray-400 hover:text-white">
-                        <i class="fas fa-sync-alt"></i>
-                    </button>
-                    <button onclick="closeLibrary()" class="text-gray-400 hover:text-white">
-                        <i class="fas fa-times text-xl"></i>
-                    </button>
+            </div>
+
+            <!-- Games Grid with Scrollbar -->
+            <div class="flex-1 overflow-y-auto custom-scrollbar" style="max-height: calc(90vh - 180px);">
+                <div id="steamLibrary" class="p-6">
+                    <!-- Steam library games will be added here dynamically -->
                 </div>
             </div>
 
-            <div id="steamLibrary" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                <!-- Steam library games will be added here dynamically -->
-            </div>
-
-            <div id="libraryActions" class="mt-6 flex gap-4 hidden">
-                <button onclick="createPresetFromSelected()" 
-                        class="bg-green-500 hover:bg-green-600 px-6 py-2 rounded font-semibold transition-colors">
-                    <i class="fas fa-plus mr-2"></i>Create Preset from Selected
-                </button>
-                <button onclick="startSelectedGames()" 
-                        class="bg-blue-500 hover:bg-blue-600 px-6 py-2 rounded font-semibold transition-colors">
-                    <i class="fas fa-play mr-2"></i>Start Selected Games
-                </button>
+            <!-- Footer Actions -->
+            <div id="libraryActions" class="hidden p-4 border-t border-gray-700">
+                <div class="flex justify-between items-center">
+                    <span class="text-gray-400">
+                        <span id="selectedGamesCount">0</span> games selected
+                    </span>
+                    <div class="flex gap-4">
+                        <button onclick="createPresetFromSelected()" 
+                                class="bg-green-500 hover:bg-green-600 px-6 py-2 rounded font-semibold transition-colors">
+                            <i class="fas fa-plus mr-2"></i>Create Preset from Selected
+                        </button>
+                        <button onclick="startSelectedGames()" 
+                                class="bg-blue-500 hover:bg-blue-600 px-6 py-2 rounded font-semibold transition-colors">
+                            <i class="fas fa-play mr-2"></i>Start Selected Games
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
     `;

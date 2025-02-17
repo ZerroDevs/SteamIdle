@@ -818,7 +818,12 @@
             <div class="header">
                 <div class="flex justify-between items-center">
                     <div class="flex items-center gap-4">
-                        <h2 class="text-2xl font-semibold">Steam Library</h2>
+                        <div class="flex items-center gap-2">
+                            <h2 class="text-2xl font-semibold">Steam Library</h2>
+                            <span id="gameCountDisplay" class="text-gray-400 text-sm">
+                                (0 total games • 0 installed)
+                            </span>
+                        </div>
                         <div class="flex gap-2">
                             <button onclick="toggleFilter('all')" id="filterAll" 
                                     class="filter-btn active">
@@ -831,6 +836,21 @@
                         </div>
                     </div>
                     <div class="flex items-center gap-4">
+                        <!-- View Size Controls -->
+                        <div class="flex items-center gap-2 border-r border-gray-600 pr-4">
+                            <button onclick="setViewSize('compact')" id="viewCompact" 
+                                    class="view-size-btn text-gray-400 hover:text-white transition-colors" title="Compact View">
+                                <i class="fas fa-th text-lg"></i>
+                            </button>
+                            <button onclick="setViewSize('normal')" id="viewNormal" 
+                                    class="view-size-btn text-blue-500 hover:text-white transition-colors" title="Normal View">
+                                <i class="fas fa-th-large text-lg"></i>
+                            </button>
+                            <button onclick="setViewSize('large')" id="viewLarge" 
+                                    class="view-size-btn text-gray-400 hover:text-white transition-colors" title="Large View">
+                                <i class="fas fa-square text-lg"></i>
+                            </button>
+                        </div>
                         <div class="relative">
                             <input type="text" id="librarySearch" placeholder="Search games..." 
                                    class="w-64 px-4 py-2 pl-10 rounded">

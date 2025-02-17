@@ -1,0 +1,44 @@
+/* Game card sizes */
+.compact-card {
+    min-height: 280px;
+}
+
+.normal-card {
+    min-height: 320px;
+}
+
+.large-card {
+    min-height: 380px;
+}
+
+.compact-card .text-lg {
+    font-size: 0.875rem;
+}
+
+.compact-card .text-sm {
+    font-size: 0.75rem;
+}
+
+.large-card .text-lg {
+    font-size: 1.25rem;
+}
+
+.large-card .text-sm {
+    font-size: 1rem;
+}
+
+/* View size button styles */
+.view-size-btn {
+    padding: 0.5rem;
+    border-radius: 0.375rem;
+    transition: all 0.2s;
+}
+
+.view-size-btn:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.view-size-btn.active {
+    color: #3B82F6;
+    background-color: rgba(59, 130, 246, 0.1);
+} 

@@ -51,9 +51,11 @@ document.addEventListener('DOMContentLoaded', async function() {
     }
 
     // Update library display when games are started/stopped
-    document.addEventListener('gameStateChanged', function() {
+    document.addEventListener('gameStateChanged', async function() {
         updateLibraryDisplay();
         updateGamesList();
+        const presets = await loadPresets(true);
+        updatePresetsList(presets);
     });
 });
 
@@ -269,9 +271,11 @@ async function loadPresets(returnData = false) {
 
 async function updatePresetsList(presets) {
     const presetsList = document.getElementById('presetsList');
+    if (!presetsList) return;
+    
     presetsList.innerHTML = '';
-
-    // Get favorites list
+    
+    // Get favorites data
     const favoritesResponse = await fetch('/api/favorites');
     const favoritesData = await favoritesResponse.json();
     const favoriteNames = favoritesData.favorites.map(f => f.name);

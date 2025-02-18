@@ -22,7 +22,6 @@ import re
 import win32gui
 import win32con
 import win32process
-import logging
 
 # Try to patch asyncio to allow nested event loops
 try:
@@ -67,114 +66,111 @@ if not os.path.exists(PRESETS_DIR):
 running_games = {}
 game_sessions = {}  # Store game session data: {game_id: {'start_time': datetime, 'total_time': seconds}}
 
-def is_discord_running():
-    """Check if Discord is running on the system."""
-    try:
-        if sys.platform == 'win32':
-            import psutil
-            for proc in psutil.process_iter(['name']):
-                if proc.info['name'] and 'discord' in proc.info['name'].lower():
-                    return True
-        return False
-    except:
-        return False
-
 def initialize_discord_rpc():
-    """Initialize Discord RPC connection."""
     global DISCORD_RPC
     try:
-        if not DISCORD_RPC_ENABLED or not is_discord_running():
-            return False
-            
-        # Close existing connection if any
         if DISCORD_RPC:
             try:
                 DISCORD_RPC.close()
             except:
                 pass
-            
         DISCORD_RPC = Presence(DISCORD_CLIENT_ID)
         DISCORD_RPC.connect()
-        return True
+        update_discord_rpc()
     except Exception as e:
-        logging.error(f"Failed to initialize Discord RPC: {str(e)}")
+        print(f"Failed to initialize Discord RPC: {e}")
         DISCORD_RPC = None
-        return False
 
 def update_discord_rpc():
-    """Update Discord RPC status."""
+    """Update Discord Rich Presence status"""
     global DISCORD_RPC
+    
+    if not DISCORD_RPC_ENABLED:
+        return
+        
     try:
-        if not DISCORD_RPC_ENABLED or not DISCORD_RPC:
-            return
+        if not DISCORD_RPC:
+            initialize_discord_rpc()
+            if not DISCORD_RPC:  # If initialization failed
+                return
 
-        # Calculate total playtime and get running game names
+        # Get total playtime and running games
         total_playtime = 0
+        current_session_playtime = 0
         first_start_time = None
         running_game_names = []
 
-        # Calculate total playtime and get running game names
+        # Calculate total playtime only for running games
         for game_id in running_games.keys():
             if game_id in game_sessions:
                 session = game_sessions[game_id]
-                if session['start_time']:
-                    elapsed = time.time() - session['start_time']
-                    total_playtime += elapsed
+                # Add completed session time for this game
+                total_playtime += session.get('total_time', 0)
+                
+                # Add current session time
+                if 'start_time' in session:
+                    current_session = (datetime.now() - session['start_time']).total_seconds()
+                    current_session_playtime += current_session
+                    total_playtime += current_session
                     if not first_start_time or session['start_time'] < first_start_time:
                         first_start_time = session['start_time']
-                running_game_names.append(session.get('name', f'Game {game_id}'))
+                    running_game_names.append(session.get('name', f'Game {game_id}'))
 
         # Set the status based on whether games are running
         if running_game_names:
-            details = f"Idling {len(running_game_names)} games"
-            state = f"Total Playtime: {format_duration(int(total_playtime))}"
-            
-            DISCORD_RPC.update(
-                large_image="Logo1",
-                large_text="Steam Idle Manager",
-                small_image="online",
-                small_text="Idling",
-                details=details,
-                state=state,
-                start=int(first_start_time) if first_start_time else None
-            )
+            details = f"• Idling {len(running_game_names)} games"
+            state = f"• Total: {format_duration(int(total_playtime))} • Session: {format_duration(int(current_session_playtime))}"
+            try:
+                DISCORD_RPC.update(
+                    large_image="Logo1",
+                    large_text="Steam Idle Manager",
+                    small_image="online",  # Show online status when games are running
+                    small_text=f"Idling {len(running_game_names)}",
+                    details=details,
+                    state=state,
+                    start=int(first_start_time.timestamp()) if first_start_time else None
+                )
+            except Exception as e:
+                if "pipe" in str(e).lower() or "client" in str(e).lower():
+                    DISCORD_RPC = None
+                    time.sleep(1)
+                    initialize_discord_rpc()
         else:
-            DISCORD_RPC.update(
-                large_image="Logo1",
-                large_text="Steam Idle Manager",
-                small_image="offline",
-                small_text="Idle",
-                details="Ready to idle",
-                state="No games running"
-            )
+            try:
+                DISCORD_RPC.update(
+                    large_image="Logo1",
+                    large_text="Steam Idle Manager",
+                    small_image="offline",  # Show offline status when no games are running
+                    small_text="Idle",
+                    details="• Ready to idle",
+                    state="• No games running"
+                )
+            except Exception as e:
+                if "pipe" in str(e).lower() or "client" in str(e).lower():
+                    DISCORD_RPC = None
+                    time.sleep(1)
+                    initialize_discord_rpc()
     except Exception as e:
-        error_msg = str(e).lower()
-        if "pipe" in error_msg or "connection" in error_msg:
-            DISCORD_RPC = None  # Reset the connection
-            logging.error(f"Discord RPC connection lost: {str(e)}")
+        print(f"Failed to update Discord RPC: {e}")
+        if "pipe" in str(e).lower() or "client" in str(e).lower():
+            DISCORD_RPC = None
+            time.sleep(1)
+            initialize_discord_rpc()
 
 def discord_rpc_thread():
-    """Thread to manage Discord RPC updates."""
-    global DISCORD_RPC
-    last_check = 0
+    """Thread to update Discord Rich Presence status"""
     while True:
         try:
-            current_time = time.time()
-            
-            # Check Discord status every 30 seconds
-            if current_time - last_check >= 30:
-                if DISCORD_RPC_ENABLED and not DISCORD_RPC and is_discord_running():
-                    initialize_discord_rpc()
-                last_check = current_time
-            
-            # Update RPC every 15 seconds if enabled and connected
-            if DISCORD_RPC_ENABLED and DISCORD_RPC:
+            if DISCORD_RPC_ENABLED:
                 update_discord_rpc()
-                
-            time.sleep(15)  # Sleep for 15 seconds between updates
         except Exception as e:
-            logging.error(f"Error in Discord RPC thread: {str(e)}")
-            time.sleep(15)  # Sleep on error to prevent rapid retries
+            print(f"Error in Discord RPC thread: {e}")
+        time.sleep(15)  # Update every 15 seconds
+
+# Start the Discord RPC thread
+discord_thread = threading.Thread(target=discord_rpc_thread)
+discord_thread.daemon = True
+discord_thread.start()
 
 def resource_path(relative_path):
     """Get absolute path to resource, works for dev and for PyInstaller"""
@@ -2128,14 +2124,9 @@ if __name__ == '__main__':
     settings = load_settings()
     minimize_to_tray = settings.get('minimize_to_tray', False)
     
-    # Set up logging
-    logging.basicConfig(level=logging.INFO,
-                       format='%(asctime)s - %(levelname)s - %(message)s')
-    
-    # Start the Discord RPC thread
-    discord_thread = threading.Thread(target=discord_rpc_thread)
-    discord_thread.daemon = True
-    discord_thread.start()
+    # Initialize Discord RPC if enabled
+    if settings.get('discord_rpc_enabled', True):
+        initialize_discord_rpc()
     
     # Create window
     window = webview.create_window('Steam Idle Manager', app, minimized=False, width=1440, height=1000)
@@ -2162,11 +2153,18 @@ if __name__ == '__main__':
     tray_update_thread.daemon = True
     tray_update_thread.start()
     
-    # Start the application
-    webview.start()
-    
-    # Clean up tray icon and Discord RPC when exiting
-    if icon:
-        icon.stop()
-    if DISCORD_RPC:
-        DISCORD_RPC.close()
+    try:
+        # Start the application
+        webview.start()
+    finally:
+        # Clean up tray icon and Discord RPC when exiting
+        if icon:
+            try:
+                icon.stop()
+            except:
+                pass
+        if DISCORD_RPC:
+            try:
+                DISCORD_RPC.close()
+            except:
+                pass

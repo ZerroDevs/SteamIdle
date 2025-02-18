@@ -332,40 +332,27 @@ async function updatePresetsList(presets) {
 
     presets.forEach(preset => {
         const presetCard = document.createElement('div');
-        presetCard.className = 'preset-card bg-gray-800 rounded-lg p-4';
+        presetCard.className = 'preset-card bg-gray-800 rounded-lg p-4 cursor-pointer transition-all duration-200';
+        presetCard.setAttribute('data-preset-name', preset.name);
+        
+        // Add selection border if preset is selected
+        if (selectedPresets.has(preset.name)) {
+            presetCard.classList.add('border-blue-500');
+        }
         
         // Check if all games in the preset are running
         const isPresetRunning = preset.games.every(game => runningGames.has(game.id.toString()));
         
         // Check if preset is favorited
         const isFavorited = favoriteNames.includes(preset.name);
-        
-        // Create a hidden games list that will be shown when clicking Show Info
-        const gamesList = preset.games.map(game => {
-            const isGameRunning = runningGames.has(game.id.toString());
-            return `<li class="flex items-center gap-2 text-gray-400 py-3 border-b border-gray-700 last:border-0" data-preset-game-id="${game.id}">
-                <img src="${game.image}" alt="${game.name}" class="w-8 h-8 rounded">
-                <div class="flex-1">
-                    <span class="block">${game.name}</span>
-                    <div class="flex items-center gap-2">
-                        <span class="text-sm text-gray-500">ID: ${game.id}</span>
-                        ${isGameRunning ? '<span class="text-green-500 text-xs">● Running</span>' : ''}
-                    </div>
-                    <div class="preset-game-playtime text-xs mt-1 space-y-1">
-                        ${isGameRunning ? 
-                            `<div class="text-green-400">Loading playtime...</div>` : 
-                            `<div class="text-gray-500">Not running</div>`
-                        }
-                    </div>
-                </div>
-                <div class="flex flex-col gap-2 items-end">
-                    <button onclick="${isGameRunning ? 'stopGame' : 'startGame'}('${game.id}')" 
-                            class="bg-${isGameRunning ? 'red' : 'green'}-500 hover:bg-${isGameRunning ? 'red' : 'green'}-600 px-3 py-1 rounded text-sm">
-                        <i class="fas fa-${isGameRunning ? 'stop' : 'play'} mr-1"></i>${isGameRunning ? 'Stop' : 'Start'}
-                    </button>
-                </div>
-            </li>`;
-        }).join('');
+
+        // Add click handler for selection
+        presetCard.addEventListener('click', (e) => {
+            // Don't toggle selection if clicking a button
+            if (!e.target.closest('button')) {
+                togglePresetSelection(preset.name);
+            }
+        });
 
         presetCard.innerHTML = `
             <div class="flex justify-between items-center mb-4">
@@ -410,7 +397,31 @@ async function updatePresetsList(presets) {
                     </div>
                 </div>
                 <ul class="space-y-2 max-h-48 overflow-y-auto">
-                    ${gamesList}
+                    ${preset.games.map(game => {
+                        const isGameRunning = runningGames.has(game.id.toString());
+                        return `<li class="flex items-center gap-2 text-gray-400 py-3 border-b border-gray-700 last:border-0" data-preset-game-id="${game.id}">
+                            <img src="${game.image}" alt="${game.name}" class="w-8 h-8 rounded">
+                            <div class="flex-1">
+                                <span class="block">${game.name}</span>
+                                <div class="flex items-center gap-2">
+                                    <span class="text-sm text-gray-500">ID: ${game.id}</span>
+                                    ${isGameRunning ? '<span class="text-green-500 text-xs">● Running</span>' : ''}
+                                </div>
+                                <div class="preset-game-playtime text-xs mt-1 space-y-1">
+                                    ${isGameRunning ? 
+                                        `<div class="text-green-400">Loading playtime...</div>` : 
+                                        `<div class="text-gray-500">Not running</div>`
+                                    }
+                                </div>
+                            </div>
+                            <div class="flex flex-col gap-2 items-end">
+                                <button onclick="${isGameRunning ? 'stopGame' : 'startGame'}('${game.id}')" 
+                                        class="bg-${isGameRunning ? 'red' : 'green'}-500 hover:bg-${isGameRunning ? 'red' : 'green'}-600 px-3 py-1 rounded text-sm">
+                                    <i class="fas fa-${isGameRunning ? 'stop' : 'play'} mr-1"></i>${isGameRunning ? 'Stop' : 'Start'}
+                                </button>
+                            </div>
+                        </li>`;
+                    }).join('')}
                 </ul>
             </div>
         `;
@@ -882,15 +893,8 @@ function createPresetLoadingOverlay() {
 
 // Update the runPreset function
 async function runPreset(presetName) {
-    const overlay = createPresetLoadingOverlay();
-    const statusText = document.getElementById('presetLoadingStatus');
-    
     try {
-        overlay.classList.remove('hidden');
-        overlay.classList.add('flex');
-        
         // Check Steam status first
-        statusText.textContent = 'Checking Steam status...';
         const steamStatus = await updateSteamStatus();
         if (!steamStatus) {
             showNotification('Unable to check Steam status', 'error');
@@ -898,7 +902,6 @@ async function runPreset(presetName) {
         }
         
         if (!steamStatus.running) {
-            overlay.classList.add('hidden');
             showSteamLaunchModal();
             return;
         }
@@ -909,7 +912,6 @@ async function runPreset(presetName) {
         }
 
         // Get the preset data first
-        statusText.textContent = 'Loading preset data...';
         const presetsResponse = await fetch('/api/get-presets');
         const presets = await presetsResponse.json();
         const preset = presets.find(p => p.name === presetName);
@@ -919,7 +921,6 @@ async function runPreset(presetName) {
             return;
         }
         
-        statusText.textContent = 'Starting games...';
         const response = await fetch('/api/run-preset', {
             method: 'POST',
             headers: {
@@ -928,16 +929,14 @@ async function runPreset(presetName) {
             body: JSON.stringify({ name: presetName })
         });
 
-        if (!response.ok) {
             const data = await response.json();
+        
+        if (!response.ok) {
             showNotification(data.message || 'Failed to run preset', 'error');
             return;
         }
 
-        const data = await response.json();
         if (data.status === 'success') {
-            statusText.textContent = 'Updating game states...';
-            
             // Update running games set
             data.gameIds.forEach(gameId => {
                 runningGames.add(gameId.toString());
@@ -954,10 +953,9 @@ async function runPreset(presetName) {
             runningPresets.add(presetName);
 
             // Update UI
-            statusText.textContent = 'Updating interface...';
-            await updateGamesList();
-            await updatePresetsList(await loadPresets(true));
-            await updateRunningGamesList();
+            updateGamesList();
+            updatePresetsList(await loadPresets(true));
+            updateRunningGamesList();
             
             // Show success message
             const message = `Started ${data.gameIds.length} games from preset "${presetName}"`;
@@ -965,11 +963,10 @@ async function runPreset(presetName) {
         }
     } catch (error) {
         console.error('Error running preset:', error);
+        // Only show error if we haven't already shown a more specific error
+        if (!error.handled) {
         showNotification('Failed to run preset', 'error');
-    } finally {
-        // Hide loading overlay
-        overlay.classList.remove('flex');
-        overlay.classList.add('hidden');
+        }
     }
 }
 
@@ -3253,3 +3250,184 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // ... existing code ...
+
+// Global preset management functions
+async function runAllFavorites() {
+    try {
+        const favoritesResponse = await fetch('/api/favorites');
+        const favoritesData = await favoritesResponse.json();
+        const favorites = favoritesData.favorites;
+
+        if (favorites.length === 0) {
+            showNotification('No favorite presets found', 'info');
+            return;
+        }
+
+        // Show loading overlay
+        showPresetLoadingOverlay('Running all favorite presets...');
+
+        // Run each favorite preset
+        for (const favorite of favorites) {
+            await runPreset(favorite.name);
+            await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second between presets
+        }
+
+        hidePresetLoadingOverlay();
+        showNotification(`Started all favorite presets (${favorites.length} presets)`, 'success');
+    } catch (error) {
+        console.error('Error running all favorites:', error);
+        hidePresetLoadingOverlay();
+        showNotification('Failed to run all favorite presets', 'error');
+    }
+}
+
+async function stopAllPresets() {
+    try {
+        const runningPresetNames = Array.from(runningPresets);
+        if (runningPresetNames.length === 0) {
+            showNotification('No presets are currently running', 'info');
+            return;
+        }
+
+        // Show loading overlay
+        showPresetLoadingOverlay('Stopping all running presets...');
+
+        // Stop each running preset
+        for (const presetName of runningPresetNames) {
+            await stopPreset(presetName);
+            await new Promise(resolve => setTimeout(resolve, 500)); // Wait 0.5 second between stops
+        }
+
+        hidePresetLoadingOverlay();
+        showNotification(`Stopped all running presets (${runningPresetNames.length} presets)`, 'success');
+    } catch (error) {
+        console.error('Error stopping all presets:', error);
+        hidePresetLoadingOverlay();
+        showNotification('Failed to stop all presets', 'error');
+    }
+}
+
+function showPresetLoadingOverlay(message) {
+    const overlay = document.createElement('div');
+    overlay.id = 'presetLoadingOverlay';
+    overlay.className = 'fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center';
+    overlay.innerHTML = `
+        <div class="bg-gray-800 rounded-lg p-8 flex flex-col items-center">
+            <div class="loader mb-4"></div>
+            <p class="text-lg font-semibold">${message}</p>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+}
+
+function hidePresetLoadingOverlay() {
+    const overlay = document.getElementById('presetLoadingOverlay');
+    if (overlay) {
+        overlay.remove();
+    }
+}
+
+// Batch operations for presets
+async function batchRunPresets(presetNames) {
+    try {
+        if (!Array.isArray(presetNames) || presetNames.length === 0) {
+            showNotification('No presets selected to run', 'error');
+            return;
+        }
+
+        showPresetLoadingOverlay(`Running ${presetNames.length} presets...`);
+
+        for (const presetName of presetNames) {
+            await runPreset(presetName);
+            await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second between presets
+        }
+
+        hidePresetLoadingOverlay();
+        showNotification(`Successfully started ${presetNames.length} presets`, 'success');
+    } catch (error) {
+        console.error('Error in batch running presets:', error);
+        hidePresetLoadingOverlay();
+        showNotification('Failed to run some presets', 'error');
+    }
+}
+
+async function batchStopPresets(presetNames) {
+    try {
+        if (!Array.isArray(presetNames) || presetNames.length === 0) {
+            showNotification('No presets selected to stop', 'error');
+            return;
+        }
+
+        showPresetLoadingOverlay(`Stopping ${presetNames.length} presets...`);
+
+        for (const presetName of presetNames) {
+            await stopPreset(presetName);
+            await new Promise(resolve => setTimeout(resolve, 500)); // Wait 0.5 second between stops
+        }
+
+        hidePresetLoadingOverlay();
+        showNotification(`Successfully stopped ${presetNames.length} presets`, 'success');
+    } catch (error) {
+        console.error('Error in batch stopping presets:', error);
+        hidePresetLoadingOverlay();
+        showNotification('Failed to stop some presets', 'error');
+    }
+}
+
+// Preset selection functionality
+let selectedPresets = new Set();
+
+function togglePresetSelection(presetName) {
+    const presetCard = document.querySelector(`[data-preset-name="${presetName}"]`);
+    if (selectedPresets.has(presetName)) {
+        selectedPresets.delete(presetName);
+        presetCard?.classList.remove('border-blue-500');
+    } else {
+        selectedPresets.add(presetName);
+        presetCard?.classList.add('border-blue-500');
+    }
+    updatePresetSelectionUI();
+}
+
+function updatePresetSelectionUI() {
+    const selectionCount = selectedPresets.size;
+    const batchActionsBar = document.getElementById('presetBatchActions');
+    
+    if (selectionCount > 0) {
+        if (!batchActionsBar) {
+            const batchActions = document.createElement('div');
+            batchActions.id = 'presetBatchActions';
+            batchActions.className = 'fixed bottom-0 left-0 right-0 bg-gray-800 p-4 flex justify-between items-center shadow-lg z-40';
+            batchActions.innerHTML = `
+                <div class="text-gray-300">${selectionCount} presets selected</div>
+                <div class="flex gap-4">
+                    <button onclick="batchRunPresets(Array.from(selectedPresets))" 
+                            class="bg-green-500 hover:bg-green-600 px-6 py-2 rounded font-semibold">
+                        <i class="fas fa-play mr-2"></i>Run Selected
+                    </button>
+                    <button onclick="batchStopPresets(Array.from(selectedPresets))" 
+                            class="bg-red-500 hover:bg-red-600 px-6 py-2 rounded font-semibold">
+                        <i class="fas fa-stop mr-2"></i>Stop Selected
+                    </button>
+                    <button onclick="clearPresetSelection()" 
+                            class="bg-gray-600 hover:bg-gray-500 px-6 py-2 rounded font-semibold">
+                        <i class="fas fa-times mr-2"></i>Clear Selection
+                    </button>
+                </div>
+            `;
+            document.body.appendChild(batchActions);
+        } else {
+            batchActionsBar.querySelector('.text-gray-300').textContent = `${selectionCount} presets selected`;
+        }
+    } else if (batchActionsBar) {
+        batchActionsBar.remove();
+    }
+}
+
+function clearPresetSelection() {
+    selectedPresets.clear();
+    document.querySelectorAll('.preset-card').forEach(card => {
+        card.classList.remove('border-blue-500');
+    });
+    updatePresetSelectionUI();
+}

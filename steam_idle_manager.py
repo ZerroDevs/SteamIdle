@@ -744,27 +744,14 @@ def get_most_idled():
             current_session = (current_time - session['start_time']).total_seconds()
             total_seconds += current_session
         
-        # Get game info
-        game_info = None
-        for preset in os.listdir(PRESETS_DIR):
-            if preset.endswith('.json'):
-                with open(os.path.join(PRESETS_DIR, preset), 'r') as f:
-                    preset_data = json.load(f)
-                    for game in preset_data:
-                        if str(game['id']) == str(game_id):
-                            game_info = game
-                            break
-                    if game_info:
-                        break
-        
-        if game_info:
-            games_list.append({
-                "id": game_id,
-                "name": game_info['name'],
-                "image": game_info['image'],
-                "total_time": format_duration(total_seconds),
-                "total_seconds": total_seconds
-            })
+        # Use session data directly
+        games_list.append({
+            "id": game_id,
+            "name": session.get('name', f'Game {game_id}'),
+            "image": session.get('image', ''),
+            "total_time": format_duration(total_seconds),
+            "total_seconds": total_seconds
+        })
     
     # Sort by total seconds in descending order
     games_list.sort(key=lambda x: x['total_seconds'], reverse=True)

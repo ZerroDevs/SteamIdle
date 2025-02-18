@@ -119,7 +119,7 @@ def update_discord_rpc():
         # Set the status based on whether games are running
         if running_game_names:
             details = f"• Idling {len(running_game_names)} games"
-            state = f"• Total: {format_duration(int(total_playtime))} • Session: {format_duration(int(current_session_playtime))}"
+            state = f"• Session: {format_duration(int(current_session_playtime))} • Total: {format_duration(int(total_playtime))}"
             try:
                 DISCORD_RPC.update(
                     large_image="Logo1",

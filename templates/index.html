@@ -392,7 +392,10 @@
             <div class="p-6 border-b border-gray-700 flex justify-between items-center">
                 <div class="flex items-center gap-3">
                     <h2 class="text-2xl font-semibold">Running Games</h2>
-                    <span id="runningGamesModalCount" class="text-gray-400 text-sm">(0 games)</span>
+                    <div class="flex flex-col">
+                        <span id="runningGamesModalCount" class="text-gray-400 text-sm">(0 games)</span>
+                        <span id="totalPlaytimeCounter" class="text-green-400 text-sm">Total: 0h 0m</span>
+                    </div>
                 </div>
                 <button onclick="closeRunningGames()" class="text-gray-400 hover:text-white transition-colors">
                     <i class="fas fa-times text-xl"></i>

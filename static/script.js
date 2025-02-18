@@ -20,6 +20,10 @@ let welcomeMinimizeEnabled = false;
 let welcomeIdleExePath = null;
 let currentViewSize = localStorage.getItem('libraryViewSize') || 'normal'; // compact, normal, large
 
+// Add these variables at the top of the file, after other global variables
+let playtimeInterval = null;
+let gameStartTimes = new Map();
+
 // Initialize the application when the DOM is loaded
 document.addEventListener('DOMContentLoaded', async function() {
     await checkFirstTimeSetup();
@@ -83,15 +87,16 @@ document.addEventListener('DOMContentLoaded', async function() {
 });
 
 // Add status checking intervals
-setInterval(updateGameStatuses, 5000); // Check every 5 seconds
+setInterval(updateGameStatuses, 2000); // Check every 2 seconds
 setInterval(updatePlaytimes, 1000); // Update playtimes every second
 setInterval(updateSteamStatus, 10000); // Check Steam status every 10 seconds
 setInterval(updateStatistics, 5000); // Update statistics every 5 seconds
 setInterval(updateQuickActions, 5000); // Update quick actions panel
 
 async function updateGameStatuses() {
-    for (const game of currentGames) {
-        await checkGameStatus(game.id);
+    // Check status for all running games
+    for (const gameId of runningGames) {
+        await checkGameStatus(gameId);
     }
 }
 
@@ -112,9 +117,12 @@ async function checkGameStatus(gameId) {
                 runningGames.add(gameId);
             } else {
                 runningGames.delete(gameId);
+                gameStartTimes.delete(gameId); // Clear the start time when game stops
             }
             if (wasRunning !== data.running) {
                 updateGamesList();
+                updateRunningGamesList(); // Update running games list when status changes
+                triggerGameStateChange();
             }
         }
     } catch (error) {
@@ -550,6 +558,7 @@ async function stopGame(gameId) {
         console.error('Error stopping game:', error);
         showNotification('Error stopping game', 'error');
     }
+    gameStartTimes.delete(gameId);
 }
 
 function switchTab(tabName) {
@@ -1184,9 +1193,14 @@ async function emergencyStop() {
         
         if (data.status === 'success') {
             runningGames.clear();
+            gameStartTimes.clear();
+            if (playtimeInterval) {
+                clearInterval(playtimeInterval);
+                playtimeInterval = null;
+            }
             updateGamesList();
             updatePresetsList(await loadPresets(true));
-            updateRunningGamesList(); // Add this line
+            updateRunningGamesList(); // This will now show the "No games running" message
             showNotification(`Emergency stop successful - Stopped ${data.stopped_games.length} games`, 'success');
             closeRunningGames(); // Close the modal after emergency stop
         }
@@ -2973,16 +2987,27 @@ function closeRunningGames() {
     const modal = document.getElementById('runningGamesModal');
     modal.classList.remove('flex');
     modal.classList.add('hidden');
+    if (playtimeInterval) {
+        clearInterval(playtimeInterval);
+        playtimeInterval = null;
+    }
 }
 
 async function updateRunningGamesList() {
     const gamesList = document.getElementById('runningGamesList');
     const modalCount = document.getElementById('runningGamesModalCount');
     const headerCount = document.getElementById('runningGamesCount');
+    const totalPlaytimeCounter = document.getElementById('totalPlaytimeCounter');
     
     // Update counts
     const runningCount = runningGames.size;
     modalCount.textContent = `(${runningCount} ${runningCount === 1 ? 'game' : 'games'})`;
+    
+    // Clear previous interval if it exists
+    if (playtimeInterval) {
+        clearInterval(playtimeInterval);
+        playtimeInterval = null;
+    }
     
     // Update header badge
     if (runningCount > 0) {
@@ -2990,6 +3015,16 @@ async function updateRunningGamesList() {
         headerCount.classList.remove('hidden');
     } else {
         headerCount.classList.add('hidden');
+        totalPlaytimeCounter.textContent = 'Total: 00:00:00';
+        gameStartTimes.clear();
+        // Show no games running message
+        gamesList.innerHTML = `
+            <div class="text-center text-gray-400 py-8">
+                <i class="fas fa-gamepad text-4xl mb-4"></i>
+                <p class="text-lg">No games currently running</p>
+            </div>
+        `;
+        return;
     }
     
     // Clear the list and show loading state if there are games
@@ -3016,6 +3051,11 @@ async function updateRunningGamesList() {
                     body: JSON.stringify({ gameId })
                 });
                 const timeData = await timeResponse.json();
+                
+                // Store or update start time for this game
+                if (!gameStartTimes.has(gameId)) {
+                    gameStartTimes.set(gameId, Date.now());
+                }
                 
                 // First try to find game info in currentGames
                 let gameInfo = currentGames.find(g => g.id.toString() === gameId.toString());
@@ -3060,6 +3100,27 @@ async function updateRunningGamesList() {
     // Filter out null results and sort games by name
     const validGamesData = gamesData.filter(data => data !== null)
         .sort((a, b) => a.gameInfo.name.localeCompare(b.gameInfo.name));
+    
+    // Set up real-time counter
+    playtimeInterval = setInterval(() => {
+        let totalSeconds = 0;
+        
+        // Calculate total seconds for all running games
+        for (const [gameId, startTime] of gameStartTimes.entries()) {
+            if (runningGames.has(gameId)) {
+                const elapsedSeconds = Math.floor((Date.now() - startTime) / 1000);
+                totalSeconds += elapsedSeconds;
+            }
+        }
+        
+        // Format total time as HH:MM:SS
+        const hours = Math.floor(totalSeconds / 3600);
+        const minutes = Math.floor((totalSeconds % 3600) / 60);
+        const seconds = totalSeconds % 60;
+        
+        const formattedTime = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        totalPlaytimeCounter.textContent = `Total: ${formattedTime}`;
+    }, 1000);
     
     // If no valid games are running, show a message
     if (validGamesData.length === 0) {

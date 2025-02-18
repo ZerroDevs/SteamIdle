@@ -2481,7 +2481,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-function updateLibraryDisplay() {
+async function updateLibraryDisplay() {
     const libraryDiv = document.getElementById('steamLibrary');
     libraryDiv.innerHTML = '';
     
@@ -2514,6 +2514,25 @@ function updateLibraryDisplay() {
         }
     }
 
+    // Get idle hours for each game
+    const idleHoursPromises = filteredGames.map(async game => {
+        try {
+            const response = await fetch('/api/game-session-time', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ gameId: game.id })
+            });
+            const data = await response.json();
+            return { gameId: game.id, idleTime: data.total_time };
+        } catch (error) {
+            console.error('Error fetching idle time:', error);
+            return { gameId: game.id, idleTime: '00:00:00' };
+        }
+    });
+
+    const idleHours = await Promise.all(idleHoursPromises);
+    const idleHoursMap = new Map(idleHours.map(({ gameId, idleTime }) => [gameId, idleTime]));
+
     // Continue with existing game cards display
     filteredGames.forEach(game => {
         const isRunning = runningGames.has(game.id.toString());
@@ -2521,7 +2540,7 @@ function updateLibraryDisplay() {
         gameCard.className = `game-card ${currentViewSize}-card`;
         
         // Convert Steam minutes to hours and round to 1 decimal place
-        const steamHours = (game.playtime_forever / 60).toFixed(1);
+        const idleTime = idleHoursMap.get(game.id) || '00:00:00';
         
         gameCard.innerHTML = `
             <div class="relative">
@@ -2536,57 +2555,38 @@ function updateLibraryDisplay() {
                 </div>
                 ${game.installed ? 
                     '<span class="absolute top-2 left-2 bg-green-500 text-white px-2 py-1 rounded text-xs">Installed</span>' :
-                    '<span class="absolute top-2 left-2 bg-gray-500 text-white px-2 py-1 rounded text-xs">Not Installed</span>'
-                }
+                    ''}
+                ${isRunning ? 
+                    '<span class="absolute top-2 left-24 bg-blue-500 text-white px-2 py-1 rounded text-xs">Running</span>' :
+                    ''}
             </div>
             <div class="p-4">
-                <h3 class="text-lg font-semibold mb-2 truncate" title="${game.name}">${game.name}</h3>
-                <div class="text-sm text-gray-400 mb-3">
-                    <p>ID: ${game.id}</p>
-                    <div class="flex justify-between items-center">
-                        <p>Steam Hours: ${steamHours}</p>
-                        <p>Idle Hours: ${game.hours || '0'}</p>
-                    </div>
-                    ${game.last_played ? `<p>Last played: ${new Date(game.last_played * 1000).toLocaleDateString()}</p>` : ''}
+                <h3 class="text-lg font-semibold mb-2">${game.name}</h3>
+                <div class="text-sm text-gray-400">
+                    <p class="text-green-400">Idle Hours: ${idleTime}</p>
+                    <p class="text-xs mt-2">Game ID: ${game.id}</p>
                 </div>
-                <div class="flex gap-2">
-                    ${game.installed ? `
-                        <button onclick="${isRunning ? 'stopGame' : 'startGame'}('${game.id}')" 
-                                class="bg-${isRunning ? 'red' : 'blue'}-500 hover:bg-${isRunning ? 'red' : 'blue'}-600 px-4 py-2 rounded text-sm flex-1 transition-colors">
-                            <i class="fas fa-${isRunning ? 'stop' : 'play'} mr-2"></i>${isRunning ? 'Stop' : 'Start'}
-                        </button>
-                    ` : ''}
+                <div class="mt-4 flex gap-2">
+                    ${isRunning ?
+                        `<button onclick="stopGame('${game.id}')" 
+                                class="flex-1 bg-red-500 hover:bg-red-600 px-4 py-2 rounded text-sm">
+                            <i class="fas fa-stop mr-1"></i>Stop
+                        </button>` :
+                        `<button onclick="startGame('${game.id}')" 
+                                class="flex-1 bg-blue-500 hover:bg-blue-600 px-4 py-2 rounded text-sm">
+                            <i class="fas fa-play mr-1"></i>Start
+                        </button>`
+                    }
                     <button onclick="addGameToNewPreset('${game.id}')" 
-                            class="bg-green-500 hover:bg-green-600 px-4 py-2 rounded text-sm flex-1 transition-colors">
-                        <i class="fas fa-plus mr-2"></i>Add to Preset
+                            class="flex-1 bg-green-500 hover:bg-green-600 px-4 py-2 rounded text-sm">
+                        <i class="fas fa-plus mr-1"></i>Add to Preset
                     </button>
                 </div>
             </div>
         `;
+        
         libraryDiv.appendChild(gameCard);
     });
-
-    // Update filter buttons
-    document.querySelectorAll('.filter-btn').forEach(btn => {
-        btn.classList.remove('active', 'bg-blue-500', 'text-white');
-        btn.classList.add('text-gray-400', 'hover:text-white');
-    });
-    const activeFilter = document.getElementById(`filter${currentFilter.charAt(0).toUpperCase() + currentFilter.slice(1)}`);
-    if (activeFilter) {
-        activeFilter.classList.add('active', 'bg-blue-500', 'text-white');
-        activeFilter.classList.remove('text-gray-400', 'hover:text-white');
-    }
-
-    // Update view size buttons
-    document.querySelectorAll('.view-size-btn').forEach(btn => {
-        btn.classList.remove('active');
-        btn.classList.add('text-gray-400');
-    });
-    const activeViewBtn = document.getElementById(`view${currentViewSize.charAt(0).toUpperCase() + currentViewSize.slice(1)}`);
-    if (activeViewBtn) {
-        activeViewBtn.classList.add('active');
-        activeViewBtn.classList.remove('text-gray-400');
-    }
 }
 
 function setViewSize(size) {

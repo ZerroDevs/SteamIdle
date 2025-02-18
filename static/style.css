@@ -1091,4 +1091,48 @@ select option {
 #runningGamesList {
     scrollbar-width: thin;
     scrollbar-color: #3b82f6 #1f2937;
+}
+
+/* Tooltip Styles */
+.group:hover .group-hover\:opacity-100 {
+    opacity: 1;
+    visibility: visible;
+}
+
+.group .opacity-0 {
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s ease-in-out, visibility 0.2s ease-in-out;
+}
+
+/* Add z-index to ensure tooltip appears above other elements */
+.group .absolute {
+    z-index: 50;
+}
+
+/* Tooltip arrow styling */
+.group .absolute .transform.rotate-45 {
+    margin-top: -1px;
+    box-shadow: 1px 1px 1px rgba(0, 0, 0, 0.1);
+}
+
+/* Ensure tooltip text is readable */
+.group .whitespace-nowrap {
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+/* Add subtle animation to the tooltip */
+.group-hover\:opacity-100 {
+    animation: tooltipFadeIn 0.2s ease-in-out;
+}
+
+@keyframes tooltipFadeIn {
+    from {
+        opacity: 0;
+        transform: translate(-50%, 10px);
+    }
+    to {
+        opacity: 1;
+        transform: translate(-50%, 0);
+    }
 } 

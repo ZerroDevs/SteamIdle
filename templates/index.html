@@ -160,8 +160,22 @@
                 <div class="flex gap-4 mb-4">
                     <input type="file" id="presetFile" accept=".bat,.txt" class="hidden">
                     <button onclick="document.getElementById('presetFile').click()" 
-                            class="bg-blue-500 hover:bg-blue-600 px-6 py-2 rounded font-semibold transition-colors">
+                            class="bg-blue-500 hover:bg-blue-600 px-6 py-2 rounded font-semibold transition-colors group relative"
+                            title="File format: One game ID or name per line">
                         <i class="fas fa-file-import mr-2"></i>Import BAT/TXT File
+                        <!-- Tooltip -->
+                        <div class="opacity-0 group-hover:opacity-100 transition-opacity absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg whitespace-nowrap">
+                            <div class="text-left">
+                                <p class="font-medium mb-1">File Format Requirements:</p>
+                                <p>• One game per line</p>
+                                <p>• Can use game IDs or names</p>
+                                <p class="text-gray-400 text-xs mt-1">Example:<br>730<br>Counter-Strike: Global Offensive<br>Team Fortress 2</p>
+                            </div>
+                            <!-- Arrow -->
+                            <div class="absolute left-1/2 transform -translate-x-1/2 top-full">
+                                <div class="w-2 h-2 bg-gray-900 transform rotate-45"></div>
+                            </div>
+                        </div>
                     </button>
                 </div>
                 <!-- Add loading indicator -->

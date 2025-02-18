@@ -860,10 +860,37 @@ async function updatePlaytimes() {
     }
 }
 
+// Add loading overlay HTML at the start of the file
+let presetLoadingOverlay = null;
+
+function createPresetLoadingOverlay() {
+    if (!presetLoadingOverlay) {
+        const overlayHtml = `
+            <div id="presetLoadingOverlay" class="fixed inset-0 bg-black bg-opacity-50 z-[100] hidden items-center justify-center">
+                <div class="bg-gray-800 rounded-lg p-8 flex flex-col items-center">
+                    <div class="loader mb-4"></div>
+                    <p class="text-lg font-semibold">Running Preset...</p>
+                    <p class="text-sm text-gray-400 mt-2" id="presetLoadingStatus">Starting games...</p>
+                </div>
+            </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', overlayHtml);
+        presetLoadingOverlay = document.getElementById('presetLoadingOverlay');
+    }
+    return presetLoadingOverlay;
+}
+
 // Update the runPreset function
 async function runPreset(presetName) {
+    const overlay = createPresetLoadingOverlay();
+    const statusText = document.getElementById('presetLoadingStatus');
+    
     try {
+        overlay.classList.remove('hidden');
+        overlay.classList.add('flex');
+        
         // Check Steam status first
+        statusText.textContent = 'Checking Steam status...';
         const steamStatus = await updateSteamStatus();
         if (!steamStatus) {
             showNotification('Unable to check Steam status', 'error');
@@ -871,6 +898,7 @@ async function runPreset(presetName) {
         }
         
         if (!steamStatus.running) {
+            overlay.classList.add('hidden');
             showSteamLaunchModal();
             return;
         }
@@ -881,6 +909,7 @@ async function runPreset(presetName) {
         }
 
         // Get the preset data first
+        statusText.textContent = 'Loading preset data...';
         const presetsResponse = await fetch('/api/get-presets');
         const presets = await presetsResponse.json();
         const preset = presets.find(p => p.name === presetName);
@@ -890,6 +919,7 @@ async function runPreset(presetName) {
             return;
         }
         
+        statusText.textContent = 'Starting games...';
         const response = await fetch('/api/run-preset', {
             method: 'POST',
             headers: {
@@ -906,6 +936,8 @@ async function runPreset(presetName) {
 
         const data = await response.json();
         if (data.status === 'success') {
+            statusText.textContent = 'Updating game states...';
+            
             // Update running games set
             data.gameIds.forEach(gameId => {
                 runningGames.add(gameId.toString());
@@ -922,9 +954,10 @@ async function runPreset(presetName) {
             runningPresets.add(presetName);
 
             // Update UI
-            updateGamesList();
-            updatePresetsList(await loadPresets(true));
-            updateRunningGamesList(); // Add this line
+            statusText.textContent = 'Updating interface...';
+            await updateGamesList();
+            await updatePresetsList(await loadPresets(true));
+            await updateRunningGamesList();
             
             // Show success message
             const message = `Started ${data.gameIds.length} games from preset "${presetName}"`;
@@ -933,6 +966,10 @@ async function runPreset(presetName) {
     } catch (error) {
         console.error('Error running preset:', error);
         showNotification('Failed to run preset', 'error');
+    } finally {
+        // Hide loading overlay
+        overlay.classList.remove('flex');
+        overlay.classList.add('hidden');
     }
 }
 

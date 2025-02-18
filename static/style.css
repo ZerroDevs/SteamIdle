@@ -1163,4 +1163,45 @@ select option {
         opacity: 1;
         transform: translate(-50%, 0);
     }
+}
+
+/* Preset Loading Overlay Styles */
+#presetLoadingOverlay {
+    backdrop-filter: blur(4px);
+    transition: all 0.3s ease;
+}
+
+#presetLoadingOverlay.hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+
+#presetLoadingOverlay:not(.hidden) {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+#presetLoadingOverlay .loader {
+    width: 48px;
+    height: 48px;
+    border: 5px solid #3b82f6;
+    border-bottom-color: transparent;
+    border-radius: 50%;
+    display: inline-block;
+    box-sizing: border-box;
+    animation: rotation 1s linear infinite;
+}
+
+#presetLoadingOverlay .bg-gray-800 {
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+@keyframes rotation {
+    0% {
+        transform: rotate(0deg);
+    }
+    100% {
+        transform: rotate(360deg);
+    }
 } 

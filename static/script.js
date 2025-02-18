@@ -23,6 +23,7 @@ let currentViewSize = localStorage.getItem('libraryViewSize') || 'normal'; // co
 // Add these variables at the top of the file, after other global variables
 let playtimeInterval = null;
 let gameStartTimes = new Map();
+let areGamesMinimized = false;
 
 // Initialize the application when the DOM is loaded
 document.addEventListener('DOMContentLoaded', async function() {
@@ -3252,5 +3253,62 @@ function updateToggleState(toggleId, enabled) {
         toggle.classList.remove('bg-blue-500');
         toggle.classList.add('bg-gray-500');
         toggle.querySelector('span').style.transform = 'translateX(0)';
+    }
+}
+
+// Add the toggleMinimizeAllGames function after the other functions
+async function toggleMinimizeAllGames() {
+    try {
+        const button = document.getElementById('minimizeAllGamesBtn');
+        const icon = button.querySelector('i');
+        
+        // Send request to toggle minimize state
+        const response = await fetch('/api/toggle-minimize-games', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                minimize: !areGamesMinimized
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            areGamesMinimized = !areGamesMinimized;
+            
+            // Update button icon and title
+            if (areGamesMinimized) {
+                icon.classList.remove('fa-window-minimize');
+                icon.classList.add('fa-window-restore');
+                button.title = 'Restore All Games';
+            } else {
+                icon.classList.remove('fa-window-restore');
+                icon.classList.add('fa-window-minimize');
+                button.title = 'Minimize All Games';
+            }
+            
+            showNotification(data.message, 'success');
+        } else {
+            showNotification(data.message, 'error');
+            
+            // Reset button state
+            icon.classList.remove('fa-window-restore');
+            icon.classList.add('fa-window-minimize');
+            button.title = 'Minimize All Games';
+            areGamesMinimized = false;
+        }
+    } catch (error) {
+        console.error('Error toggling game windows:', error);
+        showNotification('Failed to toggle game windows', 'error');
+        
+        // Reset button state on error
+        const button = document.getElementById('minimizeAllGamesBtn');
+        const icon = button.querySelector('i');
+        icon.classList.remove('fa-window-restore');
+        icon.classList.add('fa-window-minimize');
+        button.title = 'Minimize All Games';
+        areGamesMinimized = false;
     }
 }

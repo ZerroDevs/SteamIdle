@@ -17,6 +17,9 @@ import threading
 import csv
 import time
 import re
+import win32gui
+import win32con
+import win32process
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -1921,6 +1924,63 @@ def show_no_internet_error():
     auto_check_connection()
     
     dialog.mainloop()
+
+@app.route('/api/toggle-minimize-games', methods=['POST'])
+def toggle_minimize_games():
+    try:
+        data = request.get_json()
+        minimize = data.get('minimize', True)
+        
+        # Get all running game windows
+        windows = []
+        
+        def callback(hwnd, windows):
+            if win32gui.IsWindowVisible(hwnd):
+                try:
+                    # Get the process ID for this window
+                    _, pid = win32process.GetWindowThreadProcessId(hwnd)
+                    process = psutil.Process(pid)
+                    
+                    # Check if this is a steam-idle process
+                    if 'steam-idle' in process.name().lower():
+                        windows.append(hwnd)
+                except Exception:
+                    pass
+        
+        win32gui.EnumWindows(callback, windows)
+        
+        # Minimize or restore all game windows
+        success_count = 0
+        for hwnd in windows:
+            try:
+                if minimize:
+                    win32gui.ShowWindow(hwnd, win32con.SW_MINIMIZE)
+                else:
+                    win32gui.ShowWindow(hwnd, win32con.SW_RESTORE)
+                success_count += 1
+            except Exception as e:
+                print(f"Error toggling window state: {str(e)}")
+                continue
+        
+        if success_count > 0:
+            action = "minimized" if minimize else "restored"
+            save_recent_action(f"All running games {action}")
+            
+            return jsonify({
+                "success": True,
+                "message": f"{success_count} game windows have been {action}"
+            })
+        else:
+            return jsonify({
+                "success": False,
+                "message": "No game windows found to toggle"
+            })
+            
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "message": f"Failed to toggle game windows: {str(e)}"
+        }), 500
 
 if __name__ == '__main__':
     # Check for internet connection before starting the app

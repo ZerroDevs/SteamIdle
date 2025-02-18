@@ -744,12 +744,24 @@ def get_most_idled():
             current_session = (current_time - session['start_time']).total_seconds()
             total_seconds += current_session
         
-        # Get game info from the session
-        if 'name' in session and 'image' in session:
+        # Get game info
+        game_info = None
+        for preset in os.listdir(PRESETS_DIR):
+            if preset.endswith('.json'):
+                with open(os.path.join(PRESETS_DIR, preset), 'r') as f:
+                    preset_data = json.load(f)
+                    for game in preset_data:
+                        if str(game['id']) == str(game_id):
+                            game_info = game
+                            break
+                    if game_info:
+                        break
+        
+        if game_info:
             games_list.append({
                 "id": game_id,
-                "name": session['name'],
-                "image": session['image'],
+                "name": game_info['name'],
+                "image": game_info['image'],
                 "total_time": format_duration(total_seconds),
                 "total_seconds": total_seconds
             })
@@ -1407,7 +1419,7 @@ def check_game_goals():
                 if total_hours >= target_hours and not goal.get('notified', False):
                     if icon:
                         icon.notify(
-                            f"Game {goal['game_name']} has reached the target playtime of {target_hours} hours!",
+                            f"Game {session.get('name', game_id)} has reached the target playtime of {target_hours} hours!",
                             "Goal Reached"
                         )
                     goal['notified'] = True
@@ -1416,7 +1428,6 @@ def check_game_goals():
         time.sleep(60)  # Check every minute
 
 def load_goals():
-    """Load goals from file"""
     goals_file = os.path.join(PRESETS_DIR, 'goals.json')
     if os.path.exists(goals_file):
         try:
@@ -1427,10 +1438,9 @@ def load_goals():
     return []
 
 def save_goals(goals):
-    """Save goals to file"""
     goals_file = os.path.join(PRESETS_DIR, 'goals.json')
     with open(goals_file, 'w') as f:
-        json.dump(goals, f, indent=4)
+        json.dump(goals, f)
 
 @app.route('/api/export-stats', methods=['POST'])
 def export_stats():
@@ -2182,53 +2192,6 @@ def show_no_internet_error():
     auto_check_connection()
     
     dialog.mainloop()
-
-# Add these routes after the other API routes
-
-@app.route('/api/goals', methods=['GET'])
-def get_goals():
-    """Get all game goals"""
-    goals = load_goals()
-    return jsonify(goals)
-
-@app.route('/api/goals', methods=['POST'])
-def add_goal():
-    """Add a new game goal"""
-    data = request.json
-    if not data or not all(k in data for k in ('game_id', 'game_name', 'game_image', 'target_hours')):
-        return jsonify({'message': 'Missing required fields'}), 400
-    
-    goals = load_goals()
-    
-    # Check if goal already exists for this game
-    if any(g['game_id'] == str(data['game_id']) for g in goals):
-        return jsonify({'message': 'A goal already exists for this game'}), 400
-    
-    # Add new goal
-    goal = {
-        'game_id': str(data['game_id']),
-        'game_name': data['game_name'],
-        'game_image': data['game_image'],
-        'target_hours': data['target_hours'],
-        'notified': False
-    }
-    goals.append(goal)
-    save_goals(goals)
-    
-    return jsonify({'message': 'Goal added successfully'}), 200
-
-@app.route('/api/goals', methods=['DELETE'])
-def delete_goal():
-    """Delete a game goal"""
-    data = request.json
-    if not data or 'game_id' not in data:
-        return jsonify({'message': 'Missing game ID'}), 400
-    
-    goals = load_goals()
-    goals = [g for g in goals if g['game_id'] != str(data['game_id'])]
-    save_goals(goals)
-    
-    return jsonify({'message': 'Goal deleted successfully'}), 200
 
 if __name__ == '__main__':
     # Check for internet connection before starting the app

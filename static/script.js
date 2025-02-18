@@ -979,36 +979,14 @@ async function updateStatistics() {
     }
 
     try {
-        // Get base total playtime from server
+        // Get total playtime from server (this already includes current session times)
         const totalResponse = await fetch('/api/stats/total-playtime');
         const totalData = await totalResponse.json();
-        let totalSeconds = totalData.total_seconds;
-
-        // Add current session times for running games
-        const currentTime = new Date();
-        for (const gameId of runningGames) {
-            const response = await fetch('/api/game-session-time', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ gameId })
-            });
-            const data = await response.json();
-            
-            // Extract seconds from HH:MM:SS format of current_session
-            const [hours, minutes, seconds] = data.current_session.split(':').map(Number);
-            totalSeconds += hours * 3600 + minutes * 60 + seconds;
-        }
-
+        
         // Update total playtime display
-        document.getElementById('totalPlaytime').textContent = formatDuration(totalSeconds);
-    } catch (error) {
-        console.error('Error updating total playtime:', error);
-    }
-
-    // Update most idled games
-    try {
+        document.getElementById('totalPlaytime').textContent = totalData.total_time;
+        
+        // Update most idled games
         const idledResponse = await fetch('/api/stats/most-idled');
         const idledGames = await idledResponse.json();
         const mostIdledContainer = document.getElementById('mostIdledGames');
@@ -1022,18 +1000,16 @@ async function updateStatistics() {
                 </div>
             </div>
         `).join('');
+        
+        // Update game goals
+        await updateGameGoals();
     } catch (error) {
-        console.error('Error updating most idled games:', error);
+        console.error('Error updating statistics:', error);
     }
 }
 
-// Helper function to format duration in seconds to HH:MM:SS
-function formatDuration(seconds) {
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
-}
+// Add interval to update statistics regularly
+setInterval(updateStatistics, 1000); // Update every second
 
 // Initialize
 document.getElementById('gameId').addEventListener('keypress', (e) => {
@@ -3276,3 +3252,252 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // ... existing code ...
+
+// Add these functions after updateStatistics()
+
+async function updateGameGoals() {
+    try {
+        const response = await fetch('/api/goals');
+        const goals = await response.json();
+        const goalsContainer = document.getElementById('gameGoals');
+        
+        if (goals.length === 0) {
+            goalsContainer.innerHTML = `
+                <div class="text-center text-gray-400 py-8">
+                    <i class="fas fa-bullseye text-4xl mb-4"></i>
+                    <p class="text-lg">No goals set yet</p>
+                    <p class="text-sm mt-2">Click "Add Goal" to set your first game goal</p>
+                </div>
+            `;
+            return;
+        }
+        
+        goalsContainer.innerHTML = '';
+        
+        for (const goal of goals) {
+            // Get current playtime for the game
+            const timeResponse = await fetch('/api/game-session-time', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ gameId: goal.game_id })
+            });
+            const timeData = await timeResponse.json();
+            
+            // Convert HH:MM:SS to hours for progress calculation
+            const [hours, minutes, seconds] = timeData.total_time.split(':').map(Number);
+            const currentHours = hours + minutes/60 + seconds/3600;
+            const progress = Math.min((currentHours / goal.target_hours) * 100, 100);
+            
+            const goalCard = document.createElement('div');
+            goalCard.className = 'bg-gray-700 rounded-lg p-4';
+            goalCard.innerHTML = `
+                <div class="flex items-center justify-between mb-2">
+                    <div class="flex items-center gap-3">
+                        <img src="${goal.game_image}" alt="${goal.game_name}" class="w-10 h-10 rounded">
+                        <div>
+                            <h3 class="font-medium">${goal.game_name}</h3>
+                            <p class="text-sm text-gray-400">Target: ${goal.target_hours} hours</p>
+                        </div>
+                    </div>
+                    <button onclick="deleteGoal('${goal.game_id}')" class="text-red-400 hover:text-red-500">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+                <div class="mt-3">
+                    <div class="flex justify-between text-sm mb-1">
+                        <span class="text-gray-400">Progress</span>
+                        <span class="text-blue-400">${timeData.total_time} / ${goal.target_hours}h</span>
+                    </div>
+                    <div class="w-full bg-gray-600 rounded-full h-2.5">
+                        <div class="bg-blue-500 h-2.5 rounded-full transition-all duration-500" 
+                             style="width: ${progress}%"></div>
+                    </div>
+                </div>
+                ${progress >= 100 ? `
+                    <div class="mt-2 text-green-400 text-sm">
+                        <i class="fas fa-check-circle mr-1"></i>Goal completed!
+                    </div>
+                ` : ''}
+            `;
+            
+            goalsContainer.appendChild(goalCard);
+        }
+    } catch (error) {
+        console.error('Error updating goals:', error);
+        showNotification('Failed to update goals', 'error');
+    }
+}
+
+async function addGameGoal() {
+    const modal = document.getElementById('addGoalModal');
+    const select = document.getElementById('goalGameSelect');
+    const gameInput = document.getElementById('goalGameInput');
+    
+    // Clear previous options and input
+    select.innerHTML = '<option value="">Select a game from presets</option>';
+    gameInput.value = '';
+    
+    try {
+        // Get all games from presets
+        const presets = await loadPresets(true);
+        const presetGames = new Set(); // Use Set to avoid duplicates
+        
+        presets.forEach(preset => {
+            preset.games.forEach(game => {
+                if (!presetGames.has(game.id)) {
+                    presetGames.add(game.id);
+                    select.innerHTML += `<option value="${game.id}" data-image="${game.image}">${game.name}</option>`;
+                }
+            });
+        });
+    } catch (error) {
+        console.error('Error loading preset games:', error);
+    }
+    
+    // Reset hours input
+    document.getElementById('goalHours').value = '';
+    
+    // Show modal
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+}
+
+async function fetchGameForGoal() {
+    const gameInput = document.getElementById('goalGameInput');
+    const select = document.getElementById('goalGameSelect');
+    const gameId = gameInput.value.trim();
+    
+    if (!gameId) {
+        showNotification('Please enter a game ID or name', 'error');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/fetch-game', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ gameId: gameId })
+        });
+        
+        const data = await response.json();
+        
+        if (data.error) {
+            showNotification(data.error, 'error');
+            return;
+        }
+        
+        // Add the game to the select dropdown
+        const option = document.createElement('option');
+        option.value = data.id;
+        option.text = data.name;
+        option.dataset.image = data.image;
+        
+        // Remove any existing option with the same ID
+        Array.from(select.options).forEach(opt => {
+            if (opt.value === data.id) {
+                select.removeChild(opt);
+            }
+        });
+        
+        select.appendChild(option);
+        select.value = data.id;
+        
+        showNotification('Game found and selected', 'success');
+        gameInput.value = ''; // Clear the input
+        
+    } catch (error) {
+        console.error('Error fetching game:', error);
+        showNotification('Failed to fetch game information', 'error');
+    }
+}
+
+function closeAddGoalModal() {
+    const modal = document.getElementById('addGoalModal');
+    modal.classList.remove('flex');
+    modal.classList.add('hidden');
+}
+
+async function saveGameGoal() {
+    const gameSelect = document.getElementById('goalGameSelect');
+    const hoursInput = document.getElementById('goalHours');
+    
+    const gameId = gameSelect.value;
+    const targetHours = parseInt(hoursInput.value);
+    
+    if (!gameId) {
+        showNotification('Please select a game', 'error');
+        return;
+    }
+    
+    if (!targetHours || targetHours < 1) {
+        showNotification('Please enter a valid number of hours', 'error');
+        return;
+    }
+    
+    const selectedOption = gameSelect.options[gameSelect.selectedIndex];
+    const gameName = selectedOption.text;
+    const gameImage = selectedOption.dataset.image;
+    
+    try {
+        const response = await fetch('/api/goals', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                game_id: gameId,
+                game_name: gameName,
+                game_image: gameImage,
+                target_hours: targetHours
+            })
+        });
+        
+        if (response.ok) {
+            showNotification('Goal added successfully', 'success');
+            closeAddGoalModal();
+            updateGameGoals();
+        } else {
+            const data = await response.json();
+            showNotification(data.message || 'Failed to add goal', 'error');
+        }
+    } catch (error) {
+        console.error('Error saving goal:', error);
+        showNotification('Failed to save goal', 'error');
+    }
+}
+
+async function deleteGoal(gameId) {
+    try {
+        const response = await fetch('/api/goals', {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ game_id: gameId })
+        });
+        
+        if (response.ok) {
+            showNotification('Goal deleted successfully', 'success');
+            updateGameGoals();
+        } else {
+            showNotification('Failed to delete goal', 'error');
+        }
+    } catch (error) {
+        console.error('Error deleting goal:', error);
+        showNotification('Failed to delete goal', 'error');
+    }
+}
+
+// Add click outside handler for goal modal
+document.addEventListener('DOMContentLoaded', function() {
+    const goalModal = document.getElementById('addGoalModal');
+    if (goalModal) {
+        goalModal.addEventListener('click', (e) => {
+            if (e.target === goalModal) {
+                closeAddGoalModal();
+            }
+        });
+    }
+});

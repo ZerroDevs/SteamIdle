@@ -238,6 +238,24 @@
                         <div class="animate-pulse bg-gray-700 h-10 rounded"></div>
                     </div>
                 </div>
+
+                <!-- Game Goals Card -->
+                <div class="bg-gray-800 rounded-lg p-6 col-span-2">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-2xl font-semibold flex items-center">
+                            <svg class="w-6 h-6 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                            </svg>
+                            Game Goals
+                        </h2>
+                        <button onclick="addGameGoal()" class="bg-blue-500 hover:bg-blue-600 px-4 py-2 rounded text-sm">
+                            <i class="fas fa-plus mr-2"></i>Add Goal
+                        </button>
+                    </div>
+                    <div id="gameGoals" class="space-y-4">
+                        <!-- Goals will be added here dynamically -->
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -747,6 +765,56 @@
                 <button onclick="confirmDeletePreset()" 
                         class="px-6 py-2 bg-red-500 hover:bg-red-600 rounded transition-colors">
                     <i class="fas fa-trash mr-2"></i>Delete
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Goal Modal -->
+    <div id="addGoalModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-[100]">
+        <div class="bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4">
+            <div class="text-center mb-6">
+                <h3 class="text-xl font-semibold mb-2">Add Game Goal</h3>
+                <p class="text-gray-300">Set a playtime goal for a game</p>
+            </div>
+            <div class="space-y-4">
+                <!-- Game ID/Name Input -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-1">Enter Game ID or Name</label>
+                    <div class="flex gap-2">
+                        <input type="text" id="goalGameInput" 
+                               class="flex-1 bg-gray-700 rounded px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                               placeholder="Enter game ID or name">
+                        <button onclick="fetchGameForGoal()" 
+                                class="bg-blue-500 hover:bg-blue-600 px-4 py-2 rounded text-sm">
+                            <i class="fas fa-search mr-2"></i>Find
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Game Select from Presets -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-1">Or Select from Presets</label>
+                    <select id="goalGameSelect" class="w-full bg-gray-700 rounded px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="">Select a game from presets</option>
+                    </select>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-1">Target Hours</label>
+                    <input type="number" id="goalHours" min="1" step="1" 
+                           class="w-full bg-gray-700 rounded px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                           placeholder="Enter target hours">
+                </div>
+            </div>
+            <div class="flex justify-center gap-4 mt-6">
+                <button onclick="closeAddGoalModal()" 
+                        class="px-6 py-2 bg-gray-700 hover:bg-gray-600 rounded transition-colors">
+                    <i class="fas fa-times mr-2"></i>Cancel
+                </button>
+                <button onclick="saveGameGoal()" 
+                        class="px-6 py-2 bg-blue-500 hover:bg-blue-600 rounded transition-colors">
+                    <i class="fas fa-save mr-2"></i>Save Goal
                 </button>
             </div>
         </div>

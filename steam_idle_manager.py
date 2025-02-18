@@ -2123,12 +2123,9 @@ if __name__ == '__main__':
     # Initialize settings
     settings = load_settings()
     minimize_to_tray = settings.get('minimize_to_tray', False)
+    AUTO_RECONNECT = settings.get('auto_reconnect', False)
     
-    # Initialize Discord RPC if enabled
-    if settings.get('discord_rpc_enabled', True):
-        initialize_discord_rpc()
-    
-    # Create window
+    # Create window first
     window = webview.create_window('Steam Idle Manager', app, minimized=False, width=1440, height=1000)
     
     # Set the window event handlers
@@ -2161,10 +2158,5 @@ if __name__ == '__main__':
         if icon:
             try:
                 icon.stop()
-            except:
-                pass
-        if DISCORD_RPC:
-            try:
-                DISCORD_RPC.close()
             except:
                 pass

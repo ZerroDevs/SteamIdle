@@ -601,7 +601,7 @@ async function importBatFile(file) {
                 if (file.name.endsWith('.bat')) {
                     // Parse BAT file for steam-idle.exe commands
                     gameIds = content.match(/steam-idle\.exe\s+(\d+)/g)
-                        ?.map(match => match.match(/\d+/)[0]) || [];
+                    ?.map(match => match.match(/\d+/)[0]) || [];
                 } else if (file.name.endsWith('.txt')) {
                     // Parse TXT file - split by newlines and clean up each line
                     const lines = content.split(/\r?\n/).filter(line => line.trim());
@@ -1495,7 +1495,8 @@ async function openSettings() {
             { name: 'Minimize to Tray', promise: updateMinimizeToTrayToggle() },
             { name: 'Auto Reconnect', promise: updateAutoReconnectToggle() },
             { name: 'Theme Settings', promise: updateThemeButtons() },
-            { name: 'Steam Idle Path', promise: updateIdlePath() }
+            { name: 'Steam Idle Path', promise: updateIdlePath() },
+            { name: 'Discord RPC', promise: updateDiscordRPCToggle() }
         ].map(async ({ name, promise }) => {
             try {
                 await promise;
@@ -2403,359 +2404,67 @@ function closeLibrary() {
     clearLibrarySelection();
 }
 
-async function openSettings() {
-    const modal = document.getElementById('settingsModal');
-    if (!modal) {
-        showNotification('Settings modal not found', 'error');
-        return;
-    }
-    
-    modal.classList.remove('hidden');
-    modal.classList.add('flex');
-    
-    // Show loading state
-    const loadingElement = document.getElementById('settingsLoading');
-    if (loadingElement) loadingElement.classList.remove('hidden');
-    
+async function updateDiscordRPCToggle() {
     try {
-        // Execute all settings updates in parallel but track their results individually
-        const results = await Promise.allSettled([
-            { name: 'Startup Status', promise: updateStartupToggle() },
-            { name: 'Minimize to Tray', promise: updateMinimizeToTrayToggle() },
-            { name: 'Auto Reconnect', promise: updateAutoReconnectToggle() },
-            { name: 'Theme Settings', promise: updateThemeButtons() },
-            { name: 'Steam Idle Path', promise: updateIdlePath() }
-        ].map(async ({ name, promise }) => {
-            try {
-                await promise;
-                return { name, success: true };
+        const response = await fetch('/api/settings');
+        const settings = await response.json();
+        updateToggleState('discordRpcToggle', settings.discord_rpc_enabled);
             } catch (error) {
-                console.error(`Error loading ${name}:`, error);
-                return { name, success: false, error: error.message };
-            }
-        }));
+        console.error('Error updating Discord RPC toggle:', error);
+    }
+}
 
-        // Check for any failures
-        const failures = results
-            .filter(result => result.status === 'fulfilled' && !result.value.success)
-            .map(result => result.value.name);
+async function toggleDiscordRPC() {
+    try {
+        const response = await fetch('/api/settings', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                discord_rpc_enabled: !document.getElementById('discordRpcToggle').classList.contains('bg-blue-500')
+            })
+        });
 
-        if (failures.length > 0) {
-            showNotification(`Failed to load settings: ${failures.join(', ')}`, 'error');
+        if (response.ok) {
+            updateDiscordRPCToggle();
+            showNotification('Discord RPC settings updated successfully');
+        } else {
+            showNotification('Failed to update Discord RPC settings', 'error');
         }
     } catch (error) {
-        console.error('Error loading settings:', error);
-        showNotification('Failed to load all settings', 'error');
-    } finally {
-        // Hide loading state
-        if (loadingElement) loadingElement.classList.add('hidden');
+        console.error('Error toggling Discord RPC:', error);
+        showNotification('Failed to update Discord RPC settings', 'error');
     }
 }
 
-function closeSettings() {
-    const modal = document.getElementById('settingsModal');
-    if (!modal) return;
-    
-    modal.classList.remove('flex');
-    modal.classList.add('hidden');
-}
-
-// Add event listeners for clicking outside modals to close them
-document.addEventListener('DOMContentLoaded', function() {
-    const settingsModal = document.getElementById('settingsModal');
-    const libraryModal = document.getElementById('libraryModal');
-    
-    if (settingsModal) {
-        settingsModal.addEventListener('click', (e) => {
-            if (e.target === settingsModal) {
-                closeSettings();
-            }
-        });
-    }
-    
-    if (libraryModal) {
-        libraryModal.addEventListener('click', (e) => {
-            if (e.target === libraryModal) {
-                closeLibrary();
-            }
-        });
-    }
-});
-
-async function updateLibraryDisplay() {
-    const libraryDiv = document.getElementById('steamLibrary');
-    libraryDiv.innerHTML = '';
-    
-    // Set view size class
-    libraryDiv.className = `${currentViewSize}-view p-6`;
-    
-    // Filter games based on current filter and search
-    const filteredGames = libraryGames.filter(game => {
-        const matchesFilter = 
-            currentFilter === 'all' ||
-            (currentFilter === 'installed' && game.installed === true);
-            
-        const matchesSearch = 
-            !searchQuery ||
-            game.name.toLowerCase().includes(searchQuery.toLowerCase());
-            
-        return matchesFilter && matchesSearch;
-    });
-
-    // Update game counter display
-    const totalGames = libraryGames.length;
-    const installedGames = libraryGames.filter(game => game.installed === true).length;
-    const filteredCount = filteredGames.length;
-    const gameCountDisplay = document.getElementById('gameCountDisplay');
-    if (gameCountDisplay) {
-        if (searchQuery) {
-            gameCountDisplay.textContent = `(${totalGames} total • ${installedGames} installed • ${filteredCount} matches)`;
-        } else {
-            gameCountDisplay.textContent = `(${totalGames} total • ${installedGames} installed)`;
-        }
-    }
-
-    // Get idle hours for each game
-    const idleHoursPromises = filteredGames.map(async game => {
-        try {
-            const response = await fetch('/api/game-session-time', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ gameId: game.id })
-            });
-            const data = await response.json();
-            return { gameId: game.id, idleTime: data.total_time };
-        } catch (error) {
-            console.error('Error fetching idle time:', error);
-            return { gameId: game.id, idleTime: '00:00:00' };
-        }
-    });
-
-    const idleHours = await Promise.all(idleHoursPromises);
-    const idleHoursMap = new Map(idleHours.map(({ gameId, idleTime }) => [gameId, idleTime]));
-
-    // Continue with existing game cards display
-    filteredGames.forEach(game => {
-        const isRunning = runningGames.has(game.id.toString());
-        const gameCard = document.createElement('div');
-        gameCard.className = `game-card ${currentViewSize}-card`;
+// Add to the existing openSettings function
+async function openSettings() {
+    try {
+        document.getElementById('settingsLoading').classList.remove('hidden');
+        document.getElementById('settingsModal').classList.add('flex');
+        document.getElementById('settingsModal').classList.remove('hidden');
         
-        // Convert Steam minutes to hours and round to 1 decimal place
-        const idleTime = idleHoursMap.get(game.id) || '00:00:00';
+        // Update all toggles
+        await Promise.all([
+            updateStartupToggle(),
+            updateMinimizeToTrayToggle(),
+            updateAutoReconnectToggle(),
+            updateDiscordRPCToggle(),  // Add this line
+            updateThemeButtons()
+        ]);
         
-        gameCard.innerHTML = `
-            <div class="relative">
-                <img src="${game.icon || 'path/to/default-image.jpg'}" 
-                     alt="${game.name}" 
-                     class="w-full">
-                <div class="absolute top-2 right-2 flex gap-2">
-                    <input type="checkbox" id="game-${game.id}" 
-                           class="w-5 h-5 rounded border-gray-600 text-blue-500 focus:ring-blue-500"
-                           onchange="toggleGameSelection('${game.id}')"
-                           ${selectedLibraryGames.has(game.id) ? 'checked' : ''}>
-                </div>
-                ${game.installed ? 
-                    '<span class="absolute top-2 left-2 bg-green-500 text-white px-2 py-1 rounded text-xs">Installed</span>' :
-                    ''}
-                ${isRunning ? 
-                    '<span class="absolute top-2 left-24 bg-blue-500 text-white px-2 py-1 rounded text-xs">Running</span>' :
-                    ''}
-            </div>
-            <div class="p-4">
-                <h3 class="text-lg font-semibold mb-2">${game.name}</h3>
-                <div class="text-sm text-gray-400">
-                    <p class="text-green-400">Idle Hours: ${idleTime}</p>
-                    <p class="text-xs mt-2">Game ID: ${game.id}</p>
-                </div>
-                <div class="mt-4 flex gap-2">
-                    ${isRunning ?
-                        `<button onclick="stopGame('${game.id}')" 
-                                class="flex-1 bg-red-500 hover:bg-red-600 px-4 py-2 rounded text-sm">
-                            <i class="fas fa-stop mr-1"></i>Stop
-                        </button>` :
-                        `<button onclick="startGame('${game.id}')" 
-                                class="flex-1 bg-blue-500 hover:bg-blue-600 px-4 py-2 rounded text-sm">
-                            <i class="fas fa-play mr-1"></i>Start
-                        </button>`
-                    }
-                    <button onclick="addGameToNewPreset('${game.id}')" 
-                            class="flex-1 bg-green-500 hover:bg-green-600 px-4 py-2 rounded text-sm">
-                        <i class="fas fa-plus mr-1"></i>Add to Preset
-                    </button>
-                </div>
-            </div>
-        `;
+        // Update idle path
+        const response = await fetch('/api/get-idle-path');
+        const data = await response.json();
+        document.getElementById('currentIdlePath').textContent = data.path || 'Not configured';
         
-        libraryDiv.appendChild(gameCard);
-    });
-}
-
-function setViewSize(size) {
-    currentViewSize = size;
-    localStorage.setItem('libraryViewSize', size);
-    updateLibraryDisplay();
-}
-
-function toggleFilter(filter) {
-    currentFilter = filter;
-    
-    // Remove active class from all filter buttons
-    document.querySelectorAll('.filter-btn').forEach(btn => {
-        btn.classList.remove('active', 'bg-blue-500', 'text-white');
-        btn.classList.add('text-gray-400', 'hover:text-white');
-    });
-    
-    // Add active class to clicked filter button
-    const activeFilter = document.getElementById(`filter${filter.charAt(0).toUpperCase() + filter.slice(1)}`);
-    if (activeFilter) {
-        activeFilter.classList.add('active', 'bg-blue-500', 'text-white');
-        activeFilter.classList.remove('text-gray-400', 'hover:text-white');
-    }
-    
-    // Update the library display
-    updateLibraryDisplay();
-}
-
-// Add event listener for search input
-document.getElementById('librarySearch').addEventListener('input', (e) => {
-    searchQuery = e.target.value;
-    updateLibraryDisplay();
-});
-
-function refreshLibrary() {
-    clearLibrarySelection();
-    loadSteamLibrary();
-}
-
-// Update existing functions
-function toggleGameSelection(gameId) {
-    if (selectedLibraryGames.has(gameId)) {
-        selectedLibraryGames.delete(gameId);
-    } else {
-        selectedLibraryGames.add(gameId);
-    }
-    
-    const actionsDiv = document.getElementById('libraryActions');
-    const selectedCount = document.getElementById('selectedGamesCount');
-    
-    if (selectedCount) {
-        selectedCount.textContent = selectedLibraryGames.size;
-    }
-    
-    actionsDiv.classList.toggle('hidden', selectedLibraryGames.size === 0);
-}
-
-function clearLibrarySelection() {
-    selectedLibraryGames.clear();
-    const actionsDiv = document.getElementById('libraryActions');
-    const selectedCount = document.getElementById('selectedGamesCount');
-    
-    if (selectedCount) {
-        selectedCount.textContent = '0';
-    }
-    
-    if (actionsDiv) {
-        actionsDiv.classList.add('hidden');
+        document.getElementById('settingsLoading').classList.add('hidden');
+    } catch (error) {
+        console.error('Error opening settings:', error);
+        document.getElementById('settingsLoading').classList.add('hidden');
     }
 }
-
-// Add to window.onload
-window.onload = function() {
-    // ... existing onload code ...
-    loadSteamLibrary();
-}; 
-
-// Add modal HTML when document loads
-window.onload = function() {
-    // ... existing onload code ...
-    
-    // Create library modal
-    const modal = document.createElement('div');
-    modal.id = 'libraryModal';
-    modal.className = 'fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50';
-    modal.innerHTML = `
-        <div class="bg-gray-800 rounded-lg">
-            <!-- Header -->
-            <div class="header p-6 border-b border-gray-700">
-                <div class="flex justify-between items-center">
-                    <div class="flex flex-col gap-2">
-                        <h2 class="text-2xl font-semibold">Steam Library</h2>
-                        <div id="gameCountDisplay" class="text-gray-400 text-sm">
-                            <i class="fas fa-gamepad mr-2"></i>Loading games...
-                        </div>
-                        <div class="flex gap-2 mt-2">
-                            <button onclick="toggleFilter('all')" id="filterAll" 
-                                    class="filter-btn active px-3 py-1 rounded text-sm">
-                                All Games
-                            </button>
-                            <button onclick="toggleFilter('installed')" id="filterInstalled" 
-                                    class="filter-btn px-3 py-1 rounded text-sm">
-                                Installed
-                            </button>
-                        </div>
-                    </div>
-                    <div class="flex items-center gap-4">
-                        <!-- View Size Controls -->
-                        <div class="flex items-center gap-2 border-r border-gray-600 pr-4">
-                            <button onclick="setViewSize('compact')" id="viewCompact" 
-                                    class="view-size-btn text-gray-400 hover:text-white transition-colors" title="Compact View">
-                                <i class="fas fa-th text-lg"></i>
-                            </button>
-                            <button onclick="setViewSize('normal')" id="viewNormal" 
-                                    class="view-size-btn text-blue-500 hover:text-white transition-colors" title="Normal View">
-                                <i class="fas fa-th-large text-lg"></i>
-                            </button>
-                            <button onclick="setViewSize('large')" id="viewLarge" 
-                                    class="view-size-btn text-gray-400 hover:text-white transition-colors" title="Large View">
-                                <i class="fas fa-square text-lg"></i>
-                            </button>
-                        </div>
-                        <div class="relative">
-                            <input type="text" id="librarySearch" placeholder="Search games..." 
-                                   class="bg-gray-700 rounded px-4 py-2 pl-10 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                            <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
-                        </div>
-                        <button onclick="refreshLibrary()" class="text-gray-400 hover:text-white transition-colors">
-                            <i class="fas fa-sync-alt"></i>
-                        </button>
-                        <button onclick="closeLibrary()" class="text-gray-400 hover:text-white transition-colors">
-                            <i class="fas fa-times text-xl"></i>
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Games Grid with Scrollbar -->
-            <div class="flex-1 overflow-y-auto custom-scrollbar" style="max-height: calc(90vh - 180px);">
-                <div id="steamLibrary" class="p-6">
-                    <!-- Steam library games will be added here dynamically -->
-                </div>
-            </div>
-
-            <!-- Footer Actions -->
-            <div id="libraryActions" class="hidden p-4 border-t border-gray-700">
-                <div class="flex justify-between items-center">
-                    <span class="text-gray-400">
-                        <span id="selectedGamesCount">0</span> games selected
-                    </span>
-                    <div class="flex gap-4">
-                        <button onclick="createPresetFromSelected()" 
-                                class="bg-green-500 hover:bg-green-600 px-6 py-2 rounded font-semibold transition-colors">
-                            <i class="fas fa-plus mr-2"></i>Create Preset from Selected
-                        </button>
-                        <button onclick="startSelectedGames()" 
-                                class="bg-blue-500 hover:bg-blue-600 px-6 py-2 rounded font-semibold transition-colors">
-                            <i class="fas fa-play mr-2"></i>Start Selected Games
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    `;
-    document.body.appendChild(modal);
-    
-    loadSteamLibrary();
-};
 
 // ... rest of the existing code ...
 
@@ -3312,3 +3021,221 @@ async function toggleMinimizeAllGames() {
         areGamesMinimized = false;
     }
 }
+
+async function updateLibraryDisplay() {
+    const libraryDiv = document.getElementById('steamLibrary');
+    libraryDiv.innerHTML = '';
+    
+    // Set view size class
+    libraryDiv.className = `${currentViewSize}-view p-6`;
+    
+    // Filter games based on current filter and search
+    const filteredGames = libraryGames.filter(game => {
+        const matchesFilter = 
+            currentFilter === 'all' ||
+            (currentFilter === 'installed' && game.installed === true);
+            
+        const matchesSearch = 
+            !searchQuery ||
+            game.name.toLowerCase().includes(searchQuery.toLowerCase());
+            
+        return matchesFilter && matchesSearch;
+    });
+
+    // Update game counter display
+    const totalGames = libraryGames.length;
+    const installedGames = libraryGames.filter(game => game.installed === true).length;
+    const filteredCount = filteredGames.length;
+    const gameCountDisplay = document.getElementById('gameCountDisplay');
+    if (gameCountDisplay) {
+        if (searchQuery) {
+            gameCountDisplay.textContent = `(${totalGames} total • ${installedGames} installed • ${filteredCount} matches)`;
+        } else {
+            gameCountDisplay.textContent = `(${totalGames} total • ${installedGames} installed)`;
+        }
+    }
+
+    // Get idle hours for each game
+    const idleHoursPromises = filteredGames.map(async game => {
+        try {
+            const response = await fetch('/api/game-session-time', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ gameId: game.id })
+            });
+            const data = await response.json();
+            return { gameId: game.id, idleTime: data.total_time };
+        } catch (error) {
+            console.error('Error fetching idle time:', error);
+            return { gameId: game.id, idleTime: '00:00:00' };
+        }
+    });
+
+    const idleHours = await Promise.all(idleHoursPromises);
+    const idleHoursMap = new Map(idleHours.map(({ gameId, idleTime }) => [gameId, idleTime]));
+
+    // Create and append all game cards
+    filteredGames.forEach(game => {
+        const isRunning = runningGames.has(game.id.toString());
+        const gameCard = document.createElement('div');
+        gameCard.className = `game-card ${currentViewSize}-card`;
+        
+        // Get idle time for this game
+        const idleTime = idleHoursMap.get(game.id) || '00:00:00';
+        
+        gameCard.innerHTML = `
+            <div class="relative">
+                <img src="${game.icon || 'https://via.placeholder.com/460x215/374151/FFFFFF?text=No+Image'}" 
+                     alt="${game.name}" 
+                     class="w-full">
+                <div class="absolute top-2 right-2 flex gap-2">
+                    <input type="checkbox" id="game-${game.id}" 
+                           class="w-5 h-5 rounded border-gray-600 text-blue-500 focus:ring-blue-500"
+                           onchange="toggleGameSelection('${game.id}')"
+                           ${selectedLibraryGames.has(game.id) ? 'checked' : ''}>
+                </div>
+                ${game.installed ? 
+                    '<span class="absolute top-2 left-2 bg-green-500 text-white px-2 py-1 rounded text-xs">Installed</span>' :
+                    ''}
+                ${isRunning ? 
+                    '<span class="absolute top-2 left-24 bg-blue-500 text-white px-2 py-1 rounded text-xs">Running</span>' :
+                    ''}
+            </div>
+            <div class="p-4">
+                <h3 class="text-lg font-semibold mb-2">${game.name}</h3>
+                <div class="text-sm text-gray-400">
+                    <p class="text-green-400">Idle Hours: ${idleTime}</p>
+                    <p class="text-xs mt-2">Game ID: ${game.id}</p>
+                </div>
+                <div class="mt-4 flex gap-2">
+                    ${isRunning ?
+                        `<button onclick="stopGame('${game.id}')" 
+                                class="flex-1 bg-red-500 hover:bg-red-600 px-4 py-2 rounded text-sm">
+                            <i class="fas fa-stop mr-1"></i>Stop
+                        </button>` :
+                        `<button onclick="startGame('${game.id}')" 
+                                class="flex-1 bg-blue-500 hover:bg-blue-600 px-4 py-2 rounded text-sm">
+                            <i class="fas fa-play mr-1"></i>Start
+                        </button>`
+                    }
+                    <button onclick="addGameToNewPreset('${game.id}')" 
+                            class="flex-1 bg-green-500 hover:bg-green-600 px-4 py-2 rounded text-sm">
+                        <i class="fas fa-plus mr-1"></i>Add to Preset
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        libraryDiv.appendChild(gameCard);
+    });
+}
+
+function setViewSize(size) {
+    currentViewSize = size;
+    localStorage.setItem('libraryViewSize', size);
+    
+    // Update view size buttons
+    document.querySelectorAll('.view-size-btn').forEach(btn => {
+        btn.classList.remove('text-blue-500');
+        btn.classList.add('text-gray-400');
+    });
+    document.getElementById(`view${size.charAt(0).toUpperCase() + size.slice(1)}`).classList.add('text-blue-500');
+    
+    updateLibraryDisplay();
+}
+
+function toggleFilter(filter) {
+    currentFilter = filter;
+    
+    // Remove active class from all filter buttons
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.classList.remove('active', 'bg-blue-500', 'text-white');
+        btn.classList.add('text-gray-400', 'hover:text-white');
+    });
+    
+    // Add active class to clicked filter button
+    const activeFilter = document.getElementById(`filter${filter.charAt(0).toUpperCase() + filter.slice(1)}`);
+    if (activeFilter) {
+        activeFilter.classList.add('active', 'bg-blue-500', 'text-white');
+        activeFilter.classList.remove('text-gray-400', 'hover:text-white');
+    }
+    
+    // Update the library display
+    updateLibraryDisplay();
+}
+
+function refreshLibrary() {
+    clearLibrarySelection();
+    loadSteamLibrary();
+}
+
+function toggleGameSelection(gameId) {
+    if (selectedLibraryGames.has(gameId)) {
+        selectedLibraryGames.delete(gameId);
+    } else {
+        selectedLibraryGames.add(gameId);
+    }
+    
+    const actionsDiv = document.getElementById('libraryActions');
+    const selectedCount = document.getElementById('selectedGamesCount');
+    
+    if (selectedCount) {
+        selectedCount.textContent = selectedLibraryGames.size;
+    }
+    
+    actionsDiv.classList.toggle('hidden', selectedLibraryGames.size === 0);
+}
+
+function clearLibrarySelection() {
+    selectedLibraryGames.clear();
+    const actionsDiv = document.getElementById('libraryActions');
+    const selectedCount = document.getElementById('selectedGamesCount');
+    
+    if (selectedCount) {
+        selectedCount.textContent = '0';
+    }
+    
+    if (actionsDiv) {
+        actionsDiv.classList.add('hidden');
+    }
+}
+
+function closeLibrary() {
+    const modal = document.getElementById('libraryModal');
+    if (!modal) return;
+    
+    modal.classList.remove('flex');
+    modal.classList.add('hidden');
+    clearLibrarySelection();
+}
+
+// Add event listeners for library functionality
+document.addEventListener('DOMContentLoaded', function() {
+    // Library search input
+    const librarySearch = document.getElementById('librarySearch');
+    if (librarySearch) {
+        librarySearch.addEventListener('input', (e) => {
+            searchQuery = e.target.value;
+            updateLibraryDisplay();
+        });
+    }
+    
+    // Library modal click outside
+    const libraryModal = document.getElementById('libraryModal');
+    if (libraryModal) {
+        libraryModal.addEventListener('click', (e) => {
+            if (e.target === libraryModal) {
+                closeLibrary();
+            }
+        });
+    }
+    
+    // Set initial view size from localStorage
+    const savedViewSize = localStorage.getItem('libraryViewSize');
+    if (savedViewSize) {
+        currentViewSize = savedViewSize;
+        setViewSize(savedViewSize);
+    }
+});
+
+// ... existing code ...

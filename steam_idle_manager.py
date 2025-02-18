@@ -13,13 +13,21 @@ from datetime import datetime, timedelta
 import pystray
 from PIL import Image
 import threading
-
-import csv
+from pypresence import Presence
 import time
+import asyncio
+import nest_asyncio
+import csv
 import re
 import win32gui
 import win32con
 import win32process
+
+# Try to patch asyncio to allow nested event loops
+try:
+    nest_asyncio.apply()
+except Exception:
+    pass
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -29,6 +37,11 @@ icon = None
 IDLER_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "steam-idle.exe")
 minimize_to_tray = False
 AUTO_RECONNECT = False
+DISCORD_RPC = None
+DISCORD_RPC_ENABLED = True  # Default enabled
+
+# Discord RPC Client ID
+DISCORD_CLIENT_ID = '1341211129153716316'
 
 # Set up AppData paths
 APPDATA_PATH = os.path.join(os.getenv('APPDATA'), 'SteamIdler')
@@ -53,6 +66,71 @@ if not os.path.exists(PRESETS_DIR):
 running_games = {}
 game_sessions = {}  # Store game session data: {game_id: {'start_time': datetime, 'total_time': seconds}}
 
+def initialize_discord_rpc():
+    global DISCORD_RPC
+    try:
+        DISCORD_RPC = Presence(DISCORD_CLIENT_ID)
+        DISCORD_RPC.connect()
+        update_discord_rpc()
+    except Exception as e:
+        print(f"Failed to initialize Discord RPC: {e}")
+
+def update_discord_rpc():
+    global DISCORD_RPC
+    if not DISCORD_RPC:
+        return
+
+    try:
+        running_count = len(running_games)
+        if running_count > 0:
+            # Calculate total playtime from game sessions
+            total_seconds = 0
+            earliest_start = None
+            current_time = datetime.now()
+
+            for game_id in running_games.keys():
+                if game_id in game_sessions:
+                    session = game_sessions[game_id]
+                    # Add completed session time
+                    total_seconds += session.get('total_time', 0)
+                    
+                    # Add current session time
+                    if 'start_time' in session:
+                        current_session = (current_time - session['start_time']).total_seconds()
+                        total_seconds += current_session
+                        
+                        # Track earliest start time
+                        if earliest_start is None or session['start_time'] < earliest_start:
+                            earliest_start = session['start_time']
+            
+            DISCORD_RPC.update(
+                state=f"Idling {running_count} games",
+                details=f"Total Playtime: {format_duration(total_seconds)}",
+                large_image="Logo1",
+                large_text="Steam Idle Manager",
+                start=int(earliest_start.timestamp()) if earliest_start else int(time.time())
+            )
+        else:
+            DISCORD_RPC.update(
+                state="Idle",
+                details="No games running",
+                large_image="Logo1",
+                large_text="Steam Idle Manager"
+            )
+    except Exception as e:
+        print(f"Failed to update Discord RPC: {e}")
+
+def discord_rpc_thread():
+    while True:
+        if DISCORD_RPC_ENABLED:
+            update_discord_rpc()
+        time.sleep(15)  # Update every 15 seconds
+
+# Start the Discord RPC thread
+discord_thread = threading.Thread(target=discord_rpc_thread)
+discord_thread.daemon = True
+discord_thread.start()
+
 def resource_path(relative_path):
     """Get absolute path to resource, works for dev and for PyInstaller"""
     try:
@@ -69,7 +147,7 @@ def load_settings():
             with open(SETTINGS_FILE, 'r') as f:
                 settings = json.load(f)
                 # Update IDLER_PATH if it was previously configured
-                global IDLER_PATH, minimize_to_tray, AUTO_RECONNECT
+                global IDLER_PATH, minimize_to_tray, AUTO_RECONNECT, DISCORD_RPC_ENABLED
                 
                 # First check if there's a valid saved path
                 if 'idler_path' in settings and os.path.exists(settings['idler_path']):
@@ -91,6 +169,9 @@ def load_settings():
                 # Load auto reconnect setting
                 AUTO_RECONNECT = settings.get('auto_reconnect', False)
                 
+                # Load Discord RPC setting (default to True if not set)
+                DISCORD_RPC_ENABLED = settings.get('discord_rpc_enabled', True)
+                
                 # Ensure theme setting exists
                 if 'theme' not in settings:
                     settings['theme'] = 'dark'  # Default theme
@@ -99,8 +180,8 @@ def load_settings():
                 return settings
         except Exception as e:
             print(f"Error loading settings: {e}")
-            return {'setup_completed': False, 'theme': 'dark'}
-    return {'setup_completed': False, 'theme': 'dark'}
+            return {'setup_completed': False, 'theme': 'dark', 'discord_rpc_enabled': True}
+    return {'setup_completed': False, 'theme': 'dark', 'discord_rpc_enabled': True}
 
 def save_settings(settings):
     try:
@@ -1301,7 +1382,7 @@ def rename_preset():
 
 @app.route('/api/settings', methods=['GET', 'POST'])
 def manage_settings():
-    global minimize_to_tray, AUTO_RECONNECT
+    global minimize_to_tray, AUTO_RECONNECT, DISCORD_RPC_ENABLED
     if request.method == 'POST':
         data = request.get_json()
         settings = load_settings()
@@ -1317,6 +1398,17 @@ def manage_settings():
         if 'auto_reconnect' in data:
             settings['auto_reconnect'] = data['auto_reconnect']
             AUTO_RECONNECT = data['auto_reconnect']
+        
+        if 'discord_rpc_enabled' in data:
+            settings['discord_rpc_enabled'] = data['discord_rpc_enabled']
+            DISCORD_RPC_ENABLED = data['discord_rpc_enabled']
+            if DISCORD_RPC_ENABLED:
+                initialize_discord_rpc()
+            elif DISCORD_RPC:
+                try:
+                    DISCORD_RPC.close()
+                except:
+                    pass
         
         if 'run_on_startup' in data:
             settings['run_on_startup'] = data['run_on_startup']
@@ -1991,6 +2083,10 @@ if __name__ == '__main__':
     settings = load_settings()
     minimize_to_tray = settings.get('minimize_to_tray', False)
     
+    # Initialize Discord RPC if enabled
+    if settings.get('discord_rpc_enabled', True):
+        initialize_discord_rpc()
+    
     # Create window
     window = webview.create_window('Steam Idle Manager', app, minimized=False, width=1440, height=1000)
     
@@ -2011,7 +2107,6 @@ if __name__ == '__main__':
     goals_thread.daemon = True
     goals_thread.start()
     
-    
     # Start the tray menu update thread
     tray_update_thread = threading.Thread(target=update_tray_periodically)
     tray_update_thread.daemon = True
@@ -2020,6 +2115,8 @@ if __name__ == '__main__':
     # Start the application
     webview.start()
     
-    # Clean up tray icon when exiting
+    # Clean up tray icon and Discord RPC when exiting
     if icon:
-        icon.stop() 
+        icon.stop()
+    if DISCORD_RPC:
+        DISCORD_RPC.close()

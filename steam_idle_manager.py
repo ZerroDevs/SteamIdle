@@ -1113,53 +1113,26 @@ def set_startup_status(enable):
 
 def update_tray_menu():
     """Update the system tray menu with current running games and other dynamic content"""
-    global icon
-    if not icon:
-        return
-
     try:
         menu_items = []
         
-        # Add Show option
-        menu_items.append(pystray.MenuItem("Show", show_window))
+        # Show Window option
+        menu_items.append(pystray.MenuItem("Show Window", show_window))
         menu_items.append(pystray.Menu.SEPARATOR)
         
-        # Create Running Games submenu
+        # Running Games submenu
         if running_games:
-            running_count = len(running_games)
-            running_games_items = []
-            
-            # Add running games count
-            running_games_items.append(
-                pystray.MenuItem(f"Running: {running_count} game{'s' if running_count != 1 else ''}", 
-                               None, enabled=False)
-            )
-            running_games_items.append(pystray.Menu.SEPARATOR)
-            
-            # Add most idled game info
-            most_idled = get_most_idled_game()
-            if most_idled != "None":
-                running_games_items.append(
-                    pystray.MenuItem(f"Most Idled: {most_idled}", None, enabled=False)
-                )
-                running_games_items.append(pystray.Menu.SEPARATOR)
-            
-            # Add individual running games with playtime
+            running_items = []
             for game_id in running_games:
-                if game_id in game_sessions:
-                    game_info = game_sessions[game_id]
-                    playtime = get_game_playtime(game_id)
-                    menu_item = pystray.MenuItem(
-                        f"{game_info['name']} ({playtime})",
-                        lambda item, g_id=game_id: stop_single_game_tray(icon, item, g_id)
-                    )
-                    running_games_items.append(menu_item)
-            
-            # Add Running Games submenu to main menu
-            menu_items.append(pystray.MenuItem("Running Games", pystray.Menu(*running_games_items)))
-            menu_items.append(pystray.Menu.SEPARATOR)
+                if game_id in game_sessions and 'name' in game_sessions[game_id]:
+                    game_name = game_sessions[game_id]['name']
+                    running_items.append(pystray.MenuItem(f"Stop {game_name}", 
+                        lambda item, id=game_id: stop_single_game_tray(icon, item, id)))
+            if running_items:
+                menu_items.append(pystray.MenuItem("Running Games", pystray.Menu(*running_items)))
+                menu_items.append(pystray.Menu.SEPARATOR)
         
-        # Add Favorites submenu
+        # Add favorites submenu
         favorites = load_favorites()
         if favorites.get('favorites', []):
             favorites_items = []
@@ -1186,6 +1159,31 @@ def update_tray_menu():
         menu_items.append(pystray.Menu.SEPARATOR)
         menu_items.append(pystray.MenuItem("Emergency Stop", emergency_stop_tray, 
                                          enabled=lambda item: bool(running_games)))
+        
+        # Add Minimize/Maximize Toggle button
+        if running_games:
+            # Check if any game window is minimized to determine the button text
+            windows = []
+            def check_window_state(hwnd, windows):
+                if win32gui.IsWindowVisible(hwnd):
+                    try:
+                        _, pid = win32process.GetWindowThreadProcessId(hwnd)
+                        process = psutil.Process(pid)
+                        if 'steam-idle' in process.name().lower():
+                            # Store window handle and state
+                            is_minimized = win32gui.IsIconic(hwnd)
+                            windows.append(is_minimized)
+                    except Exception:
+                        pass
+            
+            win32gui.EnumWindows(check_window_state, windows)
+            
+            # If any window is not minimized, show "Maximize All", otherwise show "Minimize All"
+            all_minimized = all(windows) if windows else False
+            button_text = "Maximize All" if all_minimized else "Minimize All"
+            menu_items.append(pystray.MenuItem(button_text, 
+                lambda item: toggle_minimize_all_tray(icon, item, not all_minimized)))
+        
         menu_items.append(pystray.Menu.SEPARATOR)
         menu_items.append(pystray.MenuItem("Exit", exit_app))
         
@@ -1197,6 +1195,128 @@ def update_tray_menu():
 
     except Exception as e:
         print(f"Error updating tray menu: {e}")
+
+def toggle_minimize_all_tray(icon, item, minimize=True):
+    """Handle minimize/maximize all games from tray icon"""
+    try:
+        # Get all running game windows
+        windows = []
+        
+        def callback(hwnd, windows):
+            if win32gui.IsWindowVisible(hwnd):
+                try:
+                    # Get the process ID for this window
+                    _, pid = win32process.GetWindowThreadProcessId(hwnd)
+                    process = psutil.Process(pid)
+                    
+                    # Check if this is a steam-idle process
+                    if 'steam-idle' in process.name().lower():
+                        windows.append(hwnd)
+                except Exception:
+                    pass
+        
+        win32gui.EnumWindows(callback, windows)
+        
+        # Minimize or restore all game windows
+        success_count = 0
+        for hwnd in windows:
+            try:
+                if minimize:
+                    win32gui.ShowWindow(hwnd, win32con.SW_MINIMIZE)
+                else:
+                    win32gui.ShowWindow(hwnd, win32con.SW_RESTORE)
+                success_count += 1
+            except Exception as e:
+                print(f"Error toggling window state: {str(e)}")
+                continue
+        
+        if success_count > 0:
+            action = "minimized" if minimize else "restored"
+            save_recent_action(f"All running games {action}")
+            
+            # Force update the tray menu to reflect the new state
+            update_tray_menu()
+            
+            # Show notification
+            message = f"{success_count} game windows have been {action}"
+            icon.notify(message, "Window State Changed")
+            
+            return True
+        else:
+            icon.notify("No game windows found to toggle", "Window State")
+            return False
+            
+    except Exception as e:
+        print(f"Error toggling minimize state: {e}")
+        return False
+
+def toggle_minimize_games(minimize=True):
+    """Toggle minimize/maximize state of all running game windows - API version"""
+    with app.app_context():
+        try:
+            # Get all running game windows
+            windows = []
+            
+            def callback(hwnd, windows):
+                if win32gui.IsWindowVisible(hwnd):
+                    try:
+                        # Get the process ID for this window
+                        _, pid = win32process.GetWindowThreadProcessId(hwnd)
+                        process = psutil.Process(pid)
+                        
+                        # Check if this is a steam-idle process
+                        if 'steam-idle' in process.name().lower():
+                            windows.append(hwnd)
+                    except Exception:
+                        pass
+            
+            win32gui.EnumWindows(callback, windows)
+            
+            # Minimize or restore all game windows
+            success_count = 0
+            for hwnd in windows:
+                try:
+                    if minimize:
+                        win32gui.ShowWindow(hwnd, win32con.SW_MINIMIZE)
+                    else:
+                        win32gui.ShowWindow(hwnd, win32con.SW_RESTORE)
+                    success_count += 1
+                except Exception as e:
+                    print(f"Error toggling window state: {str(e)}")
+                    continue
+            
+            if success_count > 0:
+                action = "minimized" if minimize else "restored"
+                save_recent_action(f"All running games {action}")
+                
+                return jsonify({
+                    "success": True,
+                    "message": f"{success_count} game windows have been {action}"
+                })
+            else:
+                return jsonify({
+                    "success": False,
+                    "message": "No game windows found to toggle"
+                })
+                
+        except Exception as e:
+            return jsonify({
+                "success": False,
+                "message": f"Failed to toggle game windows: {str(e)}"
+            }), 500
+
+@app.route('/api/toggle-minimize-games', methods=['POST'])
+def api_toggle_minimize_games():
+    """API endpoint for toggling minimize/maximize state of game windows"""
+    try:
+        data = request.get_json()
+        minimize = data.get('minimize', True)
+        return toggle_minimize_games(minimize)
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "message": f"Failed to toggle game windows: {str(e)}"
+        }), 500
 
 def create_tray_icon():
     global icon
@@ -2072,63 +2192,6 @@ def show_no_internet_error():
     auto_check_connection()
     
     dialog.mainloop()
-
-@app.route('/api/toggle-minimize-games', methods=['POST'])
-def toggle_minimize_games():
-    try:
-        data = request.get_json()
-        minimize = data.get('minimize', True)
-        
-        # Get all running game windows
-        windows = []
-        
-        def callback(hwnd, windows):
-            if win32gui.IsWindowVisible(hwnd):
-                try:
-                    # Get the process ID for this window
-                    _, pid = win32process.GetWindowThreadProcessId(hwnd)
-                    process = psutil.Process(pid)
-                    
-                    # Check if this is a steam-idle process
-                    if 'steam-idle' in process.name().lower():
-                        windows.append(hwnd)
-                except Exception:
-                    pass
-        
-        win32gui.EnumWindows(callback, windows)
-        
-        # Minimize or restore all game windows
-        success_count = 0
-        for hwnd in windows:
-            try:
-                if minimize:
-                    win32gui.ShowWindow(hwnd, win32con.SW_MINIMIZE)
-                else:
-                    win32gui.ShowWindow(hwnd, win32con.SW_RESTORE)
-                success_count += 1
-            except Exception as e:
-                print(f"Error toggling window state: {str(e)}")
-                continue
-        
-        if success_count > 0:
-            action = "minimized" if minimize else "restored"
-            save_recent_action(f"All running games {action}")
-            
-            return jsonify({
-                "success": True,
-                "message": f"{success_count} game windows have been {action}"
-            })
-        else:
-            return jsonify({
-                "success": False,
-                "message": "No game windows found to toggle"
-            })
-            
-    except Exception as e:
-        return jsonify({
-            "success": False,
-            "message": f"Failed to toggle game windows: {str(e)}"
-        }), 500
 
 if __name__ == '__main__':
     # Check for internet connection before starting the app

@@ -124,7 +124,7 @@ def update_discord_rpc():
                 DISCORD_RPC.update(
                     large_image="Logo1",
                     large_text="Steam Idle Manager",
-                    small_image="online",  # Show online status when games are running
+                    small_image="orange",  # Show orange status when games are running
                     small_text=f"Idling {len(running_game_names)}",
                     details=details,
                     state=state,
@@ -136,14 +136,29 @@ def update_discord_rpc():
                     time.sleep(1)
                     initialize_discord_rpc()
         else:
+            # Check Steam status when no games are running
+            steam_status = check_steam_status()
+            status_text = "Steam is not running"
+            small_image = "offline"
+            details = "• Not ready to idle"  # Default to not ready
+            
+            if steam_status["running"]:
+                if steam_status["online"]:
+                    status_text = "Steam is online"
+                    small_image = "online"
+                    details = "• Ready to idle"  # Only ready when Steam is online
+                else:
+                    status_text = "Steam is offline"
+                    small_image = "offline"
+            
             try:
                 DISCORD_RPC.update(
                     large_image="Logo1",
                     large_text="Steam Idle Manager",
-                    small_image="offline",  # Show offline status when no games are running
-                    small_text="Idle",
-                    details="• Ready to idle",
-                    state="• No games running"
+                    small_image=small_image,
+                    small_text=status_text,
+                    details=details,
+                    state=f"• {status_text}"
                 )
             except Exception as e:
                 if "pipe" in str(e).lower() or "client" in str(e).lower():

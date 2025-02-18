@@ -2188,7 +2188,7 @@ async function exportStats() {
             a.click();
             window.URL.revokeObjectURL(url);
             a.remove();
-            showNotification('success', 'Statistics exported successfully');
+            showNotification('Statistics exported successfully', 'success');
         } else {
             throw new Error('Failed to export statistics');
         }
@@ -2218,7 +2218,7 @@ async function resetStats() {
         });
         
         if (response.ok) {
-            showNotification('success', 'Statistics reset successfully');
+            showNotification('Statistics reset successfully', 'success');
             closeResetStatsModal();
             updateStatistics(); // Refresh the statistics display
         } else {

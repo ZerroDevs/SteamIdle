@@ -33,12 +33,94 @@
             scrollbar-width: thin;
             scrollbar-color: #4b5563 #1f2937;
         }
+        
+        @keyframes spin-slow {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        
+        .animate-spin-slow {
+            animation: spin-slow 10s linear infinite;
+        }
+        
+        @keyframes pulse-subtle {
+            0% { opacity: 0.7; }
+            50% { opacity: 1; }
+            100% { opacity: 0.7; }
+        }
+        
+        .animate-pulse {
+            animation: pulse-subtle 2s ease-in-out infinite;
+        }
+        
+        @keyframes eyes-movement {
+            0%, 100% { transform: translateX(0px); }
+            25% { transform: translateX(-1px); }
+            75% { transform: translateX(1px); }
+        }
+        
+        .animate-eyes {
+            animation: eyes-movement 3s ease-in-out infinite;
+        }
     </style>
 </head>
 <body class="bg-gray-900 text-white">
     <div class="container mx-auto px-4 py-8">
         <div class="flex justify-between items-center mb-8">
-            <h1 class="text-4xl font-bold text-blue-500">Steam Idle Manager</h1>
+            <div class="flex items-center gap-4">
+                <!-- Animated Logo -->
+                <svg class="w-12 h-12" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <!-- Outer Circle with Gradient -->
+                    <circle cx="24" cy="24" r="22" class="animate-spin-slow" style="transform-origin: center;" 
+                            stroke="url(#blueGradient)" stroke-width="2" fill="none"/>
+                    
+                    <!-- Inner Circle -->
+                    <circle cx="24" cy="24" r="18" fill="#1a1a1a"/>
+                    
+                    <!-- Steam-like Gear (Rotating) -->
+                    <g class="animate-spin-slow" style="transform-origin: center;">
+                        <path d="M24 14a10 10 0 0 1 10 10 10 10 0 0 1-10 10 10 10 0 0 1-10-10 10 10 0 0 1 10-10m0-2a12 12 0 1 0 0 24 12 12 0 0 0 0-24z" 
+                              fill="#3B82F6" opacity="0.3"/>
+                        <path d="M24 16a8 8 0 0 1 8 8 8 8 0 0 1-8 8 8 8 0 0 1-8-8 8 8 0 0 1 8-8" 
+                              fill="#1a1a1a"/>
+                    </g>
+                    
+                    <!-- Animated Pause Bars -->
+                    <g class="animate-eyes">
+                        <rect x="20" y="20" width="3" height="8" rx="1" fill="#3B82F6">
+                            <animate attributeName="height" values="8;10;8" dur="2s" repeatCount="indefinite"/>
+                            <animate attributeName="y" values="20;19;20" dur="2s" repeatCount="indefinite"/>
+                        </rect>
+                        <rect x="25" y="20" width="3" height="8" rx="1" fill="#3B82F6">
+                            <animate attributeName="height" values="8;10;8" dur="2s" begin="0.3s" repeatCount="indefinite"/>
+                            <animate attributeName="y" values="20;19;20" dur="2s" begin="0.3s" repeatCount="indefinite"/>
+                        </rect>
+                    </g>
+                    
+                    <!-- Steam-like Particles -->
+                    <g>
+                        <circle cx="18" cy="18" r="1" fill="#3B82F6" opacity="0.6">
+                            <animate attributeName="opacity" values="0.6;0.2;0.6" dur="2s" repeatCount="indefinite"/>
+                        </circle>
+                        <circle cx="30" cy="18" r="1" fill="#3B82F6" opacity="0.6">
+                            <animate attributeName="opacity" values="0.6;0.2;0.6" dur="2s" begin="0.5s" repeatCount="indefinite"/>
+                        </circle>
+                        <circle cx="24" cy="30" r="1" fill="#3B82F6" opacity="0.6">
+                            <animate attributeName="opacity" values="0.6;0.2;0.6" dur="2s" begin="1s" repeatCount="indefinite"/>
+                        </circle>
+                    </g>
+                    
+                    <!-- Gradient Definition -->
+                    <defs>
+                        <linearGradient id="blueGradient" x1="0" y1="0" x2="48" y2="48" gradientUnits="userSpaceOnUse">
+                            <stop offset="0%" stop-color="#60A5FA"/>
+                            <stop offset="100%" stop-color="#3B82F6"/>
+                        </linearGradient>
+                    </defs>
+                </svg>
+                
+                <h1 class="text-4xl font-bold text-blue-500">Steam Idle Manager</h1>
+            </div>
             <div class="flex items-center gap-4">
                 <div id="steamStatus" class="text-gray-500">
                     <i class="fas fa-circle mr-1"></i>Checking Steam...

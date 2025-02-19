@@ -122,14 +122,14 @@ def update_discord_rpc():
 
         # Set the status based on whether games are running
         if running_game_names:
-            details = f"• Idling {len(running_game_names)} games"
-            state = f"• Session: {format_duration(int(current_session_playtime))} • Total: {format_duration(int(total_playtime))}"
+            details = f"🎮 Idling {len(running_game_names)} games"
+            state = f"🕒 Session: {format_duration(int(current_session_playtime))} 📅 Total: {format_duration(int(total_playtime))}"
             try:
                 DISCORD_RPC.update(
                     large_image="Logo1",
                     large_text="Steam Idle Manager",
                     small_image="orange",  # Show orange status when games are running
-                    small_text=f"Idling {len(running_game_names)}",
+                    small_text=f"🎮 Idling {len(running_game_names)}",
                     details=details,
                     state=state,
                     start=int(first_start_time.timestamp()) if first_start_time else None
@@ -142,17 +142,17 @@ def update_discord_rpc():
         else:
             # Check Steam status when no games are running
             steam_status = check_steam_status()
-            status_text = "Steam is not running"
+            status_text = "🚫 Steam is not running"
             small_image = "offline"
-            details = "• Not ready to idle"  # Default to not ready
+            details = "🚫 Not ready to idle"  # Default to not ready
             
             if steam_status["running"]:
                 if steam_status["online"]:
-                    status_text = "Steam is online"
+                    status_text = "🌐 Steam is online"
                     small_image = "online"
-                    details = "• Ready to idle"  # Only ready when Steam is online
+                    details = "✅ Ready to idle"  # Only ready when Steam is online
                 else:
-                    status_text = "Steam is offline"
+                    status_text = "📴 Steam is offline"
                     small_image = "offline"
             
             try:
@@ -162,7 +162,7 @@ def update_discord_rpc():
                     small_image=small_image,
                     small_text=status_text,
                     details=details,
-                    state=f"• {status_text}"
+                    state=f"📝 {status_text}"
                 )
             except Exception as e:
                 if "pipe" in str(e).lower() or "client" in str(e).lower():
@@ -364,7 +364,7 @@ def check_steam_status():
         return {
             "running": False,
             "online": False,
-            "message": "Steam is not running"
+            "message": "🚫 Steam is not running"
         }
     
     # Check if Steam is online by attempting to access the Steam Web API
@@ -374,19 +374,19 @@ def check_steam_status():
             return {
                 "running": True,
                 "online": True,
-                "message": "Steam is running and online"
+                "message": "🌐 Steam is running and online"
             }
         else:
             return {
                 "running": True,
                 "online": False,
-                "message": "Steam is running but appears to be offline"
+                "message": "📴 Steam is running but appears to be offline"
             }
     except:
         return {
             "running": True,
             "online": False,
-            "message": "Steam is running but appears to be offline"
+            "message": "📴 Steam is running but appears to be offline"
         }
 
 def launch_steam():
@@ -422,7 +422,7 @@ def fetch_game_info(game_input):
             # Find the first search result
             first_result = search_soup.find('a', {'class': 'search_result_row'})
             if not first_result:
-                return {"error": "Game not found"}
+                return {"error": "🚫 Game not found"}
             
             game_id = first_result['data-ds-appid']
             url = f"https://store.steampowered.com/app/{game_id}"
@@ -442,7 +442,7 @@ def fetch_game_info(game_input):
             "image": game_image
         }
     except Exception as e:
-        return {"error": "Error fetching game info"}
+        return {"error": "❌ Error fetching game info"}
 
 @app.route('/')
 def home():
@@ -455,7 +455,7 @@ def fetch_game():
     data = request.get_json()
     game_input = data.get('gameId')
     if not game_input:
-        return jsonify({"error": "Please provide a game ID or name"})
+        return jsonify({"error": "🚫 Please provide a game ID or name"})
     return jsonify(fetch_game_info(game_input))
 
 @app.route('/api/save-preset', methods=['POST'])
@@ -504,7 +504,7 @@ def start_steam():
     success = launch_steam()
     return jsonify({
         "status": "success" if success else "error",
-        "message": "Steam launch initiated" if success else "Failed to launch Steam"
+        "message": "🚀 Steam launch initiated" if success else "❌ Failed to launch Steam"
     })
 
 @app.route('/api/start-game', methods=['POST'])
@@ -517,20 +517,20 @@ def start_game():
     if not steam_status['running']:
         return jsonify({
             "status": "error", 
-            "message": "Steam is not running. Please start Steam first.",
+            "message": "🚫 Steam is not running. Please start Steam first.",
             "steam_status": steam_status
         }), 400
     
     if not steam_status['online']:
         return jsonify({
             "status": "error", 
-            "message": "Steam appears to be offline. Please ensure Steam is online.",
+            "message": "📡 Steam appears to be offline. Please ensure Steam is online.",
             "steam_status": steam_status
         }), 400
     
     # Check if game is already running
     if game_id in running_games:
-        return jsonify({"status": "error", "message": "Game is already running"}), 400
+        return jsonify({"status": "error", "message": "🚫 Game is already running"}), 400
     
     try:
         process = subprocess.Popen([IDLER_PATH, game_id], shell=True)
@@ -562,7 +562,7 @@ def stop_game():
     game_id = str(data.get('gameId'))
     
     if game_id not in running_games:
-        return jsonify({"status": "error", "message": "Game is not running"}), 400
+        return jsonify({"status": "error", "message": "🚫 Game is not running"}), 400
     
     try:
         pid = running_games[game_id]
@@ -665,21 +665,21 @@ def run_preset():
     if not steam_status['running']:
         return jsonify({
             "status": "error", 
-            "message": "Steam is not running. Please start Steam first.",
+            "message": "🚫 Steam is not running. Please start Steam first.",
             "steam_status": steam_status
         }), 400
     
     if not steam_status['online']:
         return jsonify({
             "status": "error", 
-            "message": "Steam appears to be offline. Please ensure Steam is online.",
+            "message": "📡 Steam appears to be offline. Please ensure Steam is online.",
             "steam_status": steam_status
         }), 400
     
     # Get the preset data from JSON file
     json_path = os.path.join(PRESETS_DIR, f"{preset_name}.json")
     if not os.path.exists(json_path):
-        return jsonify({"status": "error", "message": "Preset not found"}), 404
+        return jsonify({"status": "error", "message": "❌ Preset not found"}), 404
         
     try:
         # Read the games from the preset
@@ -1019,7 +1019,7 @@ def emergency_stop():
         except (psutil.NoSuchProcess, psutil.AccessDenied):
             del running_games[game_id]
     
-    save_recent_action(f"Emergency stop - Stopped {len(stopped_games)} games")
+    save_recent_action(f"🛑 Emergency stop - Stopped {len(stopped_games)} games")
     save_statistics()
     
     return jsonify({
@@ -1108,7 +1108,7 @@ def update_tray_menu():
         menu_items = []
         
         # Show Window option
-        menu_items.append(pystray.MenuItem("Show Window", show_window))
+        menu_items.append(pystray.MenuItem("🖥️ Show Window", show_window))
         menu_items.append(pystray.Menu.SEPARATOR)
         
         # Running Games submenu
@@ -1117,10 +1117,13 @@ def update_tray_menu():
             for game_id in running_games:
                 if game_id in game_sessions and 'name' in game_sessions[game_id]:
                     game_name = game_sessions[game_id]['name']
-                    running_items.append(pystray.MenuItem(f"Stop {game_name}", 
-                        lambda item, id=game_id: stop_single_game_tray(icon, item, id)))
+                    # Create a function that captures game_id in its scope
+                    def create_stop_handler(gid):
+                        return lambda item: stop_single_game_tray(icon, item, gid)
+                    running_items.append(pystray.MenuItem(f"⏹️ Stop {game_name}", 
+                        create_stop_handler(game_id)))
             if running_items:
-                menu_items.append(pystray.MenuItem("Running Games", pystray.Menu(*running_items)))
+                menu_items.append(pystray.MenuItem("🎮 Running Games", pystray.Menu(*running_items)))
                 menu_items.append(pystray.Menu.SEPARATOR)
         
         # Add favorites submenu
@@ -1128,9 +1131,12 @@ def update_tray_menu():
         if favorites.get('favorites', []):
             favorites_items = []
             for favorite in favorites['favorites']:
-                favorites_items.append(pystray.MenuItem(favorite['name'], 
-                    lambda item, name=favorite['name']: run_preset_tray(icon, item, name)))
-            menu_items.append(pystray.MenuItem("Favorites", pystray.Menu(*favorites_items)))
+                # Create a function that captures preset_name in its scope
+                def create_favorite_handler(preset_name):
+                    return lambda item: run_preset_tray(icon, item, preset_name)
+                favorites_items.append(pystray.MenuItem(f"▶️ {favorite['name']}", 
+                    create_favorite_handler(favorite['name'])))
+            menu_items.append(pystray.MenuItem("⭐ Favorites", pystray.Menu(*favorites_items)))
         
         # Add Presets submenu
         presets = []
@@ -1138,17 +1144,20 @@ def update_tray_menu():
             for filename in os.listdir(PRESETS_DIR):
                 if filename.endswith('.json'):
                     preset_name = filename[:-5]
-                    presets.append(pystray.MenuItem(preset_name, 
-                        lambda item, name=preset_name: run_preset_tray(icon, item, name)))
+                    # Create a function that captures preset_name in its scope
+                    def create_preset_handler(name):
+                        return lambda item: run_preset_tray(icon, item, name)
+                    presets.append(pystray.MenuItem(f"▶️ {preset_name}", 
+                        create_preset_handler(preset_name)))
             if presets:
-                menu_items.append(pystray.MenuItem("Presets", pystray.Menu(*presets)))
+                menu_items.append(pystray.MenuItem("📋 Presets", pystray.Menu(*presets)))
         
         # Add remaining menu items
         menu_items.append(pystray.Menu.SEPARATOR)
-        menu_items.append(pystray.MenuItem("Launch Steam", launch_steam_tray, 
+        menu_items.append(pystray.MenuItem("🚀 Launch Steam", launch_steam_tray, 
                                          enabled=lambda item: not is_steam_running()))
         menu_items.append(pystray.Menu.SEPARATOR)
-        menu_items.append(pystray.MenuItem("Emergency Stop", emergency_stop_tray, 
+        menu_items.append(pystray.MenuItem("🛑 Emergency Stop", emergency_stop_tray, 
                                          enabled=lambda item: bool(running_games)))
         
         # Add Minimize/Maximize Toggle button
@@ -1171,12 +1180,12 @@ def update_tray_menu():
             
             # If any window is not minimized, show "Maximize All", otherwise show "Minimize All"
             all_minimized = all(windows) if windows else False
-            button_text = "Maximize All" if all_minimized else "Minimize All"
+            button_text = "🔼 Maximize All" if all_minimized else "🔽 Minimize All"
             menu_items.append(pystray.MenuItem(button_text, 
                 lambda item: toggle_minimize_all_tray(icon, item, not all_minimized)))
         
         menu_items.append(pystray.Menu.SEPARATOR)
-        menu_items.append(pystray.MenuItem("Exit", exit_app))
+        menu_items.append(pystray.MenuItem("❌ Exit", exit_app))
         
         # Create the menu tuple with only non-None items
         menu = pystray.Menu(*[item for item in menu_items if item is not None])
@@ -1186,6 +1195,7 @@ def update_tray_menu():
 
     except Exception as e:
         print(f"Error updating tray menu: {e}")
+        icon.notify(f"❌ Error updating tray menu: {str(e)}", "Error")
 
 def toggle_minimize_all_tray(icon, item, minimize=True):
     """Handle minimize/maximize all games from tray icon"""
@@ -1317,9 +1327,9 @@ def create_tray_icon():
         
         # Create initial menu with basic items
         initial_menu = (
-            pystray.MenuItem("Show", show_window),
+            pystray.MenuItem("🖥️ Show", show_window),
             pystray.Menu.SEPARATOR,
-            pystray.MenuItem("Exit", exit_app)
+            pystray.MenuItem("❌ Exit", exit_app)
         )
         
         # Create the icon
@@ -1343,7 +1353,7 @@ def on_closed():
             # Just minimize to tray
             if icon:
                 window.hide()
-                icon.notify("Steam Idle Manager is still running in the background", "Minimized to Tray")
+                icon.notify("💤 Steam Idle Manager is still running in the background", "Minimized to Tray")
             return False
         else:
             # Actually close the app
@@ -1360,7 +1370,7 @@ def handle_minimize_event():
         window.hide()
         # Show notification in system tray
         if icon:
-            icon.notify("Steam Idle Manager is still running in the background", "Minimized to Tray")
+            icon.notify("💤 Steam Idle Manager is still running in the background", "Minimized to Tray")
         return True  # Prevent default minimize
     return True  # Allow default minimize if setting is disabled
 
@@ -1385,7 +1395,7 @@ def restart_game(game_id):
         process = subprocess.Popen([IDLER_PATH, game_id], shell=True)
         running_games[game_id] = process.pid
         if icon:
-            icon.notify(f"Game {game_id} was restarted automatically", "Auto-Reconnect")
+            icon.notify(f"🔄 Game {game_id} was restarted automatically", "Auto-Reconnect")
     except Exception as e:
         print(f"Error restarting game {game_id}: {e}")
 
@@ -1410,7 +1420,7 @@ def check_game_goals():
                 if total_hours >= target_hours and not goal.get('notified', False):
                     if icon:
                         icon.notify(
-                            f"Game {session.get('name', game_id)} has reached the target playtime of {target_hours} hours!",
+                            f"🏆 Game {session.get('name', game_id)} has reached the target playtime of {target_hours} hours!",
                             "Goal Reached"
                         )
                     goal['notified'] = True
@@ -1733,10 +1743,10 @@ def emergency_stop_tray(icon, item):
         except (psutil.NoSuchProcess, psutil.AccessDenied):
             del running_games[game_id]
     
-    save_recent_action(f"Emergency stop from tray - Stopped {len(stopped_games)} games")
+    save_recent_action(f"🛑 Emergency stop from tray - Stopped {len(stopped_games)} games")
     save_statistics()
     if icon:
-        icon.notify(f"Stopped {len(stopped_games)} games", "Emergency Stop")
+        icon.notify(f"🛑 Stopped {len(stopped_games)} games", "Emergency Stop")
     update_tray_menu()
 
 def stop_single_game_tray(icon, item, game_id):
@@ -1757,29 +1767,41 @@ def stop_single_game_tray(icon, item, game_id):
             
             del running_games[game_id]
             save_statistics()
-            icon.notify(f"Stopped {game_sessions[game_id]['name']}", "Game Stopped")
-            save_recent_action(f"Stopped game {game_sessions[game_id]['name']} from tray")
+            
+            # Notify the UI to update through the window's evaluate_js method
+            if window:
+                window.evaluate_js("""
+                    runningGames.delete('%s');
+                    updateGamesList();
+                    loadPresets(true).then(presets => {
+                        updatePresetsList(presets);
+                        updateRunningGamesList();
+                    });
+                """ % game_id)
+            
+            icon.notify(f"⏹️ Stopped {game_sessions[game_id]['name']}", "Game Stopped")
+            save_recent_action(f"⏹️ Stopped game {game_sessions[game_id]['name']} from tray")
             update_tray_menu()
     except Exception as e:
-        icon.notify(f"Error stopping game: {str(e)}", "Error")
+        icon.notify(f"❌ Error stopping game: {str(e)}", "Error")
 
 def run_preset_tray(icon, item, preset_name):
     """Run a preset from the system tray menu"""
     # Check Steam status first
     steam_status = check_steam_status()
     if not steam_status['running']:
-        icon.notify("Steam is not running. Please start Steam first.", "Error")
+        icon.notify("🚫 Steam is not running. Please start Steam first.", "Error")
         return
     
     if not steam_status['online']:
-        icon.notify("Steam appears to be offline. Please ensure Steam is online.", "Error")
+        icon.notify("📡 Steam appears to be offline. Please ensure Steam is online.", "Error")
         return
     
     try:
         # Get the preset data from JSON file
         json_path = os.path.join(PRESETS_DIR, f"{preset_name}.json")
         if not os.path.exists(json_path):
-            icon.notify(f"Preset {preset_name} not found", "Error")
+            icon.notify(f"❌ Preset {preset_name} not found", "Error")
             return
             
         with open(json_path, 'r') as f:
@@ -1804,11 +1826,24 @@ def run_preset_tray(icon, item, preset_name):
                 game_sessions[game_id]['start_time'] = datetime.now()
         
         save_statistics()
-        icon.notify(f"Started {started_games} games from preset {preset_name}", "Preset Started")
-        save_recent_action(f"Started preset {preset_name} from tray")
+        
+        # Notify the UI to update through the window's evaluate_js method
+        if window:
+            window.evaluate_js("""
+                runningGames.clear();
+                %s.forEach(gameId => runningGames.add(gameId));
+                updateGamesList();
+                loadPresets(true).then(presets => {
+                    updatePresetsList(presets);
+                    updateRunningGamesList();
+                });
+            """ % json.dumps([str(game['id']) for game in games]))
+        
+        icon.notify(f"▶️ Started {started_games} games from preset {preset_name}", "Preset Started")
+        save_recent_action(f"▶️ Started preset {preset_name} from tray")
         update_tray_menu()
     except Exception as e:
-        icon.notify(f"Error running preset: {str(e)}", "Error")
+        icon.notify(f"❌ Error running preset: {str(e)}", "Error")
 
 def launch_steam_tray(icon, item):
     steam_path = get_steam_path()
@@ -1817,14 +1852,14 @@ def launch_steam_tray(icon, item):
             steam_exe = os.path.join(steam_path, "Steam.exe")
             if os.path.exists(steam_exe):
                 subprocess.Popen([steam_exe])
-                icon.notify("Steam launch initiated", "Steam")
-                save_recent_action("Launched Steam from tray")
+                icon.notify("🚀 Steam launch initiated", "Steam")
+                save_recent_action("🚀 Launched Steam from tray")
             else:
-                icon.notify("Steam executable not found", "Error")
+                icon.notify("❌ Steam executable not found", "Error")
         except Exception as e:
-            icon.notify(f"Error launching Steam: {str(e)}", "Error")
+            icon.notify(f"❌ Error launching Steam: {str(e)}", "Error")
     else:
-        icon.notify("Steam installation not found", "Error")
+        icon.notify("❌ Steam installation not found", "Error")
 
 def get_game_playtime(game_id):
     if game_id in game_sessions:
@@ -1873,12 +1908,12 @@ def get_steam_library():
     try:
         steam_id = get_steam_id()
         if not steam_id:
-            return {"error": "Steam ID not found. Please make sure you're logged into Steam."}
+            return {"error": "🚫 Steam ID not found. Please make sure you're logged into Steam."}
 
         # Get installed games from Steam installation
         steam_path = get_steam_path()
         if not steam_path:
-            return {"error": "Steam installation not found"}
+            return {"error": "❌ Steam installation not found"}
 
         # Get all games from Steam Web API
         all_games = {}
@@ -1959,7 +1994,7 @@ def import_from_library():
         preset_name = data.get('presetName')
 
         if not game_ids or not preset_name:
-            return jsonify({"error": "Missing game IDs or preset name"}), 400
+            return jsonify({"error": "🚫 Missing game IDs or preset name"}), 400
 
         # Get game info for each selected game
         games = []
@@ -1993,7 +2028,7 @@ def suspend_game():
     game_id = str(data.get('gameId'))
     
     if game_id not in running_games:
-        return jsonify({"status": "error", "message": "Game is not running"}), 400
+        return jsonify({"status": "error", "message": "🚫 Game is not running"}), 400
     
     try:
         # Get the process
@@ -2007,7 +2042,7 @@ def suspend_game():
     except psutil.NoSuchProcess:
         # If process doesn't exist, remove it from running games
         running_games.pop(game_id, None)
-        return jsonify({"status": "error", "message": "Game process not found"}), 404
+        return jsonify({"status": "error", "message": "❌ Game process not found"}), 404
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
@@ -2018,7 +2053,7 @@ def resume_game():
     game_id = str(data.get('gameId'))
     
     if game_id not in running_games:
-        return jsonify({"status": "error", "message": "Game is not running"}), 400
+        return jsonify({"status": "error", "message": "🚫 Game is not running"}), 400
     
     try:
         # Get the process
@@ -2032,7 +2067,7 @@ def resume_game():
     except psutil.NoSuchProcess:
         # If process doesn't exist, remove it from running games
         running_games.pop(game_id, None)
-        return jsonify({"status": "error", "message": "Game process not found"}), 404
+        return jsonify({"status": "error", "message": "❌ Game process not found"}), 404
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
@@ -2051,12 +2086,12 @@ def show_no_internet_error():
     def retry_connection():
         if check_internet_connection():
             # Show success message before closing
-            message_label.config(text="Connection detected!\nStarting the program...", fg='#00FF00')
+            message_label.config(text="📶 Connection detected!\nStarting the program...", fg='#00FF00')
             dialog.after(1500, dialog.destroy)  # Close after 1.5 seconds
             return True
         else:
             # Show the notification label with animation
-            notification_label.config(text="There's no connection")
+            notification_label.config(text="🚫 There's no connection")
             notification_label.pack(pady=(0, 10))
             dialog.after(100, lambda: notification_label.config(fg='#FF4444'))  # Fade in red color
             dialog.after(2000, lambda: notification_label.pack_forget())  # Hide after 2 seconds
@@ -2099,7 +2134,7 @@ def show_no_internet_error():
     
     # Error message
     message_label = tk.Label(main_frame, 
-                           text="No internet connection detected!\n\nPlease check your connection and try again.",
+                           text="📵 No internet connection detected!\n\nPlease check your connection and try again.",
                            fg='#CCCCCC',
                            bg='#1E1E1E',
                            font=('Segoe UI', 9),
@@ -2119,7 +2154,7 @@ def show_no_internet_error():
     
     # Button style
     retry_btn = tk.Button(button_frame,
-                         text="Retry",
+                         text="🔄 Retry",
                          command=retry_connection,
                          bg='#333333',
                          fg='#FFFFFF',
@@ -2131,7 +2166,7 @@ def show_no_internet_error():
     retry_btn.pack(side='left', padx=5)
     
     ok_btn = tk.Button(button_frame,
-                      text="OK",
+                      text="🚫 OK",
                       command=close_app,
                       bg='#333333',
                       fg='#FFFFFF',
@@ -2174,7 +2209,7 @@ def show_no_internet_error():
     def auto_check_connection():
         if check_internet_connection():
             # Show success message and close
-            message_label.config(text="Connection detected!\nStarting the program...", fg='#00FF00')
+            message_label.config(text="📶 Connection detected!\nStarting the program...", fg='#00FF00')
             dialog.after(1500, dialog.destroy)
         else:
             dialog.after(5000, auto_check_connection)  # Check again in 5 seconds

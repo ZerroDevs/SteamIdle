@@ -261,8 +261,7 @@ function updateGamesList() {
                         <i class="fas fa-${isRunning ? 'stop' : 'play'} mr-1"></i>${isRunning ? 'Stop' : 'Start'}
                     </button>
                     <button onclick="removeGame('${game.id}')" 
-                            class="bg-red-500 hover:bg-red-600 px-4 py-2 rounded text-sm"
-                            ${isRunning ? 'disabled' : ''}>
+                            class="bg-red-500 hover:bg-red-600 px-4 py-2 rounded text-sm">
                         <i class="fas fa-trash"></i>
                     </button>
                 </div>
@@ -3788,4 +3787,22 @@ async function refreshPresetsCache() {
         console.error('Error refreshing presets cache:', error);
         return null;
     }
+}
+
+function clearAllGames() {
+    if (currentGames.length === 0) {
+        showNotification('No games to clear', 'info');
+        return;
+    }
+
+    // Check if any games are running
+    const runningGameCount = currentGames.filter(game => runningGames.has(game.id.toString())).length;
+    if (runningGameCount > 0) {
+        showNotification('Please stop all running games before clearing', 'error');
+        return;
+    }
+
+    currentGames = [];
+    updateGamesList();
+    showNotification('All games cleared', 'success');
 }

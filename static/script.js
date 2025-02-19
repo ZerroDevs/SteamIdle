@@ -890,26 +890,40 @@ async function stopPreset(presetName) {
 }
 
 function showNotification(message, type = 'info') {
-    // Create notification element
     const notification = document.createElement('div');
-    notification.className = `fixed bottom-4 right-4 px-6 py-3 rounded-lg text-white text-sm font-medium shadow-lg transform transition-all duration-300 translate-y-0 opacity-100 ${
-        type === 'success' ? 'bg-green-500' : 
-        type === 'error' ? 'bg-red-500' : 
-        'bg-blue-500'
-    }`;
-    notification.textContent = message;
-
-    // Add to document
+    notification.className = `notification ${type} fixed bottom-4 right-4 p-4 rounded-lg flex items-center gap-3 z-50`;
+    
+    // Add appropriate icon based on notification type
+    let icon;
+    switch (type) {
+        case 'success':
+            icon = 'fa-check-circle';
+            break;
+        case 'error':
+            icon = 'fa-exclamation-circle';
+            break;
+        case 'warning':
+            icon = 'fa-exclamation-triangle';
+            break;
+        default:
+            icon = 'fa-info-circle';
+    }
+    
+    notification.innerHTML = `
+        <i class="fas ${icon}"></i>
+        <span class="flex-1">${message}</span>
+        <button onclick="this.parentElement.remove()" class="text-gray-400 hover:text-gray-300 transition-colors">
+            <i class="fas fa-times"></i>
+        </button>
+    `;
+    
     document.body.appendChild(notification);
-
-    // Animate out and remove after 3 seconds
+    
+    // Remove notification after 5 seconds
     setTimeout(() => {
-        notification.style.transform = 'translateY(20px)';
-        notification.style.opacity = '0';
-        setTimeout(() => {
-            notification.remove();
-        }, 300);
-    }, 3000);
+        notification.classList.add('hiding');
+        setTimeout(() => notification.remove(), 300);
+    }, 5000);
 }
 
 async function updatePlaytimes() {

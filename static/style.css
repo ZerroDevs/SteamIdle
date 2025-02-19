@@ -245,6 +245,63 @@ button:active {
     to { transform: translateY(0); opacity: 1; }
 }
 
+@keyframes slideOut {
+    from { transform: translateY(0); opacity: 1; }
+    to { transform: translateY(20px); opacity: 0; }
+}
+
+.notification {
+    animation: slideIn 0.3s ease-out;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    border-left: 4px solid transparent;
+    backdrop-filter: blur(8px);
+    max-width: 400px;
+}
+
+.notification.info {
+    background: rgba(59, 130, 246, 0.1);
+    border-left-color: #3b82f6;
+}
+
+.notification.success {
+    background: rgba(16, 185, 129, 0.1);
+    border-left-color: #10b981;
+}
+
+.notification.error {
+    background: rgba(239, 68, 68, 0.1);
+    border-left-color: #ef4444;
+}
+
+.notification.warning {
+    background: rgba(245, 158, 11, 0.1);
+    border-left-color: #f59e0b;
+}
+
+.notification i {
+    font-size: 1.25rem;
+}
+
+.notification.info i {
+    color: #3b82f6;
+}
+
+.notification.success i {
+    color: #10b981;
+}
+
+.notification.error i {
+    color: #ef4444;
+}
+
+.notification.warning i {
+    color: #f59e0b;
+}
+
+.notification.hiding {
+    animation: slideOut 0.3s ease-in forwards;
+}
+
 .fixed {
     z-index: 1000;
 }

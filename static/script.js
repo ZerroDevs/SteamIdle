@@ -976,6 +976,64 @@ function createPresetLoadingOverlay() {
     return presetLoadingOverlay;
 }
 
+// Add this function near the top with other UI-related functions
+function showLoadingOverlay(message) {
+    const overlay = document.createElement('div');
+    overlay.id = 'loadingOverlay';
+    overlay.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+    overlay.innerHTML = `
+        <div class="bg-gray-800 rounded-lg p-8 flex flex-col items-center max-w-md w-full mx-4">
+            <div class="w-16 h-16 mb-4">
+                <svg class="animate-spin w-full h-full text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+            </div>
+            <div class="text-center">
+                <p class="text-xl font-semibold text-white mb-2">${message}</p>
+                <p class="text-gray-400 text-sm loading-dots">Starting games<span class="dot-1">.</span><span class="dot-2">.</span><span class="dot-3">.</span></p>
+            </div>
+        </div>
+    `;
+
+    // Add the loading dots animation style
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes loadingDots {
+            0%, 20% {
+                opacity: 0;
+            }
+            50% {
+                opacity: 1;
+            }
+            100% {
+                opacity: 0;
+            }
+        }
+        .loading-dots .dot-1 {
+            animation: loadingDots 1.5s infinite;
+            animation-delay: 0s;
+        }
+        .loading-dots .dot-2 {
+            animation: loadingDots 1.5s infinite;
+            animation-delay: 0.5s;
+        }
+        .loading-dots .dot-3 {
+            animation: loadingDots 1.5s infinite;
+            animation-delay: 1s;
+        }
+    `;
+    document.head.appendChild(style);
+    document.body.appendChild(overlay);
+}
+
+function hideLoadingOverlay() {
+    const overlay = document.getElementById('loadingOverlay');
+    if (overlay) {
+        overlay.remove();
+    }
+}
+
 // Update the runPreset function
 async function runPreset(presetName) {
     try {
@@ -1003,6 +1061,9 @@ async function runPreset(presetName) {
             showNotification('Preset not found', 'error');
             return;
         }
+
+        // Show loading overlay
+        showLoadingOverlay(`Starting games in preset "${presetName}"...`);
         
         const response = await fetch('/api/run-preset', {
             method: 'POST',
@@ -1013,6 +1074,9 @@ async function runPreset(presetName) {
         });
 
         const data = await response.json();
+        
+        // Hide loading overlay
+        hideLoadingOverlay();
         
         if (!response.ok) {
             showNotification(data.message || 'Failed to run preset', 'error');
@@ -1041,11 +1105,15 @@ async function runPreset(presetName) {
             updateGamesList();
             updateRunningGamesList();
             
-            // Show success message
-            const message = `Started ${data.gameIds.length} games from preset "${presetName}"`;
+            // Show success message with game names
+            const startedGames = preset.games.filter(game => data.gameIds.includes(game.id.toString()));
+            const gameNames = startedGames.map(game => game.name).join(', ');
+            const message = `Started games in preset "${presetName}": ${gameNames}`;
             showNotification(message, 'success');
         }
     } catch (error) {
+        // Hide loading overlay in case of error
+        hideLoadingOverlay();
         console.error('Error running preset:', error);
         if (!error.handled) {
             showNotification('Failed to run preset', 'error');

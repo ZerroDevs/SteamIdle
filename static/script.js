@@ -217,25 +217,42 @@ function removeGame(gameId) {
 
 function updateGamesList() {
     const gamesList = document.getElementById('gamesList');
+    if (!gamesList) return;
+    
     gamesList.innerHTML = '';
     
-    if (currentGames.length === 0) {
-        gamesList.innerHTML = `
-            <div class="col-span-full text-center text-gray-400 py-8">
-                <i class="fas fa-gamepad text-4xl mb-4"></i>
-                <p class="text-lg">No games added yet</p>
-                <p class="text-sm mt-2">Add games using the search box above or browse your Steam library</p>
-            </div>
-        `;
-        return;
-    }
-
     currentGames.forEach(game => {
         const isRunning = runningGames.has(game.id.toString());
-        const isFavorite = gameFavorites.some(g => g.id === game.id);
+        const isFavorite = gameFavorites.some(fav => fav.id === game.id);
         
         const gameCard = document.createElement('div');
         gameCard.className = 'game-card bg-gray-800 rounded-lg overflow-hidden relative';
+        gameCard.setAttribute('data-game-id', game.id);
+        
+        // Get playtime for running games
+        if (isRunning) {
+            fetch('/api/game-session-time', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ gameId: game.id })
+            })
+            .then(response => response.json())
+            .then(data => {
+                const playtimeElement = gameCard.querySelector('.playtime-info');
+                if (playtimeElement) {
+                    playtimeElement.innerHTML = `
+                        <div class="text-green-400">Current Session: ${data.current_session}</div>
+                        <div class="text-blue-400">Total Time: ${data.total_time}</div>
+                    `;
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching playtime:', error);
+            });
+        }
+        
         gameCard.innerHTML = `
             <div class="relative">
                 <img src="${game.image || 'https://via.placeholder.com/460x215/374151/FFFFFF?text=No+Image'}" 
@@ -253,7 +270,7 @@ function updateGamesList() {
                 </div>
                 <p class="text-sm text-gray-400 mb-4">ID: ${game.id}</p>
                 <div class="playtime-info mb-4">
-                    ${isRunning ? '<div class="text-gray-400">Loading playtime...</div>' : ''}
+                    ${isRunning ? '<div class="text-gray-400">Updating playtime...</div>' : ''}
                 </div>
                 <div class="flex gap-2">
                     <button onclick="${isRunning ? 'stopGame' : 'startGame'}('${game.id}')" 
@@ -268,13 +285,38 @@ function updateGamesList() {
             </div>
         `;
         
-        if (isRunning) {
-            const removeButton = gameCard.querySelector('button[onclick^="removeGame"]');
-            removeButton.disabled = true;
-            removeButton.classList.add('opacity-50', 'cursor-not-allowed');
-        }
-        
         gamesList.appendChild(gameCard);
+        
+        // Start periodic updates for running games
+        if (isRunning) {
+            const updateInterval = setInterval(() => {
+                if (!runningGames.has(game.id.toString())) {
+                    clearInterval(updateInterval);
+                    return;
+                }
+                
+                fetch('/api/game-session-time', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ gameId: game.id })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    const playtimeElement = gameCard.querySelector('.playtime-info');
+                    if (playtimeElement) {
+                        playtimeElement.innerHTML = `
+                            <div class="text-green-400">Current Session: ${data.current_session}</div>
+                            <div class="text-blue-400">Total Time: ${data.total_time}</div>
+                        `;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error updating playtime:', error);
+                });
+            }, 1000);
+        }
     });
 }
 
@@ -3820,3 +3862,41 @@ function clearAllGames() {
     updateGamesList();
     showNotification('All games cleared', 'success');
 }
+
+// ... existing code ...
+
+// Function to update playtimes for running games
+async function updateGamePlaytimes() {
+    for (const gameId of runningGames) {
+        try {
+            const response = await fetch('/api/game-session-time', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ gameId })
+            });
+
+            const data = await response.json();
+            
+            // Update game card playtime
+            const gameCard = document.querySelector(`[data-game-id="${gameId}"]`);
+            if (gameCard) {
+                const playtimeElement = gameCard.querySelector('.playtime-info');
+                if (playtimeElement) {
+                    playtimeElement.innerHTML = `
+                        <div class="text-green-400">Current Session: ${data.current_session}</div>
+                        <div class="text-blue-400">Total Time: ${data.total_time}</div>
+                    `;
+                }
+            }
+        } catch (error) {
+            console.error('Error updating playtime:', error);
+        }
+    }
+}
+
+// Start updating playtimes periodically
+setInterval(updateGamePlaytimes, 1000);
+
+// ... existing code ...

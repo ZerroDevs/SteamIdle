@@ -147,16 +147,103 @@
         <div id="gamesContent" class="tab-content">
             <!-- Add Game Section -->
             <div class="bg-gray-800 rounded-lg p-6 mb-8">
-                <h2 class="text-2xl font-semibold mb-4">Add Game</h2>
+                <h2 class="text-2xl font-semibold mb-4 flex justify-between items-center">
+                    <span>Add Game</span>
+                    <div class="flex gap-4">
+                        <button onclick="showGameHistory()" 
+                                class="w-10 h-10 rounded-full bg-gray-700 hover:bg-gray-600 flex items-center justify-center text-gray-400 hover:text-white transition-colors"
+                                title="Game History">
+                            <i class="fas fa-history text-xl"></i>
+                        </button>
+                        <button onclick="showGameFavorites()" 
+                                class="w-10 h-10 rounded-full bg-gray-700 hover:bg-gray-600 flex items-center justify-center text-gray-400 hover:text-white transition-colors"
+                                title="Favorite Games">
+                            <i class="fas fa-star text-xl"></i>
+                        </button>
+                    </div>
+                </h2>
                 <div class="flex gap-4">
-                    <input type="text" id="gameId" placeholder="Enter Steam Game ID or Name" 
-                           class="flex-1 bg-gray-700 rounded px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <div class="flex-1 relative">
+                        <input type="text" id="gameId" placeholder="Enter Steam Game ID or Name" 
+                               class="w-full bg-gray-700 rounded px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <!-- Search Results Dropdown -->
+                        <div id="gameSearchResults" class="absolute z-10 w-full mt-1 bg-gray-800 rounded-lg shadow-lg hidden max-h-96 overflow-y-auto">
+                            <!-- Search results will be added here dynamically -->
+                        </div>
+                    </div>
                     <button onclick="fetchGame()" 
                             class="bg-blue-500 hover:bg-blue-600 px-6 py-2 rounded font-semibold transition-colors">
                         Add Game
                     </button>
                 </div>
             </div>
+
+            <!-- Game History Modal -->
+            <div id="gameHistoryModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+                <div class="bg-gray-800 rounded-lg p-6 w-[800px] max-h-[90vh] flex flex-col">
+                    <div class="flex justify-between items-center mb-6">
+                        <h3 class="text-2xl font-semibold">Game History</h3>
+                        <button onclick="closeGameHistory()" class="text-gray-400 hover:text-white transition-colors">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div id="gameHistoryList" class="flex-1 overflow-y-auto space-y-4 custom-scrollbar">
+                        <!-- Game history will be added here dynamically -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Game Favorites Modal -->
+            <div id="gameFavoritesModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+                <div class="bg-gray-800 rounded-lg p-6 w-[800px] max-h-[90vh] flex flex-col">
+                    <div class="flex justify-between items-center mb-6">
+                        <h3 class="text-2xl font-semibold">Favorite Games</h3>
+                        <button onclick="closeGameFavorites()" class="text-gray-400 hover:text-white transition-colors">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div id="gameFavoritesList" class="flex-1 overflow-y-auto space-y-4 custom-scrollbar">
+                        <!-- Favorite games will be added here dynamically -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Game Card Template -->
+            <template id="gameCardTemplate">
+                <div class="game-card bg-gray-800 rounded-lg overflow-hidden relative">
+                    <img src="" alt="" class="w-full h-48 object-cover">
+                    <button class="favorite-button absolute top-2 right-2 text-gray-500 hover:text-yellow-400 transition-colors">
+                        <i class="fas fa-star"></i>
+                    </button>
+                    <div class="p-4">
+                        <div class="flex justify-between items-start mb-2">
+                            <h3 class="text-lg font-semibold"></h3>
+                            <span class="status-badge hidden px-2 py-1 rounded text-xs"></span>
+                        </div>
+                        <p class="game-id text-sm text-gray-400 mb-4"></p>
+                        <div class="playtime-info mb-4"></div>
+                        <div class="flex gap-2">
+                            <button class="game-action-button flex-1 px-4 py-2 rounded text-sm font-medium">
+                                <i class="fas"></i><span></span>
+                            </button>
+                            <button class="remove-button bg-red-500 hover:bg-red-600 px-4 py-2 rounded text-sm">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </template>
+
+            <!-- Game Search Result Template -->
+            <template id="gameSearchResultTemplate">
+                <div class="game-search-result flex items-center gap-4 p-3 hover:bg-gray-700 cursor-pointer">
+                    <img src="" alt="" class="w-8 h-8 rounded">
+                    <div>
+                        <div class="font-medium"></div>
+                        <div class="text-gray-400 text-sm"></div>
+                    </div>
+                </div>
+            </template>
 
             <!-- Current Games Section -->
             <div class="bg-gray-800 rounded-lg p-6">

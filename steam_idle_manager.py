@@ -57,6 +57,10 @@ SHORTCUTS_FILE = os.path.join(APPDATA_PATH, "shortcuts.json")
 # Add new constants
 RECONNECT_INTERVAL = 300  # 5 minutes in seconds
 
+# Add new constants after existing constants
+HISTORY_FILE = os.path.join(APPDATA_PATH, "game_history.json")
+GAME_FAVORITES_FILE = os.path.join(APPDATA_PATH, "game_favorites.json")
+
 # Create necessary directories if they don't exist
 if not os.path.exists(APPDATA_PATH):
     os.makedirs(APPDATA_PATH)
@@ -2179,6 +2183,112 @@ def show_no_internet_error():
     auto_check_connection()
     
     dialog.mainloop()
+
+def load_game_history():
+    """Load game history from file"""
+    if os.path.exists(HISTORY_FILE):
+        try:
+            with open(HISTORY_FILE, 'r') as f:
+                return json.load(f)
+        except:
+            return {"history": []}
+    return {"history": []}
+
+def save_game_history(history):
+    """Save game history to file"""
+    try:
+        with open(HISTORY_FILE, 'w') as f:
+            json.dump(history, f)
+        return True
+    except Exception as e:
+        print(f"Error saving game history: {e}")
+        return False
+
+@app.route('/api/game-history', methods=['GET', 'POST', 'DELETE'])
+def manage_game_history():
+    if request.method == 'GET':
+        return jsonify(load_game_history())
+    
+    elif request.method == 'POST':
+        data = request.get_json()
+        history = load_game_history()
+        
+        # Remove if exists
+        history['history'] = [g for g in history['history'] if g['id'] != data['id']]
+        
+        # Add to beginning
+        history['history'].insert(0, {
+            'id': data['id'],
+            'name': data['name'],
+            'image': data['image'],
+            'addedAt': datetime.now().isoformat()
+        })
+        
+        # Keep only last 50 games
+        history['history'] = history['history'][:50]
+        
+        save_game_history(history)
+        return jsonify(history)
+    
+    elif request.method == 'DELETE':
+        data = request.get_json()
+        history = load_game_history()
+        
+        history['history'] = [g for g in history['history'] if g['id'] != data['gameId']]
+        save_game_history(history)
+        
+        return jsonify(history)
+
+def load_game_favorites():
+    if os.path.exists(GAME_FAVORITES_FILE):
+        try:
+            with open(GAME_FAVORITES_FILE, 'r') as f:
+                return json.load(f)
+        except:
+            return {"favorites": []}
+    return {"favorites": []}
+
+def save_game_favorites(favorites):
+    with open(GAME_FAVORITES_FILE, 'w') as f:
+        json.dump(favorites, f)
+
+@app.route('/api/game-favorites', methods=['GET', 'POST', 'DELETE'])
+def manage_game_favorites():
+    if request.method == 'GET':
+        return jsonify(load_game_favorites())
+    
+    elif request.method == 'POST':
+        data = request.get_json()
+        favorites = load_game_favorites()
+        
+        # Check if game is already in favorites
+        existing = next((g for g in favorites['favorites'] if g['id'] == data['id']), None)
+        
+        if existing:
+            # Remove from favorites
+            favorites['favorites'] = [g for g in favorites['favorites'] if g['id'] != data['id']]
+            message = f"Removed {data['name']} from favorites"
+        else:
+            # Add to favorites
+            favorites['favorites'].append({
+                'id': data['id'],
+                'name': data['name'],
+                'image': data['image'],
+                'addedAt': datetime.now().isoformat()
+            })
+            message = f"Added {data['name']} to favorites"
+        
+        save_game_favorites(favorites)
+        return jsonify({"favorites": favorites['favorites'], "message": message})
+    
+    elif request.method == 'DELETE':
+        data = request.get_json()
+        favorites = load_game_favorites()
+        
+        favorites['favorites'] = [g for g in favorites['favorites'] if g['id'] != data['gameId']]
+        save_game_favorites(favorites)
+        
+        return jsonify({"favorites": favorites['favorites']})
 
 if __name__ == '__main__':
     # Check for internet connection before starting the app

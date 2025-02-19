@@ -167,7 +167,27 @@ function addGameToList(gameInfo) {
     }
 
     currentGames.push(gameInfo);
-    updateGamesList();
+    
+    // Add to history using API
+    fetch('/api/game-history', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            id: gameInfo.id,
+            name: gameInfo.name,
+            image: gameInfo.image
+        })
+    }).then(response => response.json())
+        .then(data => {
+            gameHistory = data.history;
+            updateGamesList();
+        })
+        .catch(error => {
+            console.error('Error updating history:', error);
+            showNotification('Failed to update history', 'error');
+        });
 }
 
 function removeGame(gameId) {
@@ -178,36 +198,63 @@ function removeGame(gameId) {
 function updateGamesList() {
     const gamesList = document.getElementById('gamesList');
     gamesList.innerHTML = '';
+    
+    if (currentGames.length === 0) {
+        gamesList.innerHTML = `
+            <div class="col-span-full text-center text-gray-400 py-8">
+                <i class="fas fa-gamepad text-4xl mb-4"></i>
+                <p class="text-lg">No games added yet</p>
+                <p class="text-sm mt-2">Add games using the search box above or browse your Steam library</p>
+            </div>
+        `;
+        return;
+    }
 
     currentGames.forEach(game => {
-        const isRunning = runningGames.has(game.id);
+        const isRunning = runningGames.has(game.id.toString());
+        const isFavorite = gameFavorites.some(g => g.id === game.id);
+        
         const gameCard = document.createElement('div');
-        gameCard.className = 'game-card bg-gray-800 rounded-lg p-4 relative';
-        gameCard.setAttribute('data-game-id', game.id);
+        gameCard.className = 'game-card bg-gray-800 rounded-lg overflow-hidden relative';
         gameCard.innerHTML = `
             <div class="relative">
                 <img src="${game.image || 'https://via.placeholder.com/460x215/374151/FFFFFF?text=No+Image'}" 
                      alt="${game.name}" 
-                     class="w-full h-40 object-cover rounded mb-4">
-                ${isRunning ? '<div class="absolute top-2 left-2 bg-green-500 text-white px-2 py-1 rounded text-xs">Running</div>' : ''}
-            </div>
-            <h3 class="text-lg font-semibold mb-2">${game.name}</h3>
-            <p class="text-gray-400 mb-2">ID: ${game.id}</p>
-            <div class="playtime-info mb-4 text-sm">
-                ${isRunning ? '<div class="text-gray-400">Loading playtime...</div>' : ''}
-            </div>
-            <div class="flex gap-2 mt-2">
-                <button onclick="${isRunning ? 'stopGame' : 'startGame'}('${game.id}')" 
-                        class="flex-1 bg-${isRunning ? 'red' : 'green'}-500 hover:bg-${isRunning ? 'red' : 'green'}-600 px-4 py-2 rounded text-sm font-medium">
-                    <i class="fas fa-${isRunning ? 'stop' : 'play'} mr-1"></i>${isRunning ? 'Stop' : 'Start'}
+                     class="w-full h-48 object-cover">
+                <button onclick="toggleGameFavorite('${game.id}')" 
+                        class="favorite-button absolute top-2 right-2">
+                    <i class="fas fa-star text-xl ${isFavorite ? 'text-yellow-400 glow-yellow' : 'text-gray-500 hover:text-yellow-400'}"></i>
                 </button>
-                <button onclick="removeGame('${game.id}')" 
-                        class="flex-1 bg-gray-500 hover:bg-gray-600 px-4 py-2 rounded text-sm font-medium"
-                        ${isRunning ? 'disabled' : ''}>
-                    <i class="fas fa-times mr-1"></i>Remove
-                </button>
+                ${isRunning ? '<span class="absolute top-2 left-2 bg-green-500 text-white px-2 py-1 rounded text-xs">Running</span>' : ''}
+            </div>
+            <div class="p-4">
+                <div class="flex justify-between items-start mb-2">
+                    <h3 class="text-lg font-semibold">${game.name}</h3>
+                </div>
+                <p class="text-sm text-gray-400 mb-4">ID: ${game.id}</p>
+                <div class="playtime-info mb-4">
+                    ${isRunning ? '<div class="text-gray-400">Loading playtime...</div>' : ''}
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="${isRunning ? 'stopGame' : 'startGame'}('${game.id}')" 
+                            class="flex-1 bg-${isRunning ? 'red' : 'green'}-500 hover:bg-${isRunning ? 'red' : 'green'}-600 px-4 py-2 rounded text-sm font-medium">
+                        <i class="fas fa-${isRunning ? 'stop' : 'play'} mr-1"></i>${isRunning ? 'Stop' : 'Start'}
+                    </button>
+                    <button onclick="removeGame('${game.id}')" 
+                            class="bg-red-500 hover:bg-red-600 px-4 py-2 rounded text-sm"
+                            ${isRunning ? 'disabled' : ''}>
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
             </div>
         `;
+        
+        if (isRunning) {
+            const removeButton = gameCard.querySelector('button[onclick^="removeGame"]');
+            removeButton.disabled = true;
+            removeButton.classList.add('opacity-50', 'cursor-not-allowed');
+        }
+        
         gamesList.appendChild(gameCard);
     });
 }
@@ -332,27 +379,40 @@ async function updatePresetsList(presets) {
 
     presets.forEach(preset => {
         const presetCard = document.createElement('div');
-        presetCard.className = 'preset-card bg-gray-800 rounded-lg p-4 cursor-pointer transition-all duration-200';
-        presetCard.setAttribute('data-preset-name', preset.name);
-        
-        // Add selection border if preset is selected
-        if (selectedPresets.has(preset.name)) {
-            presetCard.classList.add('border-blue-500');
-        }
+        presetCard.className = 'preset-card bg-gray-800 rounded-lg p-4';
         
         // Check if all games in the preset are running
         const isPresetRunning = preset.games.every(game => runningGames.has(game.id.toString()));
         
         // Check if preset is favorited
         const isFavorited = favoriteNames.includes(preset.name);
-
-        // Add click handler for selection
-        presetCard.addEventListener('click', (e) => {
-            // Don't toggle selection if clicking a button
-            if (!e.target.closest('button')) {
-                togglePresetSelection(preset.name);
-            }
-        });
+        
+        // Create a hidden games list that will be shown when clicking Show Info
+        const gamesList = preset.games.map(game => {
+            const isGameRunning = runningGames.has(game.id.toString());
+            return `<li class="flex items-center gap-2 text-gray-400 py-3 border-b border-gray-700 last:border-0" data-preset-game-id="${game.id}">
+                <img src="${game.image}" alt="${game.name}" class="w-8 h-8 rounded">
+                <div class="flex-1">
+                    <span class="block">${game.name}</span>
+                    <div class="flex items-center gap-2">
+                        <span class="text-sm text-gray-500">ID: ${game.id}</span>
+                        ${isGameRunning ? '<span class="text-green-500 text-xs">● Running</span>' : ''}
+                    </div>
+                    <div class="preset-game-playtime text-xs mt-1 space-y-1">
+                        ${isGameRunning ? 
+                            `<div class="text-green-400">Loading playtime...</div>` : 
+                            `<div class="text-gray-500">Not running</div>`
+                        }
+                    </div>
+                </div>
+                <div class="flex flex-col gap-2 items-end">
+                    <button onclick="${isGameRunning ? 'stopGame' : 'startGame'}('${game.id}')" 
+                            class="bg-${isGameRunning ? 'red' : 'green'}-500 hover:bg-${isGameRunning ? 'red' : 'green'}-600 px-3 py-1 rounded text-sm">
+                        <i class="fas fa-${isGameRunning ? 'stop' : 'play'} mr-1"></i>${isGameRunning ? 'Stop' : 'Start'}
+                    </button>
+                </div>
+            </li>`;
+        }).join('');
 
         presetCard.innerHTML = `
             <div class="flex justify-between items-center mb-4">
@@ -397,31 +457,7 @@ async function updatePresetsList(presets) {
                     </div>
                 </div>
                 <ul class="space-y-2 max-h-48 overflow-y-auto">
-                    ${preset.games.map(game => {
-                        const isGameRunning = runningGames.has(game.id.toString());
-                        return `<li class="flex items-center gap-2 text-gray-400 py-3 border-b border-gray-700 last:border-0" data-preset-game-id="${game.id}">
-                            <img src="${game.image}" alt="${game.name}" class="w-8 h-8 rounded">
-                            <div class="flex-1">
-                                <span class="block">${game.name}</span>
-                                <div class="flex items-center gap-2">
-                                    <span class="text-sm text-gray-500">ID: ${game.id}</span>
-                                    ${isGameRunning ? '<span class="text-green-500 text-xs">● Running</span>' : ''}
-                                </div>
-                                <div class="preset-game-playtime text-xs mt-1 space-y-1">
-                                    ${isGameRunning ? 
-                                        `<div class="text-green-400">Loading playtime...</div>` : 
-                                        `<div class="text-gray-500">Not running</div>`
-                                    }
-                                </div>
-                            </div>
-                            <div class="flex flex-col gap-2 items-end">
-                                <button onclick="${isGameRunning ? 'stopGame' : 'startGame'}('${game.id}')" 
-                                        class="bg-${isGameRunning ? 'red' : 'green'}-500 hover:bg-${isGameRunning ? 'red' : 'green'}-600 px-3 py-1 rounded text-sm">
-                                    <i class="fas fa-${isGameRunning ? 'stop' : 'play'} mr-1"></i>${isGameRunning ? 'Stop' : 'Start'}
-                                </button>
-                            </div>
-                        </li>`;
-                    }).join('')}
+                    ${gamesList}
                 </ul>
             </div>
         `;
@@ -2701,6 +2737,15 @@ function showRunningGames() {
     const modal = document.getElementById('runningGamesModal');
     modal.classList.remove('hidden');
     modal.classList.add('flex');
+    
+    // Add click event listener to close modal when clicking outside
+    modal.addEventListener('click', function(e) {
+        // Check if the click was on the modal background (not the content)
+        if (e.target === modal) {
+            closeRunningGames();
+        }
+    });
+    
     updateRunningGamesList();
 }
 
@@ -3251,183 +3296,368 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // ... existing code ...
 
-// Global preset management functions
-async function runAllFavorites() {
+// Add these variables at the top of the file
+let gameHistory = [];
+let gameFavorites = [];
+let gameSearchTimeout = null;
+
+// Initialize history and favorites when the page loads
+document.addEventListener('DOMContentLoaded', async function() {
+    // Initialize history and favorites from backend
     try {
-        const favoritesResponse = await fetch('/api/favorites');
-        const favoritesData = await favoritesResponse.json();
-        const favorites = favoritesData.favorites;
-
-        if (favorites.length === 0) {
-            showNotification('No favorite presets found', 'info');
-            return;
+        const [historyResponse, favoritesResponse] = await Promise.all([
+            fetch('/api/game-history'),
+            fetch('/api/game-favorites')
+        ]);
+        
+        if (historyResponse.ok) {
+            const historyData = await historyResponse.json();
+            gameHistory = historyData.history || [];
         }
-
-        // Show loading overlay
-        showPresetLoadingOverlay('Running all favorite presets...');
-
-        // Run each favorite preset
-        for (const favorite of favorites) {
-            await runPreset(favorite.name);
-            await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second between presets
+        
+        if (favoritesResponse.ok) {
+            const favoritesData = await favoritesResponse.json();
+            gameFavorites = favoritesData.favorites || [];
         }
-
-        hidePresetLoadingOverlay();
-        showNotification(`Started all favorite presets (${favorites.length} presets)`, 'success');
     } catch (error) {
-        console.error('Error running all favorites:', error);
-        hidePresetLoadingOverlay();
-        showNotification('Failed to run all favorite presets', 'error');
+        console.error('Error loading history/favorites:', error);
+        showNotification('Failed to load history and favorites', 'error');
     }
-}
-
-async function stopAllPresets() {
-    try {
-        const runningPresetNames = Array.from(runningPresets);
-        if (runningPresetNames.length === 0) {
-            showNotification('No presets are currently running', 'info');
-            return;
-        }
-
-        // Show loading overlay
-        showPresetLoadingOverlay('Stopping all running presets...');
-
-        // Stop each running preset
-        for (const presetName of runningPresetNames) {
-            await stopPreset(presetName);
-            await new Promise(resolve => setTimeout(resolve, 500)); // Wait 0.5 second between stops
-        }
-
-        hidePresetLoadingOverlay();
-        showNotification(`Stopped all running presets (${runningPresetNames.length} presets)`, 'success');
-    } catch (error) {
-        console.error('Error stopping all presets:', error);
-        hidePresetLoadingOverlay();
-        showNotification('Failed to stop all presets', 'error');
-    }
-}
-
-function showPresetLoadingOverlay(message) {
-    const overlay = document.createElement('div');
-    overlay.id = 'presetLoadingOverlay';
-    overlay.className = 'fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center';
-    overlay.innerHTML = `
-        <div class="bg-gray-800 rounded-lg p-8 flex flex-col items-center">
-            <div class="loader mb-4"></div>
-            <p class="text-lg font-semibold">${message}</p>
-        </div>
-    `;
-    document.body.appendChild(overlay);
-}
-
-function hidePresetLoadingOverlay() {
-    const overlay = document.getElementById('presetLoadingOverlay');
-    if (overlay) {
-        overlay.remove();
-    }
-}
-
-// Batch operations for presets
-async function batchRunPresets(presetNames) {
-    try {
-        if (!Array.isArray(presetNames) || presetNames.length === 0) {
-            showNotification('No presets selected to run', 'error');
-            return;
-        }
-
-        showPresetLoadingOverlay(`Running ${presetNames.length} presets...`);
-
-        for (const presetName of presetNames) {
-            await runPreset(presetName);
-            await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second between presets
-        }
-
-        hidePresetLoadingOverlay();
-        showNotification(`Successfully started ${presetNames.length} presets`, 'success');
-    } catch (error) {
-        console.error('Error in batch running presets:', error);
-        hidePresetLoadingOverlay();
-        showNotification('Failed to run some presets', 'error');
-    }
-}
-
-async function batchStopPresets(presetNames) {
-    try {
-        if (!Array.isArray(presetNames) || presetNames.length === 0) {
-            showNotification('No presets selected to stop', 'error');
-            return;
-        }
-
-        showPresetLoadingOverlay(`Stopping ${presetNames.length} presets...`);
-
-        for (const presetName of presetNames) {
-            await stopPreset(presetName);
-            await new Promise(resolve => setTimeout(resolve, 500)); // Wait 0.5 second between stops
-        }
-
-        hidePresetLoadingOverlay();
-        showNotification(`Successfully stopped ${presetNames.length} presets`, 'success');
-    } catch (error) {
-        console.error('Error in batch stopping presets:', error);
-        hidePresetLoadingOverlay();
-        showNotification('Failed to stop some presets', 'error');
-    }
-}
-
-// Preset selection functionality
-let selectedPresets = new Set();
-
-function togglePresetSelection(presetName) {
-    const presetCard = document.querySelector(`[data-preset-name="${presetName}"]`);
-    if (selectedPresets.has(presetName)) {
-        selectedPresets.delete(presetName);
-        presetCard?.classList.remove('border-blue-500');
-    } else {
-        selectedPresets.add(presetName);
-        presetCard?.classList.add('border-blue-500');
-    }
-    updatePresetSelectionUI();
-}
-
-function updatePresetSelectionUI() {
-    const selectionCount = selectedPresets.size;
-    const batchActionsBar = document.getElementById('presetBatchActions');
     
-    if (selectionCount > 0) {
-        if (!batchActionsBar) {
-            const batchActions = document.createElement('div');
-            batchActions.id = 'presetBatchActions';
-            batchActions.className = 'fixed bottom-0 left-0 right-0 bg-gray-800 p-4 flex justify-between items-center shadow-lg z-40';
-            batchActions.innerHTML = `
-                <div class="text-gray-300">${selectionCount} presets selected</div>
-                <div class="flex gap-4">
-                    <button onclick="batchRunPresets(Array.from(selectedPresets))" 
-                            class="bg-green-500 hover:bg-green-600 px-6 py-2 rounded font-semibold">
-                        <i class="fas fa-play mr-2"></i>Run Selected
-                    </button>
-                    <button onclick="batchStopPresets(Array.from(selectedPresets))" 
-                            class="bg-red-500 hover:bg-red-600 px-6 py-2 rounded font-semibold">
-                        <i class="fas fa-stop mr-2"></i>Stop Selected
-                    </button>
-                    <button onclick="clearPresetSelection()" 
-                            class="bg-gray-600 hover:bg-gray-500 px-6 py-2 rounded font-semibold">
-                        <i class="fas fa-times mr-2"></i>Clear Selection
-                    </button>
+    // Add click outside listeners for modals
+    const historyModal = document.getElementById('gameHistoryModal');
+    const favoritesModal = document.getElementById('gameFavoritesModal');
+    
+    window.addEventListener('click', (e) => {
+        if (e.target === historyModal) {
+            closeGameHistory();
+        }
+        if (e.target === favoritesModal) {
+            closeGameFavorites();
+        }
+    });
+    
+    // Update the game list to show favorites
+    updateGamesList();
+});
+
+// Game history functions
+async function addToGameHistory(game) {
+    try {
+        const response = await fetch('/api/game-history', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                id: game.id,
+                name: game.name,
+                image: game.image
+            })
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            gameHistory = data.history;
+            updateGamesList();
+        }
+    } catch (error) {
+        console.error('Error adding game to history:', error);
+        showNotification('Failed to update history', 'error');
+    }
+}
+
+function showGameHistory() {
+    const modal = document.getElementById('gameHistoryModal');
+    const historyList = document.getElementById('gameHistoryList');
+    
+    historyList.innerHTML = '';
+    
+    if (gameHistory.length === 0) {
+        historyList.innerHTML = `
+            <div class="text-center text-gray-400 py-8">
+                <i class="fas fa-history text-4xl mb-4"></i>
+                <p>No game history yet</p>
+            </div>
+        `;
+    } else {
+        gameHistory.forEach(game => {
+            const isRunning = runningGames.has(game.id.toString());
+            const isFavorite = gameFavorites.some(g => g.id === game.id);
+            
+            const div = document.createElement('div');
+            div.className = 'bg-gray-700 p-4 rounded-lg hover:bg-gray-600 transition-colors';
+            div.innerHTML = `
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-4 flex-1">
+                        <div class="relative">
+                            <img src="${game.image || 'https://via.placeholder.com/460x215/374151/FFFFFF?text=No+Image'}" 
+                                 alt="${game.name}" 
+                                 class="w-16 h-16 rounded-lg object-cover">
+                            ${isRunning ? '<span class="absolute top-0 left-0 bg-green-500 text-white px-2 py-1 rounded-tl-lg text-xs">Running</span>' : ''}
+                        </div>
+                        <div class="flex-1">
+                            <div class="flex items-center gap-2">
+                                <h4 class="font-medium text-lg">${game.name}</h4>
+                                <button onclick="toggleGameFavoriteFromHistory('${game.id}', '${game.name}', '${game.image}')" 
+                                        class="text-2xl">
+                                    <i class="fas fa-star ${isFavorite ? 'text-yellow-400 glow-yellow' : 'text-gray-500 hover:text-yellow-400'}"></i>
+                                </button>
+                            </div>
+                            <div class="text-sm text-gray-400 mt-1">Game ID: ${game.id}</div>
+                            <div class="text-sm text-gray-400">Added ${formatTimeAgo(game.addedAt)}</div>
+                        </div>
+                    </div>
+                    <div class="flex gap-2 items-center">
+                        <button onclick="${isRunning ? 'stopGame' : 'startGame'}('${game.id}'); showGameHistory();" 
+                                class="bg-${isRunning ? 'red' : 'green'}-500 hover:bg-${isRunning ? 'red' : 'green'}-600 px-4 py-2 rounded text-sm font-medium transition-colors">
+                            <i class="fas fa-${isRunning ? 'stop' : 'play'} mr-1"></i>${isRunning ? 'Stop' : 'Start'}
+                        </button>
+                        <button onclick="addGameFromHistory('${game.id}')" 
+                                class="bg-blue-500 hover:bg-blue-600 px-4 py-2 rounded text-sm font-medium transition-colors">
+                            <i class="fas fa-plus mr-1"></i>Add
+                        </button>
+                        <button onclick="removeFromHistory('${game.id}')"
+                                class="bg-red-500 hover:bg-red-600 px-4 py-2 rounded text-sm font-medium transition-colors">
+                            <i class="fas fa-trash mr-1"></i>
+                        </button>
+                    </div>
                 </div>
             `;
-            document.body.appendChild(batchActions);
-        } else {
-            batchActionsBar.querySelector('.text-gray-300').textContent = `${selectionCount} presets selected`;
+            historyList.appendChild(div);
+        });
+    }
+    
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+}
+
+// Add new function to handle favoriting from history
+async function toggleGameFavoriteFromHistory(gameId, gameName, gameImage) {
+    try {
+        const response = await fetch('/api/game-favorites', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                id: gameId,
+                name: gameName,
+                image: gameImage
+            })
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            gameFavorites = data.favorites;
+            showNotification(data.message, 'success');
+            showGameHistory(); // Refresh the history view to update the favorite status
         }
-    } else if (batchActionsBar) {
-        batchActionsBar.remove();
+    } catch (error) {
+        console.error('Error toggling favorite:', error);
+        showNotification('Failed to update favorites', 'error');
     }
 }
 
-function clearPresetSelection() {
-    selectedPresets.clear();
-    document.querySelectorAll('.preset-card').forEach(card => {
-        card.classList.remove('border-blue-500');
-    });
-    updatePresetSelectionUI();
+function closeGameHistory() {
+    const modal = document.getElementById('gameHistoryModal');
+    modal.classList.remove('flex');
+    modal.classList.add('hidden');
+}
+
+async function addGameFromHistory(gameId) {
+    try {
+        const response = await fetch('/api/fetch-game', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ gameId })
+        });
+        
+        const gameInfo = await response.json();
+        if (gameInfo.error) {
+            showNotification(gameInfo.error, 'error');
+            return;
+        }
+        
+        addGameToList(gameInfo);
+        closeGameHistory();
+    } catch (error) {
+        console.error('Error adding game from history:', error);
+        showNotification('Failed to add game', 'error');
+    }
+}
+
+async function removeFromHistory(gameId) {
+    try {
+        const response = await fetch('/api/game-history', {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ gameId })
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            gameHistory = data.history;
+            showGameHistory(); // Refresh the history modal
+            showNotification('Game removed from history', 'success');
+        }
+    } catch (error) {
+        console.error('Error removing game from history:', error);
+        showNotification('Failed to remove from history', 'error');
+    }
+}
+
+// Game favorites functions
+async function toggleGameFavorite(gameId) {
+    const game = currentGames.find(g => g.id === gameId);
+    if (!game) return;
+    
+    try {
+        const response = await fetch('/api/game-favorites', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                id: game.id,
+                name: game.name,
+                image: game.image
+            })
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            gameFavorites = data.favorites;
+            showNotification(data.message, 'success');
+            updateGamesList();
+        }
+    } catch (error) {
+        console.error('Error toggling favorite:', error);
+        showNotification('Failed to update favorites', 'error');
+    }
+}
+
+function showGameFavorites() {
+    const modal = document.getElementById('gameFavoritesModal');
+    const favoritesList = document.getElementById('gameFavoritesList');
+    
+    favoritesList.innerHTML = '';
+    
+    if (gameFavorites.length === 0) {
+        favoritesList.innerHTML = `
+            <div class="text-center text-gray-400 py-8">
+                <i class="fas fa-star text-4xl mb-4"></i>
+                <p>No favorite games yet</p>
+            </div>
+        `;
+    } else {
+        gameFavorites.forEach(game => {
+            const isRunning = runningGames.has(game.id.toString());
+            
+            const div = document.createElement('div');
+            div.className = 'bg-gray-700 p-4 rounded-lg hover:bg-gray-600 transition-colors';
+            div.innerHTML = `
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-4 flex-1">
+                        <div class="relative">
+                            <img src="${game.image || 'https://via.placeholder.com/460x215/374151/FFFFFF?text=No+Image'}" 
+                                 alt="${game.name}" 
+                                 class="w-16 h-16 rounded-lg object-cover">
+                            ${isRunning ? '<span class="absolute top-0 left-0 bg-green-500 text-white px-2 py-1 rounded-tl-lg text-xs">Running</span>' : ''}
+                        </div>
+                        <div class="flex-1">
+                            <div class="flex items-center gap-2">
+                                <h4 class="font-medium text-lg">${game.name}</h4>
+                                <i class="fas fa-star text-yellow-500 glow-yellow"></i>
+                            </div>
+                            <div class="text-sm text-gray-400 mt-1">Game ID: ${game.id}</div>
+                            <div class="text-sm text-gray-400">Added ${formatTimeAgo(game.addedAt)}</div>
+                        </div>
+                    </div>
+                    <div class="flex gap-2 items-center">
+                        <button onclick="${isRunning ? 'stopGame' : 'startGame'}('${game.id}')" 
+                                class="bg-${isRunning ? 'red' : 'green'}-500 hover:bg-${isRunning ? 'red' : 'green'}-600 px-4 py-2 rounded text-sm font-medium transition-colors">
+                            <i class="fas fa-${isRunning ? 'stop' : 'play'} mr-1"></i>${isRunning ? 'Stop' : 'Start'}
+                        </button>
+                        <button onclick="addGameFromFavorites('${game.id}')" 
+                                class="bg-blue-500 hover:bg-blue-600 px-4 py-2 rounded text-sm font-medium transition-colors">
+                            <i class="fas fa-plus mr-1"></i>Add
+                        </button>
+                        <button onclick="removeFromFavorites('${game.id}')"
+                                class="bg-red-500 hover:bg-red-600 px-4 py-2 rounded text-sm font-medium transition-colors">
+                            <i class="fas fa-trash mr-1"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+            favoritesList.appendChild(div);
+        });
+    }
+    
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+}
+
+function closeGameFavorites() {
+    const modal = document.getElementById('gameFavoritesModal');
+    modal.classList.remove('flex');
+    modal.classList.add('hidden');
+}
+
+async function addGameFromFavorites(gameId) {
+    try {
+        const response = await fetch('/api/fetch-game', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ gameId })
+        });
+        
+        const gameInfo = await response.json();
+        if (gameInfo.error) {
+            showNotification(gameInfo.error, 'error');
+            return;
+        }
+        
+        addGameToList(gameInfo);
+        closeGameFavorites();
+    } catch (error) {
+        console.error('Error adding game from favorites:', error);
+        showNotification('Failed to add game', 'error');
+    }
+}
+
+async function removeFromFavorites(gameId) {
+    try {
+        const response = await fetch('/api/game-favorites', {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ gameId })
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            gameFavorites = data.favorites;
+            showGameFavorites(); // Refresh the favorites modal
+            updateGamesList(); // Update the main game list to reflect favorite status
+            showNotification('Game removed from favorites', 'success');
+        }
+    } catch (error) {
+        console.error('Error removing game from favorites:', error);
+        showNotification('Failed to remove from favorites', 'error');
+    }
+}
+
+// Helper function to format time ago
+function formatTimeAgo(timestamp) {
+    const seconds = Math.floor((Date.now() - timestamp) / 1000);
+    
+    if (seconds < 60) return 'just now';
+    if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+    if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+    if (seconds < 604800) return `${Math.floor(seconds / 86400)}d ago`;
+    return new Date(timestamp).toLocaleDateString();
 }

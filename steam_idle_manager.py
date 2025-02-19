@@ -1114,14 +1114,50 @@ def update_tray_menu():
         # Running Games submenu
         if running_games:
             running_items = []
+            
+            # Add total playtime and most idled game at the top
+            total_seconds = 0
+            current_time = datetime.now()
+            for game_id, session in game_sessions.items():
+                total_seconds += session.get('total_time', 0)
+                if game_id in running_games and 'start_time' in session:
+                    current_session = (current_time - session['start_time']).total_seconds()
+                    total_seconds += current_session
+            
+            # Add total playtime header
+            running_items.append(pystray.MenuItem(
+                f"⏱️ Total: {format_duration(total_seconds)}", 
+                lambda item: None, enabled=False))
+            
+            # Add most idled game
+            most_idled = get_most_idled_game()
+            running_items.append(pystray.MenuItem(
+                f"🏆 Most Idled: {most_idled}", 
+                lambda item: None, enabled=False))
+            
+            # Add separator after headers
+            running_items.append(pystray.Menu.SEPARATOR)
+            
+            # Add running games with their total playtime
             for game_id in running_games:
                 if game_id in game_sessions and 'name' in game_sessions[game_id]:
                     game_name = game_sessions[game_id]['name']
+                    total_seconds = game_sessions[game_id].get('total_time', 0)
+                    
+                    # Add current session time if game is running
+                    if 'start_time' in game_sessions[game_id]:
+                        current_session = (current_time - game_sessions[game_id]['start_time']).total_seconds()
+                        total_seconds += current_session
+                    
                     # Create a function that captures game_id in its scope
                     def create_stop_handler(gid):
                         return lambda item: stop_single_game_tray(icon, item, gid)
-                    running_items.append(pystray.MenuItem(f"⏹️ Stop {game_name}", 
+                    
+                    # Format menu item with game name and total time
+                    menu_text = f"⏹️ Stop {game_name} ({format_duration(total_seconds)})"
+                    running_items.append(pystray.MenuItem(menu_text, 
                         create_stop_handler(game_id)))
+            
             if running_items:
                 menu_items.append(pystray.MenuItem("🎮 Running Games", pystray.Menu(*running_items)))
                 menu_items.append(pystray.Menu.SEPARATOR)

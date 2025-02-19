@@ -25,6 +25,23 @@ let playtimeInterval = null;
 let gameStartTimes = new Map();
 let areGamesMinimized = false;
 
+// Add these variables for preset management
+let presetsCache = null;
+let isUpdatingPresets = false;
+
+// Debounce function to prevent multiple rapid updates
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
 // Initialize the application when the DOM is loaded
 document.addEventListener('DOMContentLoaded', async function() {
     await checkFirstTimeSetup();
@@ -32,6 +49,9 @@ document.addEventListener('DOMContentLoaded', async function() {
     await updateStatistics();
     await updateQuickActions();
     applyTheme(currentTheme);
+    
+    // Initialize presets cache
+    await refreshPresetsCache();
     
     // Add event listeners for library functionality
     const librarySearch = document.getElementById('librarySearch');
@@ -353,39 +373,52 @@ document.addEventListener('DOMContentLoaded', function() {
 
 async function loadPresets(returnData = false) {
     try {
+        // If we're already updating, wait for it to finish
+        if (isUpdatingPresets) {
+            return returnData ? presetsCache : undefined;
+        }
+
+        isUpdatingPresets = true;
+
         const response = await fetch('/api/get-presets');
         const presets = await response.json();
+        
+        // Update cache
+        presetsCache = presets;
+
         if (!returnData) {
-            updatePresetsList(presets);
+            await updatePresetsList(presets);
         }
+
+        isUpdatingPresets = false;
         return presets;
     } catch (error) {
         console.error('Error loading presets:', error);
         showNotification('Failed to load presets', 'error');
-        return [];
+        isUpdatingPresets = false;
+        return returnData ? [] : undefined;
     }
 }
 
-async function updatePresetsList(presets) {
+// Debounced version of updatePresetsList
+const debouncedUpdatePresetsList = debounce(async (presets) => {
     const presetsList = document.getElementById('presetsList');
     if (!presetsList) return;
-    
+
+    // Clear existing content
     presetsList.innerHTML = '';
-    
+
     // Get favorites data
     const favoritesResponse = await fetch('/api/favorites');
     const favoritesData = await favoritesResponse.json();
     const favoriteNames = favoritesData.favorites.map(f => f.name);
 
     presets.forEach(preset => {
+        const isPresetRunning = preset.games.every(game => runningGames.has(game.id.toString()));
+        const isFavorited = favoriteNames.includes(preset.name);
+        
         const presetCard = document.createElement('div');
         presetCard.className = 'preset-card bg-gray-800 rounded-lg p-4';
-        
-        // Check if all games in the preset are running
-        const isPresetRunning = preset.games.every(game => runningGames.has(game.id.toString()));
-        
-        // Check if preset is favorited
-        const isFavorited = favoriteNames.includes(preset.name);
         
         // Create a hidden games list that will be shown when clicking Show Info
         const gamesList = preset.games.map(game => {
@@ -468,6 +501,11 @@ async function updatePresetsList(presets) {
             updatePlaytimes();
         }
     });
+}, 250); // 250ms debounce time
+
+// Modify the updatePresetsList function to use the debounced version
+async function updatePresetsList(presets) {
+    await debouncedUpdatePresetsList(presets);
 }
 
 function togglePresetInfo(button) {
@@ -809,10 +847,8 @@ async function deletePreset(presetName) {
 
 async function stopPreset(presetName) {
     try {
-        // Get the preset data
-        const response = await fetch('/api/get-presets');
-        const presets = await response.json();
-        const preset = presets.find(p => p.name === presetName);
+        // Use cached preset data if available
+        const preset = presetsCache?.find(p => p.name === presetName);
         
         if (!preset) {
             throw new Error('Preset not found');
@@ -828,10 +864,10 @@ async function stopPreset(presetName) {
         // Remove from running presets
         runningPresets.delete(presetName);
 
-        // Update UI with fresh data
-        updateGamesList();
+        // Update UI with a single loadPresets call
         const updatedPresets = await loadPresets(true);
-        updatePresetsList(updatedPresets);
+        await debouncedUpdatePresetsList(updatedPresets);
+        updateGamesList();
         
         // Show success message
         showNotification(`Stopped all games in preset "${presetName}"`, 'success');
@@ -948,9 +984,7 @@ async function runPreset(presetName) {
         }
 
         // Get the preset data first
-        const presetsResponse = await fetch('/api/get-presets');
-        const presets = await presetsResponse.json();
-        const preset = presets.find(p => p.name === presetName);
+        const preset = presetsCache?.find(p => p.name === presetName);
         
         if (!preset) {
             showNotification('Preset not found', 'error');
@@ -965,7 +999,7 @@ async function runPreset(presetName) {
             body: JSON.stringify({ name: presetName })
         });
 
-            const data = await response.json();
+        const data = await response.json();
         
         if (!response.ok) {
             showNotification(data.message || 'Failed to run preset', 'error');
@@ -988,9 +1022,10 @@ async function runPreset(presetName) {
             // Add to running presets
             runningPresets.add(presetName);
 
-            // Update UI
+            // Update UI - use a single loadPresets call
+            const updatedPresets = await loadPresets(true);
+            await debouncedUpdatePresetsList(updatedPresets);
             updateGamesList();
-            updatePresetsList(await loadPresets(true));
             updateRunningGamesList();
             
             // Show success message
@@ -999,9 +1034,8 @@ async function runPreset(presetName) {
         }
     } catch (error) {
         console.error('Error running preset:', error);
-        // Only show error if we haven't already shown a more specific error
         if (!error.handled) {
-        showNotification('Failed to run preset', 'error');
+            showNotification('Failed to run preset', 'error');
         }
     }
 }
@@ -3660,4 +3694,17 @@ function formatTimeAgo(timestamp) {
     if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
     if (seconds < 604800) return `${Math.floor(seconds / 86400)}d ago`;
     return new Date(timestamp).toLocaleDateString();
+}
+
+// Add a function to refresh the presets cache
+async function refreshPresetsCache() {
+    try {
+        const response = await fetch('/api/get-presets');
+        const presets = await response.json();
+        presetsCache = presets;
+        return presets;
+    } catch (error) {
+        console.error('Error refreshing presets cache:', error);
+        return null;
+    }
 }

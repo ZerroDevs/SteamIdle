@@ -624,6 +624,10 @@ async function startGame(gameId) {
 
 async function stopGame(gameId) {
     try {
+        // Get game info from currentGames or presetsCache
+        const game = currentGames.find(g => g.id.toString() === gameId.toString()) || 
+                    presetsCache?.flatMap(p => p.games).find(g => g.id.toString() === gameId.toString());
+
         const response = await fetch('/api/stop-game', {
             method: 'POST',
             headers: {
@@ -635,8 +639,8 @@ async function stopGame(gameId) {
         if (response.ok) {
             runningGames.delete(gameId.toString());
             triggerGameStateChange();
-            showNotification('Game stopped successfully', 'success');
-            updateRunningGamesList(); // Add this line
+            showNotification(game ? `Stopped "${game.name}" successfully` : 'Game stopped successfully', 'success');
+            updateRunningGamesList();
         } else {
             showNotification('Failed to stop game', 'error');
         }
@@ -854,10 +858,14 @@ async function stopPreset(presetName) {
             throw new Error('Preset not found');
         }
 
+        // Keep track of stopped games
+        const stoppedGames = [];
+
         // Stop each game in the preset
         for (const game of preset.games) {
             if (runningGames.has(game.id.toString())) {
                 await stopGame(game.id);
+                stoppedGames.push(game.name);
             }
         }
 
@@ -869,8 +877,13 @@ async function stopPreset(presetName) {
         await debouncedUpdatePresetsList(updatedPresets);
         updateGamesList();
         
-        // Show success message
-        showNotification(`Stopped all games in preset "${presetName}"`, 'success');
+        // Show success message with game names
+        if (stoppedGames.length > 0) {
+            const gamesList = stoppedGames.join(', ');
+            showNotification(`Stopped games in preset "${presetName}": ${gamesList}`, 'success');
+        } else {
+            showNotification(`No running games found in preset "${presetName}"`, 'info');
+        }
     } catch (error) {
         console.error('Error stopping preset:', error);
         showNotification('Failed to stop preset', 'error');

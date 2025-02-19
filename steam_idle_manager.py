@@ -1129,13 +1129,17 @@ def update_tray_menu():
                 f"⏱️ Total: {format_duration(total_seconds)}", 
                 lambda item: None, enabled=False))
             
+            # Add total running games counter
+            running_items.append(pystray.MenuItem(
+                f"🎮 Idling ({len(running_games)} games)", 
+                lambda item: None, enabled=False))
+            
             # Add most idled game
             most_idled = get_most_idled_game()
             running_items.append(pystray.MenuItem(
                 f"🏆 Most Idled: {most_idled}", 
                 lambda item: None, enabled=False))
             
-            # Add separator after headers
             running_items.append(pystray.Menu.SEPARATOR)
             
             # Add running games with their total playtime

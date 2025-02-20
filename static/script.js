@@ -1728,7 +1728,8 @@ async function openSettings() {
             { name: 'Auto Reconnect', promise: updateAutoReconnectToggle() },
             { name: 'Theme Settings', promise: updateThemeButtons() },
             { name: 'Steam Idle Path', promise: updateIdlePath() },
-            { name: 'Discord RPC', promise: updateDiscordRPCToggle() }
+            { name: 'Discord RPC', promise: updateDiscordRPCToggle() },
+            { name: 'Steam API', promise: updateSteamApiStatus() }
         ].map(async ({ name, promise }) => {
             try {
                 await promise;
@@ -3913,5 +3914,151 @@ async function updateGamePlaytimes() {
 
 // Start updating playtimes periodically
 setInterval(updateGamePlaytimes, 1000);
+
+// ... existing code ...
+
+async function updateSteamApiStatus() {
+    const statusElement = document.getElementById('steamApiStatus');
+    const manualConfigElement = document.getElementById('steamApiManualConfig');
+    const autoFetchErrorElement = document.getElementById('steamApiAutoFetchError');
+    const apiKeyError = document.getElementById('apiKeyError');
+
+    // Show loading state
+    statusElement.innerHTML = `
+        <i class="fas fa-circle-notch fa-spin text-blue-500"></i>
+        <span>Checking Steam API configuration...</span>
+    `;
+    statusElement.classList.remove('hidden');
+    manualConfigElement.classList.add('hidden');
+    autoFetchErrorElement.classList.add('hidden');
+    if (apiKeyError) apiKeyError.classList.add('hidden');
+
+    try {
+        const response = await fetch('/api/steam-api-status');
+        const data = await response.json();
+
+        if (data.success) {
+            // API key is configured
+            statusElement.innerHTML = `
+                <i class="fas fa-check-circle text-green-500"></i>
+                <span>Steam API key is configured</span>
+            `;
+            manualConfigElement.classList.add('hidden');
+            autoFetchErrorElement.classList.add('hidden');
+        } else {
+            // API key is not configured
+            statusElement.classList.add('hidden');
+            autoFetchErrorElement.classList.remove('hidden');
+            manualConfigElement.classList.remove('hidden');
+        }
+    } catch (error) {
+        // Show error state
+        statusElement.classList.add('hidden');
+        autoFetchErrorElement.classList.remove('hidden');
+        manualConfigElement.classList.remove('hidden');
+        console.error('Error checking Steam API status:', error);
+    }
+}
+
+async function saveSteamApiKey() {
+    const apiKey = document.getElementById('steamApiKey').value.trim();
+    const apiKeyError = document.getElementById('apiKeyError');
+    const manualConfigElement = document.getElementById('steamApiManualConfig');
+    const statusElement = document.getElementById('steamApiStatus');
+    const autoFetchErrorElement = document.getElementById('steamApiAutoFetchError');
+
+    if (!apiKey) {
+        apiKeyError.classList.remove('hidden');
+        apiKeyError.querySelector('span').textContent = 'Please enter an API key';
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/save-steam-api', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ api_key: apiKey })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            // Hide error messages and manual config
+            apiKeyError.classList.add('hidden');
+            manualConfigElement.classList.add('hidden');
+            autoFetchErrorElement.classList.add('hidden');
+
+            // Show success status
+            statusElement.classList.remove('hidden');
+            statusElement.innerHTML = `
+                <i class="fas fa-check-circle text-green-500"></i>
+                <span>Steam API key is configured</span>
+            `;
+
+            showNotification('Steam API key saved successfully', 'success');
+        } else {
+            apiKeyError.classList.remove('hidden');
+            apiKeyError.querySelector('span').textContent = data.error || 'Failed to validate API key';
+        }
+    } catch (error) {
+        console.error('Error saving Steam API key:', error);
+        apiKeyError.classList.remove('hidden');
+        apiKeyError.querySelector('span').textContent = 'Failed to save API key. Please try again.';
+    }
+}
+
+// Add Steam API status check to settings loading
+async function openSettings() {
+    const modal = document.getElementById('settingsModal');
+    if (!modal) {
+        showNotification('Settings modal not found', 'error');
+        return;
+    }
+    
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    
+    // Show loading state
+    const loadingElement = document.getElementById('settingsLoading');
+    if (loadingElement) loadingElement.classList.remove('hidden');
+    
+    try {
+        // Execute all settings updates in parallel but track their results individually
+        const results = await Promise.allSettled([
+            { name: 'Startup Status', promise: updateStartupToggle() },
+            { name: 'Minimize to Tray', promise: updateMinimizeToTrayToggle() },
+            { name: 'Auto Reconnect', promise: updateAutoReconnectToggle() },
+            { name: 'Theme Settings', promise: updateThemeButtons() },
+            { name: 'Steam Idle Path', promise: updateIdlePath() },
+            { name: 'Discord RPC', promise: updateDiscordRPCToggle() },
+            { name: 'Steam API', promise: updateSteamApiStatus() }
+        ].map(async ({ name, promise }) => {
+            try {
+                await promise;
+                return { name, success: true };
+            } catch (error) {
+                console.error(`Error loading ${name}:`, error);
+                return { name, success: false, error: error.message };
+            }
+        }));
+
+        // Check for any failures
+        const failures = results
+            .filter(result => result.status === 'fulfilled' && !result.value.success)
+            .map(result => result.value.name);
+
+        if (failures.length > 0) {
+            showNotification(`Failed to load settings: ${failures.join(', ')}`, 'error');
+        }
+    } catch (error) {
+        console.error('Error loading settings:', error);
+        showNotification('Failed to load all settings', 'error');
+    } finally {
+        // Hide loading state
+        if (loadingElement) loadingElement.classList.add('hidden');
+    }
+}
 
 // ... existing code ...

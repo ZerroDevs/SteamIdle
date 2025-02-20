@@ -268,7 +268,22 @@ function updateGamesList() {
                 <div class="flex justify-between items-start mb-2">
                     <h3 class="text-lg font-semibold">${game.name}</h3>
                 </div>
-                <p class="text-sm text-gray-400 mb-4">ID: ${game.id}</p>
+                <div class="flex items-center gap-2 mb-4">
+                    <p class="text-sm text-gray-400">ID: ${game.id}</p>
+                    <a href="https://store.steampowered.com/app/${game.id}" 
+                       target="_blank"
+                       class="text-gray-400 hover:text-blue-400 transition-colors group relative">
+                        <i class="fab fa-steam text-lg"></i>
+                        <!-- Tooltip -->
+                        <div class="opacity-0 group-hover:opacity-100 transition-opacity absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg whitespace-nowrap">
+                            View on Steam Store
+                            <!-- Arrow -->
+                            <div class="absolute left-1/2 transform -translate-x-1/2 top-full">
+                                <div class="w-2 h-2 bg-gray-900 transform rotate-45"></div>
+                            </div>
+                        </div>
+                    </a>
+                </div>
                 <div class="playtime-info mb-4">
                     ${isRunning ? '<div class="text-gray-400">Updating playtime...</div>' : ''}
                 </div>

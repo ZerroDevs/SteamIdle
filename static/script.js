@@ -1743,6 +1743,8 @@ async function openSettings() {
         // Hide loading state
         if (loadingElement) loadingElement.classList.add('hidden');
     }
+
+    loadExportPreferences();
 }
 
 function closeSettings() {
@@ -2393,46 +2395,77 @@ async function toggleAutoReconnect() {
 
 async function exportStats(format = 'csv') {
     try {
-        showNotification('Preparing export...', 'info');
-        
+        // Get export preferences
+        const exportPrefs = {
+            game_id: document.getElementById('export_game_id').checked,
+            game_name: document.getElementById('export_game_name').checked,
+            store_url: document.getElementById('export_store_url').checked,
+            time_hhmmss: document.getElementById('export_time_hhmmss').checked,
+            hours: document.getElementById('export_hours').checked,
+            percentage: document.getElementById('export_percentage').checked,
+            rank: document.getElementById('export_rank').checked,
+            status: document.getElementById('export_status').checked,
+            session: document.getElementById('export_session').checked,
+            favorite: document.getElementById('export_favorite').checked
+        };
+
+        // Save preferences to localStorage
+        localStorage.setItem('exportPreferences', JSON.stringify(exportPrefs));
+
         const response = await fetch('/api/export-stats', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                type: format
+                format: format,
+                preferences: exportPrefs
             })
         });
 
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.message || 'Failed to export statistics');
+        if (response.ok) {
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `steam_idle_stats.${format}`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+            showNotification('Statistics exported successfully!', 'success');
+        } else {
+            throw new Error('Failed to export statistics');
         }
-
-        const blob = await response.blob();
-        const filename = `steam_idle_stats_${new Date().toISOString().slice(0,10)}.${format}`;
-        
-        // Create download link
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.style.display = 'none';
-        a.href = url;
-        a.download = filename;
-        
-        // Add to document, click, and cleanup
-        document.body.appendChild(a);
-        a.click();
-        
-        // Cleanup
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
-        
-        showNotification(`📊 Statistics exported successfully as ${format.toUpperCase()}`, 'success');
     } catch (error) {
-        console.error('Error exporting stats:', error);
-        showNotification(`❌ ${error.message || 'Failed to export statistics'}`, 'error');
+        console.error('Error exporting statistics:', error);
+        showNotification('Failed to export statistics', 'error');
     }
+}
+
+// Add function to load export preferences
+function loadExportPreferences() {
+    try {
+        const savedPrefs = localStorage.getItem('exportPreferences');
+        if (savedPrefs) {
+            const prefs = JSON.parse(savedPrefs);
+            Object.entries(prefs).forEach(([key, value]) => {
+                const checkbox = document.getElementById(`export_${key}`);
+                if (checkbox) {
+                    checkbox.checked = value;
+                }
+            });
+        }
+    } catch (error) {
+        console.error('Error loading export preferences:', error);
+    }
+}
+
+// Add this to your existing openSettings function
+async function openSettings() {
+    // ... existing code ...
+    loadExportPreferences();
+    // ... rest of the function ...
 }
 
 function confirmResetStats() {
@@ -2699,6 +2732,8 @@ async function openSettings() {
         console.error('Error opening settings:', error);
         document.getElementById('settingsLoading').classList.add('hidden');
     }
+
+    loadExportPreferences();
 }
 
 // ... rest of the existing code ...
@@ -4088,3 +4123,131 @@ async function toggleAllGames() {
     // Update UI
     updateGamesList();
 }
+
+function toggleExportCustomization() {
+    const popup = document.getElementById('exportCustomizationPopup');
+    if (popup.classList.contains('hidden')) {
+        loadExportPreferences();
+        popup.classList.remove('hidden');
+        popup.classList.add('flex');
+    } else {
+        saveExportPreferences();
+        popup.classList.remove('flex');
+        popup.classList.add('hidden');
+    }
+}
+
+async function saveExportPreferences() {
+    const preferences = {
+        game_id: document.getElementById('export_game_id').checked,
+        game_name: document.getElementById('export_game_name').checked,
+        store_url: document.getElementById('export_store_url').checked,
+        time_hhmmss: document.getElementById('export_time_hhmmss').checked,
+        hours: document.getElementById('export_hours').checked,
+        percentage: document.getElementById('export_percentage').checked,
+        rank: document.getElementById('export_rank').checked,
+        status: document.getElementById('export_status').checked,
+        session: document.getElementById('export_session').checked,
+        favorite: document.getElementById('export_favorite').checked
+    };
+    
+    try {
+        const response = await fetch('/api/export-preferences', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(preferences)
+        });
+        
+        if (response.ok) {
+            showNotification('Export preferences saved successfully', 'success');
+        } else {
+            throw new Error('Failed to save export preferences');
+        }
+    } catch (error) {
+        console.error('Error saving export preferences:', error);
+        showNotification('Failed to save export preferences', 'error');
+    }
+}
+
+async function loadExportPreferences() {
+    try {
+        const response = await fetch('/api/export-preferences');
+        if (response.ok) {
+            const preferences = await response.json();
+            document.getElementById('export_game_id').checked = preferences.game_id;
+            document.getElementById('export_game_name').checked = preferences.game_name;
+            document.getElementById('export_store_url').checked = preferences.store_url;
+            document.getElementById('export_time_hhmmss').checked = preferences.time_hhmmss;
+            document.getElementById('export_hours').checked = preferences.hours;
+            document.getElementById('export_percentage').checked = preferences.percentage;
+            document.getElementById('export_rank').checked = preferences.rank;
+            document.getElementById('export_status').checked = preferences.status;
+            document.getElementById('export_session').checked = preferences.session;
+            document.getElementById('export_favorite').checked = preferences.favorite;
+        } else {
+            throw new Error('Failed to load export preferences');
+        }
+    } catch (error) {
+        console.error('Error loading export preferences:', error);
+        showNotification('Failed to load export preferences', 'error');
+    }
+}
+
+function toggleExportCustomization() {
+    const popup = document.getElementById('exportCustomizationPopup');
+    if (popup.classList.contains('hidden')) {
+        loadExportPreferences();
+        popup.classList.remove('hidden');
+        popup.classList.add('flex');
+    } else {
+        saveExportPreferences();
+        popup.classList.remove('flex');
+        popup.classList.add('hidden');
+    }
+}
+
+// ... existing code ...
+async function resetExportPreferences() {
+    // Default preferences
+    const defaultPreferences = {
+        game_id: true,
+        game_name: true,
+        store_url: false,
+        time_hhmmss: true,
+        hours: true,
+        percentage: false,
+        rank: true,
+        status: false,
+        session: false,
+        favorite: false
+    };
+
+    // Update checkboxes
+    for (const [key, value] of Object.entries(defaultPreferences)) {
+        document.getElementById(`export_${key}`).checked = value;
+    }
+
+    // Save to backend
+    try {
+        const response = await fetch('/api/export-preferences', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(defaultPreferences)
+        });
+
+        if (response.ok) {
+            showNotification('Export preferences reset to default', 'success');
+        } else {
+            showNotification('Failed to reset preferences', 'error');
+        }
+    } catch (error) {
+        console.error('Error resetting export preferences:', error);
+        showNotification('Failed to reset preferences', 'error');
+    }
+}
+
+// ... existing code ...

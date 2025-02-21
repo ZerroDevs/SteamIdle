@@ -1487,60 +1487,112 @@ def save_goals(goals):
 def export_stats():
     try:
         data = request.get_json()
-        export_type = data.get('type', 'csv')
+        export_type = data.get('format', 'csv')
+        preferences = data.get('preferences', {})
+        
+        # Define field mappings
+        field_mappings = {
+            'game_id': 'Game ID',
+            'game_name': 'Game Name',
+            'store_url': 'Steam Store URL',
+            'time_hhmmss': 'Total Time (HH:MM:SS)',
+            'hours': 'Total Hours',
+            'percentage': 'Percentage of Total Time',
+            'rank': 'Most Idled Rank',
+            'status': 'Status',
+            'session': 'Current Session',
+            'favorite': 'Is Favorite'
+        }
+        
+        # Get selected fields based on preferences
+        selected_fields = [field_mappings[key] for key, value in preferences.items() if value]
+        
+        # If no fields selected, use default fields
+        if not selected_fields:
+            selected_fields = ['Game ID', 'Game Name', 'Total Time (HH:MM:SS)', 'Total Hours', 'Most Idled Rank']
         
         # Prepare statistics data
         stats = []
         current_time = datetime.now()
+        total_seconds = 0
         
         # First, get the most idled games to determine rankings
         most_idled = []
         for game_id, session in game_sessions.items():
-            total_seconds = session.get('total_time', 0)
+            game_total_seconds = session.get('total_time', 0)
             
             # Add current session time if game is running
             if game_id in running_games and 'start_time' in session:
                 current_session = (current_time - session['start_time']).total_seconds()
-                total_seconds += current_session
+                game_total_seconds += current_session
             
+            total_seconds += game_total_seconds
             most_idled.append({
                 'game_id': game_id,
-                'total_seconds': total_seconds
+                'total_seconds': game_total_seconds
             })
         
         # Sort by total time to determine rankings
         most_idled.sort(key=lambda x: x['total_seconds'], reverse=True)
-        
-        # Create a mapping of game_id to rank (only for top 5)
         rank_map = {game['game_id']: f"#{idx + 1}" for idx, game in enumerate(most_idled[:5])}
         
-        # Now prepare the full stats with rank information
+        # Prepare the full stats with selected fields
         for game_id, session in game_sessions.items():
-            total_seconds = session.get('total_time', 0)
+            game_total_seconds = session.get('total_time', 0)
+            current_session_time = 0
+            is_running = game_id in running_games
             
-            # Add current session time if game is running
-            if game_id in running_games and 'start_time' in session:
-                current_session = (current_time - session['start_time']).total_seconds()
-                total_seconds += current_session
+            if is_running and 'start_time' in session:
+                current_session_time = (current_time - session['start_time']).total_seconds()
+                game_total_seconds += current_session_time
             
-            stats.append({
+            percentage = (game_total_seconds / total_seconds * 100) if total_seconds > 0 else 0
+            
+            # Create full game data
+            game_data = {
                 'Game ID': game_id,
                 'Game Name': session.get('name', 'Unknown Game'),
-                'Total Time (HH:MM:SS)': format_duration(total_seconds),
-                'Total Hours': round(total_seconds / 3600, 2),
-                'Most Idled Rank': rank_map.get(game_id, '-')
-            })
+                'Steam Store URL': f"https://store.steampowered.com/app/{game_id}",
+                'Total Time (HH:MM:SS)': format_duration(game_total_seconds),
+                'Total Hours': round(game_total_seconds / 3600, 2),
+                'Percentage of Total Time': f"{percentage:.2f}%",
+                'Most Idled Rank': rank_map.get(game_id, '-'),
+                'Status': 'Running' if is_running else 'Stopped',
+                'Current Session': format_duration(current_session_time) if is_running else '-',
+                'Is Favorite': 'Yes' if game_id in load_game_favorites() else 'No'
+            }
+            
+            # Filter data based on selected fields
+            filtered_data = {field: game_data[field] for field in selected_fields}
+            stats.append(filtered_data)
         
         # Sort stats by total hours in descending order
-        stats.sort(key=lambda x: x['Total Hours'], reverse=True)
+        if 'Total Hours' in selected_fields:
+            stats.sort(key=lambda x: x.get('Total Hours', 0), reverse=True)
+        
+        # Prepare summary statistics
+        summary = {
+            'Total Games': len(stats),
+            'Total Playtime (Hours)': round(total_seconds / 3600, 2),
+            'Total Playtime (HH:MM:SS)': format_duration(total_seconds),
+            'Average Daily Playtime (Hours)': round((total_seconds / 3600) / max(1, (current_time - datetime.fromtimestamp(os.path.getctime(STATS_FILE))).days), 2),
+            'Export Date': current_time.strftime('%Y-%m-%d %H:%M:%S'),
+            'Currently Running Games': len(running_games)
+        }
         
         if export_type == 'csv':
             filename = f"steam_idle_stats_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
             filepath = os.path.join(APPDATA_PATH, filename)
             
             with open(filepath, 'w', newline='', encoding='utf-8') as f:
-                fieldnames = ['Game ID', 'Game Name', 'Total Time (HH:MM:SS)', 'Total Hours', 'Most Idled Rank']
-                writer = csv.DictWriter(f, fieldnames=fieldnames)
+                # Write summary section
+                f.write("# Summary Statistics\n")
+                for key, value in summary.items():
+                    f.write(f"{key},{value}\n")
+                f.write("\n# Game Statistics\n")
+                
+                # Write game statistics with selected fields
+                writer = csv.DictWriter(f, fieldnames=selected_fields)
                 writer.writeheader()
                 writer.writerows(stats)
             
@@ -1558,21 +1610,12 @@ def export_stats():
                     pass
                     
         elif export_type == 'json':
-            # Calculate total statistics
-            total_playtime = sum(game['Total Hours'] for game in stats)
-            
-            # Create JSON structure
+            # Create JSON structure with selected fields
             json_data = {
-                'summary': {
-                    'total_games': len(stats),
-                    'total_playtime_hours': round(total_playtime, 2),
-                    'total_playtime_formatted': format_duration(total_playtime * 3600),
-                    'export_date': datetime.now().isoformat()
-                },
+                'summary': summary,
                 'games': stats
             }
             
-            # Create a temporary file for JSON
             filename = f"steam_idle_stats_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
             filepath = os.path.join(APPDATA_PATH, filename)
             
@@ -1599,7 +1642,7 @@ def export_stats():
             }), 400
             
     except Exception as e:
-        print(f"Export error: {str(e)}")  # Add logging for debugging
+        print(f"Export error: {str(e)}")
         return jsonify({
             "status": "error",
             "message": str(e)
@@ -2437,6 +2480,49 @@ def manage_game_favorites():
         save_game_favorites(favorites)
         
         return jsonify({"favorites": favorites['favorites']})
+
+# Add new functions for export preferences
+def get_export_preferences_path():
+    return os.path.join(APPDATA_PATH, 'export_preferences.json')
+
+def load_export_preferences():
+    prefs_file = get_export_preferences_path()
+    if os.path.exists(prefs_file):
+        with open(prefs_file, 'r') as f:
+            return json.load(f)
+    return {
+        'game_id': True,
+        'game_name': True,
+        'store_url': False,
+        'time_hhmmss': True,
+        'hours': True,
+        'percentage': False,
+        'rank': True,
+        'status': False,
+        'session': False,
+        'favorite': False
+    }
+
+@app.route('/api/export-preferences', methods=['GET'])
+def get_export_preferences():
+    try:
+        preferences = load_export_preferences()
+        return jsonify(preferences)
+    except Exception as e:
+        print(f"Error loading export preferences: {str(e)}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+@app.route('/api/export-preferences', methods=['POST'])
+def save_export_preferences():
+    try:
+        preferences = request.get_json()
+        prefs_file = get_export_preferences_path()
+        with open(prefs_file, 'w') as f:
+            json.dump(preferences, f)
+        return jsonify({"status": "success"})
+    except Exception as e:
+        print(f"Error saving export preferences: {str(e)}")
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 if __name__ == '__main__':
     # Check for internet connection before starting the app

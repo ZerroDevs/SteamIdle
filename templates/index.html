@@ -602,7 +602,7 @@
                     <!-- Steam Controller Icon -->
                     <path d="M35 45C35 42.2386 37.2386 40 40 40H60C62.7614 40 65 42.2386 65 45V55C65 57.7614 62.7614 60 60 60H40C37.2386 60 35 57.7614 35 55V45Z" fill="#1F2937"/>
                     <path d="M42 48C42 46.8954 42.8954 46 44 46H46C47.1046 46 48 46.8954 48 48V52C48 53.1046 47.1046 54 46 54H44C42.8954 54 42 53.1046 42 52V48Z" fill="#3B82F6"/>
-                    <path d="M52 48C52 46.8954 52.8954 46 54 46H56C57.1046 46 58 46.8954 58 48V52C58 53.1046 57.1046 54 56 54H54C52.8954 54 52 53.1046 52 52V48Z" fill="#3B82F6"/>
+                    <path d="M52 48C52 46.8954 52.8954 46 54 46H56C57.1046 46 58 46.8954 58 48 48 48V52C58 53.1046 57.1046 54 56 54H54C52.8954 54 52 53.1046 52 52V48Z" fill="#3B82F6"/>
                     
                     <!-- Pause Symbol -->
                     <rect x="38" y="65" width="10" height="20" rx="2" fill="#3B82F6" class="animate-pulse"/>
@@ -893,15 +893,22 @@
                 <!-- Statistics Management -->
                 <div class="bg-gray-700 p-4 rounded">
                     <h3 class="text-lg font-semibold mb-4">Statistics Management</h3>
-                    <div class="flex gap-4">
-                        <button onclick="exportStats()" 
-                                class="flex-1 bg-blue-500 hover:bg-blue-600 px-4 py-2 rounded font-semibold transition-colors">
-                            <i class="fas fa-download mr-2"></i>Export Statistics
-                        </button>
-                        <button onclick="confirmResetStats()" 
-                                class="flex-1 bg-red-500 hover:bg-red-600 px-4 py-2 rounded font-semibold transition-colors">
-                            <i class="fas fa-trash mr-2"></i>Reset Statistics
-                        </button>
+                    <div class="space-y-4">
+                        <div class="flex gap-4">
+                            <div class="flex-1 flex flex-col">
+                                <button onclick="exportStats('csv')" 
+                                        class="bg-blue-500 hover:bg-blue-600 px-4 py-2 rounded font-semibold transition-colors">
+                                    <i class="fas fa-download mr-2"></i>Export Statistics
+                                </button>
+                                <button onclick="toggleExportCustomization()" class="text-blue-500 hover:text-blue-400 text-sm mt-2">
+                                    Customize
+                                </button>
+                            </div>
+                            <button onclick="confirmResetStats()" 
+                                    class="flex-1 bg-red-500 hover:bg-red-600 px-4 py-2 rounded font-semibold transition-colors">
+                                <i class="fas fa-trash mr-2"></i>Reset Statistics
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1123,6 +1130,68 @@
                 <button onclick="confirmDeletePreset()" 
                         class="px-6 py-2 bg-red-500 hover:bg-red-600 rounded transition-colors">
                     <i class="fas fa-trash mr-2"></i>Delete
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Export Customization Popup -->
+    <div id="exportCustomizationPopup" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-[100]">
+        <div class="bg-gray-800 rounded-lg p-6 w-96">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-semibold">Export Settings</h3>
+                <button onclick="toggleExportCustomization()" class="text-gray-400 hover:text-white">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="space-y-2">
+                <label class="flex items-center space-x-2">
+                    <input type="checkbox" id="export_game_id" class="form-checkbox" checked>
+                    <span>Game ID</span>
+                </label>
+                <label class="flex items-center space-x-2">
+                    <input type="checkbox" id="export_game_name" class="form-checkbox" checked>
+                    <span>Game Name</span>
+                </label>
+                <label class="flex items-center space-x-2">
+                    <input type="checkbox" id="export_store_url" class="form-checkbox">
+                    <span>Steam Store URL</span>
+                </label>
+                <label class="flex items-center space-x-2">
+                    <input type="checkbox" id="export_time_hhmmss" class="form-checkbox" checked>
+                    <span>Total Time (HH:MM:SS)</span>
+                </label>
+                <label class="flex items-center space-x-2">
+                    <input type="checkbox" id="export_hours" class="form-checkbox" checked>
+                    <span>Total Hours</span>
+                </label>
+                <label class="flex items-center space-x-2">
+                    <input type="checkbox" id="export_percentage" class="form-checkbox">
+                    <span>Percentage of Total Time</span>
+                </label>
+                <label class="flex items-center space-x-2">
+                    <input type="checkbox" id="export_rank" class="form-checkbox" checked>
+                    <span>Most Idled Rank</span>
+                </label>
+                <label class="flex items-center space-x-2">
+                    <input type="checkbox" id="export_status" class="form-checkbox">
+                    <span>Status</span>
+                </label>
+                <label class="flex items-center space-x-2">
+                    <input type="checkbox" id="export_session" class="form-checkbox">
+                    <span>Current Session</span>
+                </label>
+                <label class="flex items-center space-x-2">
+                    <input type="checkbox" id="export_favorite" class="form-checkbox">
+                    <span>Is Favorite</span>
+                </label>
+            </div>
+            <div class="mt-6 flex justify-between">
+                <button onclick="resetExportPreferences()" class="bg-gray-500 hover:bg-gray-600 px-4 py-2 rounded text-sm">
+                    <i class="fas fa-undo mr-1"></i>Reset to Default
+                </button>
+                <button onclick="toggleExportCustomization()" class="bg-blue-500 hover:bg-blue-600 px-4 py-2 rounded text-sm">
+                    Done
                 </button>
             </div>
         </div>

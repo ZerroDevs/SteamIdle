@@ -498,12 +498,28 @@ const debouncedUpdatePresetsList = debounce(async (presets) => {
                     <h3 class="text-lg font-semibold">${preset.name}</h3>
                     <div class="flex gap-2">
                         <button onclick="${isFavorited ? 'removeFavorite' : 'addFavorite'}('${preset.name}')" 
-                                class="text-${isFavorited ? 'yellow' : 'gray'}-500 hover:text-yellow-400 transition-colors duration-200 ${isFavorited ? 'glow-yellow' : ''}">
+                                class="text-${isFavorited ? 'yellow' : 'gray'}-500 hover:text-yellow-400 transition-colors duration-200 ${isFavorited ? 'glow-yellow' : ''} group relative">
                             <i class="fas fa-star"></i>
+                            <!-- Tooltip -->
+                            <div class="opacity-0 group-hover:opacity-100 transition-opacity absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg whitespace-nowrap">
+                                ${isFavorited ? 'Remove from Favorites' : 'Add to Favorites'}
+                                <!-- Arrow -->
+                                <div class="absolute left-1/2 transform -translate-x-1/2 top-full">
+                                    <div class="w-2 h-2 bg-gray-900 transform rotate-45"></div>
+                                </div>
+                            </div>
                         </button>
                         <button onclick="showRenamePresetModal('${preset.name}')"
-                                class="text-blue-500 hover:text-blue-400 transition-colors">
+                                class="text-blue-500 hover:text-blue-400 transition-colors group relative">
                             <i class="fas fa-edit"></i>
+                            <!-- Tooltip -->
+                            <div class="opacity-0 group-hover:opacity-100 transition-opacity absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg whitespace-nowrap">
+                                Rename Preset
+                                <!-- Arrow -->
+                                <div class="absolute left-1/2 transform -translate-x-1/2 top-full">
+                                    <div class="w-2 h-2 bg-gray-900 transform rotate-45"></div>
+                                </div>
+                            </div>
                         </button>
                     </div>
                 </div>
@@ -2076,6 +2092,15 @@ async function confirmRenamePreset() {
 }
 
 // Edit Preset Functions
+// Function to handle clicking outside the modal
+function handleClickOutside(event) {
+    const modal = document.getElementById('editPresetModal');
+    const modalContent = modal.querySelector('.bg-gray-800');
+    if (event.target === modal) {
+        closeEditPresetModal();
+    }
+}
+
 async function showEditPresetModal(presetName) {
     presetToEdit = presetName;
     const modal = document.getElementById('editPresetModal');
@@ -2095,6 +2120,9 @@ async function showEditPresetModal(presetName) {
     
     modal.classList.remove('hidden');
     modal.classList.add('flex');
+
+    // Add click outside listener
+    modal.addEventListener('click', handleClickOutside);
 }
 
 function closeEditPresetModal() {
@@ -2103,6 +2131,8 @@ function closeEditPresetModal() {
     modal.classList.add('hidden');
     presetToEdit = null;
     editedGames = [];
+    // Remove click outside listener
+    modal.removeEventListener('click', handleClickOutside);
 }
 
 function updateEditPresetGamesList() {

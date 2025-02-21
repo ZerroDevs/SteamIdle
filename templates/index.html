@@ -506,11 +506,37 @@
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <!-- Total Playtime Card -->
                 <div class="bg-gray-800 rounded-lg p-6">
-                    <h2 class="text-2xl font-semibold mb-4 flex items-center">
-                        <svg class="w-6 h-6 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        Total Playtime
+                    <h2 class="text-2xl font-semibold mb-4 flex items-center justify-between">
+                        <div class="flex items-center">
+                            <svg class="w-6 h-6 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            Total Playtime
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="exportStats('csv')" class="text-gray-400 hover:text-white transition-colors group relative">
+                                <i class="fas fa-file-csv text-xl"></i>
+                                <!-- Tooltip -->
+                                <div class="opacity-0 group-hover:opacity-100 transition-opacity absolute bottom-full right-0 mb-2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg whitespace-nowrap">
+                                    Export as CSV
+                                    <!-- Arrow -->
+                                    <div class="absolute right-3 transform -translate-x-1/2 top-full">
+                                        <div class="w-2 h-2 bg-gray-900 transform rotate-45"></div>
+                                    </div>
+                                </div>
+                            </button>
+                            <button onclick="exportStats('json')" class="text-gray-400 hover:text-white transition-colors group relative">
+                                <i class="fas fa-file-code text-xl"></i>
+                                <!-- Tooltip -->
+                                <div class="opacity-0 group-hover:opacity-100 transition-opacity absolute bottom-full right-0 mb-2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg whitespace-nowrap">
+                                    Export as JSON
+                                    <!-- Arrow -->
+                                    <div class="absolute right-3 transform -translate-x-1/2 top-full">
+                                        <div class="w-2 h-2 bg-gray-900 transform rotate-45"></div>
+                                    </div>
+                                </div>
+                            </button>
+                        </div>
                     </h2>
                     <div id="totalPlaytime" class="text-4xl font-bold text-blue-400 mb-2">Loading...</div>
                     <p class="text-sm text-gray-400 italic">Real time will be shown after stopping all idles</p>
@@ -518,11 +544,37 @@
 
                 <!-- Most Idled Games Card -->
                 <div class="bg-gray-800 rounded-lg p-6">
-                    <h2 class="text-2xl font-semibold mb-4 flex items-center">
-                        <svg class="w-6 h-6 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-                        </svg>
-                        Most Idled Games
+                    <h2 class="text-2xl font-semibold mb-4 flex items-center justify-between">
+                        <div class="flex items-center">
+                            <svg class="w-6 h-6 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                            </svg>
+                            Most Idled Games
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="exportStats('csv')" class="text-gray-400 hover:text-white transition-colors group relative">
+                                <i class="fas fa-file-csv text-xl"></i>
+                                <!-- Tooltip -->
+                                <div class="opacity-0 group-hover:opacity-100 transition-opacity absolute bottom-full right-0 mb-2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg whitespace-nowrap">
+                                    Export as CSV
+                                    <!-- Arrow -->
+                                    <div class="absolute right-3 transform -translate-x-1/2 top-full">
+                                        <div class="w-2 h-2 bg-gray-900 transform rotate-45"></div>
+                                    </div>
+                                </div>
+                            </button>
+                            <button onclick="exportStats('json')" class="text-gray-400 hover:text-white transition-colors group relative">
+                                <i class="fas fa-file-code text-xl"></i>
+                                <!-- Tooltip -->
+                                <div class="opacity-0 group-hover:opacity-100 transition-opacity absolute bottom-full right-0 mb-2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg whitespace-nowrap">
+                                    Export as JSON
+                                    <!-- Arrow -->
+                                    <div class="absolute right-3 transform -translate-x-1/2 top-full">
+                                        <div class="w-2 h-2 bg-gray-900 transform rotate-45"></div>
+                                    </div>
+                                </div>
+                            </button>
+                        </div>
                     </h2>
                     <div id="mostIdledGames" class="space-y-4">
                         <div class="animate-pulse bg-gray-700 h-10 rounded"></div>

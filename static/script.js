@@ -2391,33 +2391,47 @@ async function toggleAutoReconnect() {
     }
 }
 
-async function exportStats() {
+async function exportStats(format = 'csv') {
     try {
+        showNotification('Preparing export...', 'info');
+        
         const response = await fetch('/api/export-stats', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ type: 'csv' })
+            body: JSON.stringify({
+                type: format
+            })
         });
-        
-        if (response.ok) {
-            const blob = await response.blob();
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `steam_idle_stats_${new Date().toISOString().slice(0,10)}.csv`;
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(url);
-            a.remove();
-            showNotification('Statistics exported successfully', 'success');
-        } else {
-            throw new Error('Failed to export statistics');
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Failed to export statistics');
         }
+
+        const blob = await response.blob();
+        const filename = `steam_idle_stats_${new Date().toISOString().slice(0,10)}.${format}`;
+        
+        // Create download link
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        a.download = filename;
+        
+        // Add to document, click, and cleanup
+        document.body.appendChild(a);
+        a.click();
+        
+        // Cleanup
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        
+        showNotification(`📊 Statistics exported successfully as ${format.toUpperCase()}`, 'success');
     } catch (error) {
         console.error('Error exporting stats:', error);
-        showNotification('error', 'Failed to export statistics');
+        showNotification(`❌ ${error.message || 'Failed to export statistics'}`, 'error');
     }
 }
 

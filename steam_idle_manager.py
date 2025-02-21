@@ -1493,6 +1493,28 @@ def export_stats():
         stats = []
         current_time = datetime.now()
         
+        # First, get the most idled games to determine rankings
+        most_idled = []
+        for game_id, session in game_sessions.items():
+            total_seconds = session.get('total_time', 0)
+            
+            # Add current session time if game is running
+            if game_id in running_games and 'start_time' in session:
+                current_session = (current_time - session['start_time']).total_seconds()
+                total_seconds += current_session
+            
+            most_idled.append({
+                'game_id': game_id,
+                'total_seconds': total_seconds
+            })
+        
+        # Sort by total time to determine rankings
+        most_idled.sort(key=lambda x: x['total_seconds'], reverse=True)
+        
+        # Create a mapping of game_id to rank (only for top 5)
+        rank_map = {game['game_id']: f"#{idx + 1}" for idx, game in enumerate(most_idled[:5])}
+        
+        # Now prepare the full stats with rank information
         for game_id, session in game_sessions.items():
             total_seconds = session.get('total_time', 0)
             
@@ -1502,35 +1524,86 @@ def export_stats():
                 total_seconds += current_session
             
             stats.append({
-                'game_id': game_id,
-                'name': session.get('name', 'Unknown Game'),
-                'total_time': format_duration(total_seconds),
-                'total_hours': round(total_seconds / 3600, 2)
+                'Game ID': game_id,
+                'Game Name': session.get('name', 'Unknown Game'),
+                'Total Time (HH:MM:SS)': format_duration(total_seconds),
+                'Total Hours': round(total_seconds / 3600, 2),
+                'Most Idled Rank': rank_map.get(game_id, '-')
             })
         
-        # Export to CSV
+        # Sort stats by total hours in descending order
+        stats.sort(key=lambda x: x['Total Hours'], reverse=True)
+        
         if export_type == 'csv':
             filename = f"steam_idle_stats_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
             filepath = os.path.join(APPDATA_PATH, filename)
             
             with open(filepath, 'w', newline='', encoding='utf-8') as f:
-                writer = csv.DictWriter(f, fieldnames=['game_id', 'name', 'total_time', 'total_hours'])
+                fieldnames = ['Game ID', 'Game Name', 'Total Time (HH:MM:SS)', 'Total Hours', 'Most Idled Rank']
+                writer = csv.DictWriter(f, fieldnames=fieldnames)
                 writer.writeheader()
                 writer.writerows(stats)
             
-            # Return file as attachment
-            return send_file(
-                filepath,
-                as_attachment=True,
-                download_name=filename,
-                mimetype='text/csv'
-            )
+            try:
+                return send_file(
+                    filepath,
+                    as_attachment=True,
+                    download_name=filename,
+                    mimetype='text/csv'
+                )
+            finally:
+                try:
+                    os.remove(filepath)
+                except:
+                    pass
+                    
+        elif export_type == 'json':
+            # Calculate total statistics
+            total_playtime = sum(game['Total Hours'] for game in stats)
+            
+            # Create JSON structure
+            json_data = {
+                'summary': {
+                    'total_games': len(stats),
+                    'total_playtime_hours': round(total_playtime, 2),
+                    'total_playtime_formatted': format_duration(total_playtime * 3600),
+                    'export_date': datetime.now().isoformat()
+                },
+                'games': stats
+            }
+            
+            # Create a temporary file for JSON
+            filename = f"steam_idle_stats_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+            filepath = os.path.join(APPDATA_PATH, filename)
+            
+            with open(filepath, 'w', encoding='utf-8') as f:
+                json.dump(json_data, f, indent=2)
+            
+            try:
+                return send_file(
+                    filepath,
+                    as_attachment=True,
+                    download_name=filename,
+                    mimetype='application/json'
+                )
+            finally:
+                try:
+                    os.remove(filepath)
+                except:
+                    pass
+        
+        else:
+            return jsonify({
+                "status": "error",
+                "message": "Invalid export type"
+            }), 400
+            
     except Exception as e:
+        print(f"Export error: {str(e)}")  # Add logging for debugging
         return jsonify({
             "status": "error",
             "message": str(e)
         }), 500
-
 
 @app.route('/api/auto-reconnect', methods=['POST'])
 def toggle_auto_reconnect():

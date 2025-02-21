@@ -217,13 +217,15 @@ function removeGame(gameId) {
 function updateGamesList() {
     const gamesList = document.getElementById('gamesList');
     const startStopAllBtn = document.getElementById('startStopAllBtn');
+    const exportGamesBtn = document.getElementById('exportGamesBtn');
     if (!gamesList) return;
     
     gamesList.innerHTML = '';
     
-    // Show/hide and update Start/Stop All button based on games list
+    // Show/hide and update Start/Stop All button and export button based on games list
     if (currentGames.length > 0) {
         startStopAllBtn.classList.remove('hidden');
+        exportGamesBtn.classList.remove('hidden');
         const allGamesRunning = currentGames.every(game => runningGames.has(game.id.toString()));
         
         if (allGamesRunning) {
@@ -239,6 +241,7 @@ function updateGamesList() {
         }
     } else {
         startStopAllBtn.classList.add('hidden');
+        exportGamesBtn.classList.add('hidden');
     }
     
     currentGames.forEach(game => {
@@ -4346,3 +4349,35 @@ async function exportPreset(presetName, exportType) {
 }
 
 // ... existing code ...
+
+// Add the exportGames function
+async function exportGames(exportType) {
+    try {
+        // Get number of games
+        const gameCount = currentGames.length;
+
+        // Create content based on export type
+        let content = '';
+        if (exportType === 'ids') {
+            content = currentGames.map(game => game.id).join('\n');
+        } else {
+            content = currentGames.map(game => game.name).join('\n');
+        }
+
+        // Create and trigger download
+        const blob = new Blob([content], { type: 'text/plain' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `games_${exportType === 'ids' ? 'ids' : 'names'}_${gameCount}.txt`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+
+        showNotification(`Games exported as ${exportType === 'ids' ? 'Game IDs' : 'Game Names'} (${gameCount} games)`, 'success');
+    } catch (error) {
+        console.error('Error exporting games:', error);
+        showNotification('Failed to export games', 'error');
+    }
+}

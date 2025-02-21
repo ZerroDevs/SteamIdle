@@ -412,6 +412,28 @@
                         </button>
                     </div>
                     <div class="flex gap-4">
+                        <div id="exportGamesBtn" class="hidden relative group">
+                            <button class="text-gray-400 hover:text-blue-400 transition-colors">
+                                <i class="fas fa-download text-xl"></i>
+                            </button>
+                            <!-- Export Dropdown -->
+                            <div class="opacity-0 group-hover:opacity-100 transition-opacity absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 bg-gray-900 text-white text-sm rounded-lg whitespace-nowrap">
+                                <div class="py-2">
+                                    <button onclick="exportGames('ids')" 
+                                            class="block w-full px-4 py-2 text-left hover:bg-gray-800 transition-colors">
+                                        Export Game IDs
+                                    </button>
+                                    <button onclick="exportGames('names')" 
+                                            class="block w-full px-4 py-2 text-left hover:bg-gray-800 transition-colors">
+                                        Export Game Names
+                                    </button>
+                                </div>
+                                <!-- Arrow -->
+                                <div class="absolute left-1/2 transform -translate-x-1/2 top-full">
+                                    <div class="w-2 h-2 bg-gray-900 transform rotate-45"></div>
+                                </div>
+                            </div>
+                        </div>
                         <button id="startStopAllBtn" onclick="toggleAllGames()" 
                                 class="text-gray-400 hover:text-green-500 transition-colors hidden group relative">
                             <i class="fas fa-play text-xl"></i>

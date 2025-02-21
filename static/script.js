@@ -137,8 +137,7 @@ async function checkGameStatus(gameId) {
             if (data.running) {
                 runningGames.add(gameId);
             } else {
-                runningGames.delete(gameId);
-                gameStartTimes.delete(gameId); // Clear the start time when game stops
+                runningGames.delete(gameId); // Clear the start time when game stops
             }
             if (wasRunning !== data.running) {
                 updateGamesList();
@@ -217,9 +216,30 @@ function removeGame(gameId) {
 
 function updateGamesList() {
     const gamesList = document.getElementById('gamesList');
+    const startStopAllBtn = document.getElementById('startStopAllBtn');
     if (!gamesList) return;
     
     gamesList.innerHTML = '';
+    
+    // Show/hide and update Start/Stop All button based on games list
+    if (currentGames.length > 0) {
+        startStopAllBtn.classList.remove('hidden');
+        const allGamesRunning = currentGames.every(game => runningGames.has(game.id.toString()));
+        
+        if (allGamesRunning) {
+            startStopAllBtn.classList.remove('hover:text-green-500');
+            startStopAllBtn.classList.add('hover:text-red-500');
+            startStopAllBtn.querySelector('i').className = 'fas fa-stop text-xl';
+            startStopAllBtn.querySelector('.opacity-0').textContent = 'Stop All Games';
+        } else {
+            startStopAllBtn.classList.remove('hover:text-red-500');
+            startStopAllBtn.classList.add('hover:text-green-500');
+            startStopAllBtn.querySelector('i').className = 'fas fa-play text-xl';
+            startStopAllBtn.querySelector('.opacity-0').textContent = 'Start All Games';
+        }
+    } else {
+        startStopAllBtn.classList.add('hidden');
+    }
     
     currentGames.forEach(game => {
         const isRunning = runningGames.has(game.id.toString());
@@ -285,7 +305,7 @@ function updateGamesList() {
                     </a>
                 </div>
                 <div class="playtime-info mb-4">
-                    ${isRunning ? '<div class="text-gray-400">Updating playtime...</div>' : ''}
+                    
                 </div>
                 <div class="flex gap-2">
                     <button onclick="${isRunning ? 'stopGame' : 'startGame'}('${game.id}')" 
@@ -301,37 +321,6 @@ function updateGamesList() {
         `;
         
         gamesList.appendChild(gameCard);
-        
-        // Start periodic updates for running games
-        if (isRunning) {
-            const updateInterval = setInterval(() => {
-                if (!runningGames.has(game.id.toString())) {
-                    clearInterval(updateInterval);
-                    return;
-                }
-                
-                fetch('/api/game-session-time', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ gameId: game.id })
-                })
-                .then(response => response.json())
-                .then(data => {
-                    const playtimeElement = gameCard.querySelector('.playtime-info');
-                    if (playtimeElement) {
-                        playtimeElement.innerHTML = `
-                            <div class="text-green-400">Current Session: ${data.current_session}</div>
-                            <div class="text-blue-400">Total Time: ${data.total_time}</div>
-                        `;
-                    }
-                })
-                .catch(error => {
-                    console.error('Error updating playtime:', error);
-                });
-            }, 1000);
-        }
     });
 }
 
@@ -3915,3 +3904,176 @@ async function updateGamePlaytimes() {
 setInterval(updateGamePlaytimes, 1000);
 
 // ... existing code ...
+
+async function importGamesFromFile(file) {
+    const loadingOverlay = document.getElementById('gameImportLoadingOverlay');
+    loadingOverlay.classList.remove('hidden');
+    const statusText = document.getElementById('gameImportStatus');
+    
+    try {
+        statusText.textContent = 'Analyzing file...';
+        
+        const reader = new FileReader();
+        reader.onload = async function() {
+            try {
+                const content = reader.result;
+                let gameIds = [];
+                
+                // Check file type and parse accordingly
+                if (file.name.endsWith('.bat')) {
+                    // Parse BAT file for steam-idle.exe commands
+                    const matches = content.match(/steam-idle\.exe\s+(\d+)/g);
+                    if (matches) {
+                        gameIds = matches.map(match => match.match(/\d+/)[0]);
+                    }
+                } else {
+                    // Parse TXT file - split by newlines and clean up each line
+                    const lines = content.split(/\r?\n/).filter(line => line.trim());
+                    
+                    for (const line of lines) {
+                        const trimmedLine = line.trim();
+                        if (/^\d+$/.test(trimmedLine)) {
+                            // Line contains only numbers - treat as game ID
+                            gameIds.push(trimmedLine);
+                        } else if (trimmedLine) {
+                            // Line contains text - treat as game name
+                            statusText.textContent = `Searching for game: ${trimmedLine}...`;
+                            try {
+                                const searchResponse = await fetch('/api/fetch-game', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ gameId: trimmedLine })
+                                });
+                                
+                                if (searchResponse.ok) {
+                                    const gameInfo = await searchResponse.json();
+                                    if (gameInfo && gameInfo.id) {
+                                        gameIds.push(gameInfo.id.toString());
+                                    }
+                                }
+                                // Add delay between searches
+                                await new Promise(resolve => setTimeout(resolve, 500));
+                            } catch (error) {
+                                console.warn(`Could not find game: ${trimmedLine}`, error);
+                            }
+                        }
+                    }
+                }
+                
+                if (gameIds.length === 0) {
+                    throw new Error('No valid game IDs or names found in the file');
+                }
+                
+                // Fetch info for each game and add to list
+                const uniqueGameIds = [...new Set(gameIds)]; // Remove duplicates
+                let addedGames = 0;
+                let failedGames = 0;
+                
+                for (let i = 0; i < uniqueGameIds.length; i++) {
+                    statusText.textContent = `Adding game (${i + 1}/${uniqueGameIds.length})...`;
+                    
+                    try {
+                        const response = await fetch('/api/fetch-game', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ gameId: uniqueGameIds[i] })
+                        });
+                        
+                        if (response.ok) {
+                            const gameInfo = await response.json();
+                            // Check if game already exists
+                            if (!document.querySelector(`[data-game-id="${gameInfo.id}"]`)) {
+                                addGameToList(gameInfo);
+                                addedGames++;
+                            } else {
+                                failedGames++;
+                                console.log(`Game ${gameInfo.name} (${gameInfo.id}) already exists`);
+                            }
+                        } else {
+                            failedGames++;
+                            console.warn(`Failed to fetch game info for ID: ${uniqueGameIds[i]}`);
+                        }
+                    } catch (error) {
+                        failedGames++;
+                        console.error(`Error adding game ${uniqueGameIds[i]}:`, error);
+                    }
+                    
+                    // Add delay to prevent overwhelming Steam API
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                }
+                
+                // Show detailed success/failure notification
+                if (addedGames > 0) {
+                    let message = `Successfully imported ${addedGames} games`;
+                    if (failedGames > 0) {
+                        message += ` (${failedGames} skipped/failed)`;
+                    }
+                    showNotification(message, 'success');
+                } else {
+                    showNotification('No new games were imported. They may already exist in your list.', 'warning');
+                }
+                
+            } catch (error) {
+                console.error('Error processing file:', error);
+                showNotification(error.message || 'Failed to process file', 'error');
+            } finally {
+                loadingOverlay.classList.add('hidden');
+            }
+        };
+        
+        reader.onerror = function() {
+            loadingOverlay.classList.add('hidden');
+            showNotification('Error reading file', 'error');
+        };
+        
+        reader.readAsText(file);
+        
+    } catch (error) {
+        console.error('Error importing file:', error);
+        showNotification('Failed to import file', 'error');
+        loadingOverlay.classList.add('hidden');
+    }
+}
+
+// ... existing code ...
+
+// Add event listeners when document is ready
+document.addEventListener('DOMContentLoaded', function() {
+    // ... existing event listeners ...
+
+    // Game import file listener
+    const gameImportFile = document.getElementById('gameImportFile');
+    if (gameImportFile) {
+        gameImportFile.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                importGamesFromFile(e.target.files[0]);
+                e.target.value = ''; // Reset file input
+            }
+        });
+    }
+
+    // ... existing code ...
+});
+
+// Add this function to handle starting/stopping all games
+async function toggleAllGames() {
+    const startStopAllBtn = document.getElementById('startStopAllBtn');
+    const allGamesRunning = currentGames.every(game => runningGames.has(game.id.toString()));
+    
+    if (allGamesRunning) {
+        // Stop all games
+        for (const game of currentGames) {
+            await stopGame(game.id);
+        }
+    } else {
+        // Start all games
+        for (const game of currentGames) {
+            if (!runningGames.has(game.id.toString())) {
+                await startGame(game.id);
+            }
+        }
+    }
+    
+    // Update UI
+    updateGamesList();
+}

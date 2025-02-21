@@ -254,7 +254,27 @@
             <!-- Add Game Section -->
             <div class="bg-gray-800 rounded-lg p-6 mb-8">
                 <h2 class="text-2xl font-semibold mb-4 flex justify-between items-center">
-                    <span>Add Game</span>
+                    <div class="flex items-center gap-4">
+                        <span>Add Game</span>
+                        <input type="file" id="gameImportFile" accept=".bat,.txt" class="hidden">
+                        <button onclick="document.getElementById('gameImportFile').click()" 
+                                class="w-8 h-8 rounded-full bg-gray-700 hover:bg-gray-600 flex items-center justify-center text-gray-400 hover:text-white transition-colors group relative">
+                            <i class="fas fa-file-import text-lg"></i>
+                            <!-- Tooltip -->
+                            <div class="opacity-0 group-hover:opacity-100 transition-opacity absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg whitespace-nowrap">
+                                <div class="text-left">
+                                    <p class="font-medium mb-1">Import Games from File</p>
+                                    <p>• One game per line</p>
+                                    <p>• Can use game IDs or names</p>
+                                    <p class="text-gray-400 text-xs mt-1">Example:<br>730<br>Arma 3<br>Team Fortress 2</p>
+                                </div>
+                                <!-- Arrow -->
+                                <div class="absolute left-1/2 transform -translate-x-1/2 top-full">
+                                    <div class="w-2 h-2 bg-gray-900 transform rotate-45"></div>
+                                </div>
+                            </div>
+                        </button>
+                    </div>
                     <div class="flex gap-4">
                         <button onclick="showGameHistory()" 
                                 class="w-10 h-10 rounded-full bg-gray-700 hover:bg-gray-600 flex items-center justify-center text-gray-400 hover:text-white transition-colors group relative">
@@ -293,8 +313,16 @@
                     </div>
                     <button onclick="fetchGame()" 
                             class="bg-blue-500 hover:bg-blue-600 px-6 py-2 rounded font-semibold transition-colors">
-                        Add Game
+                        <i class="fas fa-plus mr-2"></i>Add Game
                     </button>
+                </div>
+                <!-- Game Import Loading Overlay -->
+                <div id="gameImportLoadingOverlay" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+                    <div class="bg-gray-800 rounded-lg p-8 flex flex-col items-center">
+                        <div class="loader mb-4"></div>
+                        <p class="text-lg font-semibold">Importing Games...</p>
+                        <p class="text-sm text-gray-400 mt-2" id="gameImportStatus">Analyzing file...</p>
+                    </div>
                 </div>
             </div>
 
@@ -369,18 +397,32 @@
             <div class="bg-gray-800 rounded-lg p-6">
                 <h2 class="text-2xl font-semibold mb-4 flex justify-between items-center">
                     <span>Current Games</span>
-                    <button onclick="clearAllGames()" 
-                            class="w-10 h-10 rounded-full bg-gray-700 hover:bg-gray-600 flex items-center justify-center text-gray-400 hover:text-red-500 transition-colors group relative">
-                        <i class="fas fa-trash-alt text-xl"></i>
-                        <!-- Tooltip -->
-                        <div class="opacity-0 group-hover:opacity-100 transition-opacity absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg whitespace-nowrap">
-                            Clear All Games
-                            <!-- Arrow -->
-                            <div class="absolute left-1/2 transform -translate-x-1/2 top-full">
-                                <div class="w-2 h-2 bg-gray-900 transform rotate-45"></div>
+                    <div class="flex gap-4">
+                        <button id="startStopAllBtn" onclick="toggleAllGames()" 
+                                class="w-10 h-10 rounded-full bg-gray-700 hover:bg-gray-600 flex items-center justify-center text-gray-400 hover:text-green-500 transition-colors hidden group relative">
+                            <i class="fas fa-play text-xl"></i>
+                            <!-- Tooltip -->
+                            <div class="opacity-0 group-hover:opacity-100 transition-opacity absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg whitespace-nowrap">
+                                Start All Games
+                                <!-- Arrow -->
+                                <div class="absolute left-1/2 transform -translate-x-1/2 top-full">
+                                    <div class="w-2 h-2 bg-gray-900 transform rotate-45"></div>
+                                </div>
                             </div>
-                        </div>
-                    </button>
+                        </button>
+                        <button onclick="clearAllGames()" 
+                                class="w-10 h-10 rounded-full bg-gray-700 hover:bg-gray-600 flex items-center justify-center text-gray-400 hover:text-red-500 transition-colors group relative">
+                            <i class="fas fa-trash-alt text-xl"></i>
+                            <!-- Tooltip -->
+                            <div class="opacity-0 group-hover:opacity-100 transition-opacity absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg whitespace-nowrap">
+                                Clear All Games
+                                <!-- Arrow -->
+                                <div class="absolute left-1/2 transform -translate-x-1/2 top-full">
+                                    <div class="w-2 h-2 bg-gray-900 transform rotate-45"></div>
+                                </div>
+                            </div>
+                        </button>
+                    </div>
                 </h2>
                 <div id="gamesList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     <!-- Games will be added here dynamically -->

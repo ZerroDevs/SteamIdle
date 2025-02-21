@@ -3984,6 +3984,8 @@ async function importGamesFromFile(file) {
                             // Check if game already exists
                             if (!document.querySelector(`[data-game-id="${gameInfo.id}"]`)) {
                                 addGameToList(gameInfo);
+                                // Add to history
+                                await addToGameHistory(gameInfo);
                                 addedGames++;
                             } else {
                                 failedGames++;

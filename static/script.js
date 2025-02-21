@@ -521,6 +521,28 @@ const debouncedUpdatePresetsList = debounce(async (presets) => {
                                 </div>
                             </div>
                         </button>
+                        <div class="relative group">
+                            <button class="text-blue-500 hover:text-blue-400 transition-colors">
+                                <i class="fas fa-download"></i>
+                            </button>
+                            <!-- Export Dropdown -->
+                            <div class="opacity-0 group-hover:opacity-100 transition-opacity absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 bg-gray-900 text-white text-sm rounded-lg whitespace-nowrap">
+                                <div class="py-2">
+                                    <button onclick="exportPreset('${preset.name}', 'ids')" 
+                                            class="block w-full px-4 py-2 text-left hover:bg-gray-800 transition-colors">
+                                        Export Game IDs
+                                    </button>
+                                    <button onclick="exportPreset('${preset.name}', 'names')" 
+                                            class="block w-full px-4 py-2 text-left hover:bg-gray-800 transition-colors">
+                                        Export Game Names
+                                    </button>
+                                </div>
+                                <!-- Arrow -->
+                                <div class="absolute left-1/2 transform -translate-x-1/2 top-full">
+                                    <div class="w-2 h-2 bg-gray-900 transform rotate-45"></div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <div class="flex gap-2">
@@ -4277,6 +4299,49 @@ async function resetExportPreferences() {
     } catch (error) {
         console.error('Error resetting export preferences:', error);
         showNotification('Failed to reset preferences', 'error');
+    }
+}
+
+// ... existing code ...
+
+// ... existing code ...
+async function exportPreset(presetName, exportType) {
+    try {
+        // Get the preset data
+        const presets = await loadPresets(true);
+        const preset = presets.find(p => p.name === presetName);
+        
+        if (!preset) {
+            showNotification('Preset not found', 'error');
+            return;
+        }
+
+        // Create content based on export type
+        let content = '';
+        if (exportType === 'ids') {
+            content = preset.games.map(game => game.id).join('\n');
+        } else {
+            content = preset.games.map(game => game.name).join('\n');
+        }
+
+        // Get number of games
+        const gameCount = preset.games.length;
+
+        // Create and trigger download
+        const blob = new Blob([content], { type: 'text/plain' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${presetName}_${exportType === 'ids' ? 'ids' : 'names'}_${gameCount}.txt`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+
+        showNotification(`Preset exported as ${exportType === 'ids' ? 'Game IDs' : 'Game Names'} (${gameCount} games)`, 'success');
+    } catch (error) {
+        console.error('Error exporting preset:', error);
+        showNotification('Failed to export preset', 'error');
     }
 }
 

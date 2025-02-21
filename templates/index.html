@@ -258,8 +258,8 @@
                         <span>Add Game</span>
                         <input type="file" id="gameImportFile" accept=".bat,.txt" class="hidden">
                         <button onclick="document.getElementById('gameImportFile').click()" 
-                                class="w-8 h-8 rounded-full bg-gray-700 hover:bg-gray-600 flex items-center justify-center text-gray-400 hover:text-white transition-colors group relative">
-                            <i class="fas fa-file-import text-lg"></i>
+                                class="text-gray-400 hover:text-white transition-colors group relative">
+                            <i class="fas fa-file-import text-xl"></i>
                             <!-- Tooltip -->
                             <div class="opacity-0 group-hover:opacity-100 transition-opacity absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg whitespace-nowrap">
                                 <div class="text-left">
@@ -277,7 +277,7 @@
                     </div>
                     <div class="flex gap-4">
                         <button onclick="showGameHistory()" 
-                                class="w-10 h-10 rounded-full bg-gray-700 hover:bg-gray-600 flex items-center justify-center text-gray-400 hover:text-white transition-colors group relative">
+                                class="text-gray-400 hover:text-white transition-colors group relative">
                             <i class="fas fa-history text-xl"></i>
                             <!-- Tooltip -->
                             <div class="opacity-0 group-hover:opacity-100 transition-opacity absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg whitespace-nowrap">
@@ -289,7 +289,7 @@
                             </div>
                         </button>
                         <button onclick="showGameFavorites()" 
-                                class="w-10 h-10 rounded-full bg-gray-700 hover:bg-gray-600 flex items-center justify-center text-gray-400 hover:text-white transition-colors group relative">
+                                class="text-gray-400 hover:text-white transition-colors group relative">
                             <i class="fas fa-star text-xl"></i>
                             <!-- Tooltip -->
                             <div class="opacity-0 group-hover:opacity-100 transition-opacity absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg whitespace-nowrap">
@@ -396,10 +396,24 @@
             <!-- Current Games Section -->
             <div class="bg-gray-800 rounded-lg p-6">
                 <h2 class="text-2xl font-semibold mb-4 flex justify-between items-center">
-                    <span>Current Games</span>
+                    <div class="flex items-center gap-3">
+                        <span>Current Games</span>
+                        <button id="minimizeAllGamesBtn" onclick="toggleMinimizeAllGames()" 
+                                class="text-gray-400 hover:text-white transition-colors group relative">
+                            <i class="fas fa-window-minimize text-xl"></i>
+                            <!-- Tooltip -->
+                            <div id="minimizeTooltip" class="opacity-0 group-hover:opacity-100 transition-opacity absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg whitespace-nowrap">
+                                Minimize All Games
+                                <!-- Arrow -->
+                                <div class="absolute left-1/2 transform -translate-x-1/2 top-full">
+                                    <div class="w-2 h-2 bg-gray-900 transform rotate-45"></div>
+                                </div>
+                            </div>
+                        </button>
+                    </div>
                     <div class="flex gap-4">
                         <button id="startStopAllBtn" onclick="toggleAllGames()" 
-                                class="w-10 h-10 rounded-full bg-gray-700 hover:bg-gray-600 flex items-center justify-center text-gray-400 hover:text-green-500 transition-colors hidden group relative">
+                                class="text-gray-400 hover:text-green-500 transition-colors hidden group relative">
                             <i class="fas fa-play text-xl"></i>
                             <!-- Tooltip -->
                             <div class="opacity-0 group-hover:opacity-100 transition-opacity absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg whitespace-nowrap">
@@ -411,7 +425,7 @@
                             </div>
                         </button>
                         <button onclick="clearAllGames()" 
-                                class="w-10 h-10 rounded-full bg-gray-700 hover:bg-gray-600 flex items-center justify-center text-gray-400 hover:text-red-500 transition-colors group relative">
+                                class="text-gray-400 hover:text-red-500 transition-colors group relative">
                             <i class="fas fa-trash-alt text-xl"></i>
                             <!-- Tooltip -->
                             <div class="opacity-0 group-hover:opacity-100 transition-opacity absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg whitespace-nowrap">
@@ -679,8 +693,8 @@
                     <button onclick="toggleMinimizeAllGames()" id="minimizeAllGamesBtn" class="text-gray-400 hover:text-white transition-colors group relative">
                         <i class="fas fa-window-minimize text-xl"></i>
                         <!-- Tooltip -->
-                        <div class="opacity-0 group-hover:opacity-100 transition-opacity absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg whitespace-nowrap">
-                            Minimize/Restore All Games
+                        <div id="minimizeTooltip" class="opacity-0 group-hover:opacity-100 transition-opacity absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg whitespace-nowrap">
+                            Minimize All Games
                             <!-- Arrow -->
                             <div class="absolute left-1/2 transform -translate-x-1/2 top-full">
                                 <div class="w-2 h-2 bg-gray-900 transform rotate-45"></div>

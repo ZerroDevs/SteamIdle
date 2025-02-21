@@ -22,8 +22,6 @@ import re
 import win32gui
 import win32con
 import win32process
-from pathlib import Path
-import vdf
 
 # Try to patch asyncio to allow nested event loops
 try:
@@ -2366,99 +2364,6 @@ def manage_game_favorites():
         save_game_favorites(favorites)
         
         return jsonify({"favorites": favorites['favorites']})
-
-def get_steam_api_key_from_client():
-    try:
-        # Try to get Steam path from registry
-        steam_path = get_steam_path()
-        if not steam_path:
-            return None
-
-        # Try to read from config.vdf
-        config_path = Path(steam_path) / 'config' / 'config.vdf'
-        if config_path.exists():
-            with open(config_path, 'r', encoding='utf-8') as f:
-                try:
-                    config_data = vdf.load(f)
-                    if 'WebAPI' in config_data.get('InstallConfigStore', {}).get('Software', {}).get('Valve', {}).get('Steam', {}):
-                        return config_data['InstallConfigStore']['Software']['Valve']['Steam']['WebAPI'].get('Key')
-                except:
-                    pass
-
-        # Try to read from steam_api.key
-        api_key_path = Path(steam_path) / 'steam_api.key'
-        if api_key_path.exists():
-            with open(api_key_path, 'r') as f:
-                return f.read().strip()
-
-        return None
-    except Exception as e:
-        print(f"Error reading Steam API key: {e}")
-        return None
-
-def validate_steam_api_key(api_key):
-    if not api_key or len(api_key) != 32:
-        return False
-
-    try:
-        # Test the API key with a simple Steam Web API call
-        test_url = f'https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v2/?key={api_key}&steamids=76561197960435530'
-        response = requests.get(test_url, timeout=5)
-        data = response.json()
-        
-        # Check if the response has the expected structure
-        return 'response' in data and 'players' in data['response']
-    except Exception as e:
-        print(f"Error validating Steam API key: {e}")
-        return False
-
-@app.route('/api/steam-api-status')
-def check_steam_api_status():
-    try:
-        # First try to get from settings
-        settings = load_settings()
-        api_key = settings.get('steam_api_key')
-        
-        # If not in settings, try to get from client
-        if not api_key:
-            api_key = get_steam_api_key_from_client()
-            if api_key:
-                # Save the found API key
-                settings['steam_api_key'] = api_key
-                save_settings(settings)
-        
-        if api_key and validate_steam_api_key(api_key):
-            return jsonify({'success': True})
-        return jsonify({'success': False})
-    except Exception as e:
-        print(f"Error checking Steam API status: {e}")
-        return jsonify({'success': False, 'error': str(e)})
-
-@app.route('/api/save-steam-api', methods=['POST'])
-def save_steam_api():
-    try:
-        data = request.get_json()
-        api_key = data.get('api_key', '').strip()
-        
-        if not api_key:
-            return jsonify({'success': False, 'error': 'API key is required'})
-        
-        if len(api_key) != 32:
-            return jsonify({'success': False, 'error': 'Invalid API key format'})
-        
-        # Validate the API key
-        if not validate_steam_api_key(api_key):
-            return jsonify({'success': False, 'error': 'Failed to validate API key with Steam servers'})
-        
-        # Save the API key
-        settings = load_settings()
-        settings['steam_api_key'] = api_key
-        save_settings(settings)
-        
-        return jsonify({'success': True})
-    except Exception as e:
-        print(f"Error saving Steam API key: {e}")
-        return jsonify({'success': False, 'error': str(e)})
 
 if __name__ == '__main__':
     # Check for internet connection before starting the app

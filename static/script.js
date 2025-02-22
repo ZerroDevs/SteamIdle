@@ -216,24 +216,22 @@ function removeGame(gameId) {
 
 function updateGamesList() {
     const gamesList = document.getElementById('gamesList');
+    const currentGamesCount = document.getElementById('currentGamesCount');
     const startStopAllBtn = document.getElementById('startStopAllBtn');
     const exportGamesBtn = document.getElementById('exportGamesBtn');
-    const currentGamesCount = document.getElementById('currentGamesCount');
-    if (!gamesList) return;
     
     gamesList.innerHTML = '';
     
-    // Update the games count with proper singular/plural form
     const gameText = currentGames.length === 1 ? 'game' : 'games';
-    currentGamesCount.textContent = `(${currentGames.length} ${gameText})`;
     
-    // Show/hide and update Start/Stop All button and export button based on games list
     if (currentGames.length > 0) {
         startStopAllBtn.classList.remove('hidden');
         exportGamesBtn.classList.remove('hidden');
-        const allGamesRunning = currentGames.every(game => runningGames.has(game.id.toString()));
         
-        if (allGamesRunning) {
+        // Check if all games are running
+        const allRunning = currentGames.every(game => runningGames.has(game.id.toString()));
+        
+        if (allRunning) {
             startStopAllBtn.classList.remove('hover:text-green-500');
             startStopAllBtn.classList.add('hover:text-red-500');
             startStopAllBtn.querySelector('i').className = 'fas fa-stop text-xl';
@@ -247,8 +245,57 @@ function updateGamesList() {
     } else {
         startStopAllBtn.classList.add('hidden');
         exportGamesBtn.classList.add('hidden');
-        currentGamesCount.textContent = '(0 games)';
+        
+        // Add empty state message
+        const emptyState = document.createElement('div');
+        emptyState.className = 'col-span-full flex flex-col items-center justify-center py-16 text-center';
+        emptyState.innerHTML = `
+            <div class="w-24 h-24 mb-6 relative">
+                <!-- Steam Controller Icon -->
+                <svg class="w-full h-full" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <!-- Outer Circle with Gradient -->
+                    <circle cx="50" cy="50" r="45" stroke="#3B82F6" stroke-width="2" class="animate-pulse"/>
+                    
+                    <!-- Inner Circle with Gradient -->
+                    <circle cx="50" cy="50" r="35" fill="url(#blueGradient)"/>
+                    
+                    <!-- Steam Controller Icon -->
+                    <path d="M35 45C35 42.2386 37.2386 40 40 40H60C62.7614 40 65 42.2386 65 45V55C65 57.7614 62.7614 60 60 60H40C37.2386 60 35 57.7614 35 55V45Z" fill="#1F2937"/>
+                    <path d="M42 48C42 46.8954 42.8954 46 44 46H46C47.1046 46 48 46.8954 48 48V52C48 53.1046 47.1046 54 46 54H44C42.8954 54 42 53.1046 42 52V48Z" fill="#3B82F6"/>
+                    <path d="M52 48C52 46.8954 52.8954 46 54 46H56C57.1046 46 58 46.8954 58 48V52C58 53.1046 57.1046 54 56 54H54C52.8954 54 52 53.1046 52 52V48Z" fill="#3B82F6"/>
+                    
+                    <!-- Gradient Definition -->
+                    <defs>
+                        <linearGradient id="blueGradient" x1="15" y1="15" x2="85" y2="85" gradientUnits="userSpaceOnUse">
+                            <stop offset="0%" stop-color="#2563EB"/>
+                            <stop offset="100%" stop-color="#1D4ED8"/>
+                        </linearGradient>
+                    </defs>
+                </svg>
+                <!-- Animated Dots -->
+                <div class="absolute -bottom-2 left-1/2 transform -translate-x-1/2 flex gap-1">
+                    <div class="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style="animation-delay: 0s"></div>
+                    <div class="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
+                    <div class="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style="animation-delay: 0.4s"></div>
+                </div>
+            </div>
+            <h3 class="text-xl font-semibold mb-2 text-gray-300">No Games Added</h3>
+            <p class="text-gray-400 max-w-md mx-auto mb-6">Start by adding games using the game ID or name, or import multiple games from a file.</p>
+            <div class="flex gap-4 justify-center">
+                <button onclick="document.getElementById('gameId').focus()" 
+                        class="bg-blue-500 hover:bg-blue-600 px-6 py-2 rounded font-semibold transition-colors inline-flex items-center">
+                    <i class="fas fa-plus mr-2"></i>Add Game
+                </button>
+                <button onclick="document.getElementById('gameImportFile').click()" 
+                        class="bg-gray-600 hover:bg-gray-500 px-6 py-2 rounded font-semibold transition-colors inline-flex items-center">
+                    <i class="fas fa-file-import mr-2"></i>Import Games
+                </button>
+            </div>
+        `;
+        gamesList.appendChild(emptyState);
     }
+    
+    currentGamesCount.textContent = `(${currentGames.length} ${gameText})`;
     
     currentGames.forEach(game => {
         const isRunning = runningGames.has(game.id.toString());
@@ -302,7 +349,7 @@ function updateGamesList() {
                     <a href="https://store.steampowered.com/app/${game.id}" 
                        target="_blank"
                        class="text-gray-400 hover:text-blue-400 transition-colors group relative">
-                        <i class="fab fa-steam text-lg"></i>
+                        <i class="fab fa-steam"></i>
                         <!-- Tooltip -->
                         <div class="opacity-0 group-hover:opacity-100 transition-opacity absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg whitespace-nowrap">
                             View on Steam Store
@@ -314,11 +361,14 @@ function updateGamesList() {
                     </a>
                 </div>
                 <div class="playtime-info mb-4">
-                    
+                    ${isRunning ? `
+                        <div class="text-green-400">Loading session time...</div>
+                        <div class="text-blue-400">Loading total time...</div>
+                    ` : ''}
                 </div>
                 <div class="flex gap-2">
                     <button onclick="${isRunning ? 'stopGame' : 'startGame'}('${game.id}')" 
-                            class="flex-1 bg-${isRunning ? 'red' : 'green'}-500 hover:bg-${isRunning ? 'red' : 'green'}-600 px-4 py-2 rounded text-sm font-medium">
+                            class="flex-1 bg-${isRunning ? 'red' : 'green'}-500 hover:bg-${isRunning ? 'red' : 'green'}-600 px-4 py-2 rounded text-sm font-medium transition-colors">
                         <i class="fas fa-${isRunning ? 'stop' : 'play'} mr-1"></i>${isRunning ? 'Stop' : 'Start'}
                     </button>
                     <button onclick="removeGame('${game.id}')" 

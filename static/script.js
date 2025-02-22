@@ -4381,3 +4381,52 @@ async function exportGames(exportType) {
         showNotification('Failed to export games', 'error');
     }
 }
+
+async function stopAllGamesSequentially() {
+    const gamesList = document.getElementById('runningGamesList');
+    if (!gamesList) return;
+
+    // Check if there are any running games
+    const runningGameIds = Array.from(runningGames);
+    if (runningGameIds.length === 0) {
+        showNotification('No games running to stop', 'info');
+        return;
+    }
+
+    // Disable both stop buttons while the operation is in progress
+    const stopButton = document.querySelector('button[onclick="stopAllGamesSequentially()"]');
+    const emergencyStopButton = document.querySelector('button[onclick="showEmergencyStopConfirmation()"]');
+    stopButton.disabled = true;
+    emergencyStopButton.disabled = true;
+
+    // Add loading state to the button
+    const originalButtonText = stopButton.innerHTML;
+    stopButton.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Stopping Games...';
+
+    try {
+        for (let i = 0; i < runningGameIds.length; i++) {
+            const gameId = runningGameIds[i];
+            await stopGame(gameId);
+            
+            // Show progress in the button text
+            const remainingGames = runningGameIds.length - (i + 1);
+            stopButton.innerHTML = `<i class="fas fa-spinner fa-spin mr-2"></i>Stopping Games (${remainingGames} remaining)`;
+            
+            // Add a small delay between stopping each game
+            await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+
+        showNotification('All games have been stopped successfully', 'success');
+    } catch (error) {
+        console.error('Error stopping games:', error);
+        showNotification('Failed to stop all games', 'error');
+    } finally {
+        // Re-enable buttons and restore original text
+        stopButton.disabled = false;
+        emergencyStopButton.disabled = false;
+        stopButton.innerHTML = originalButtonText;
+        
+        // Update the running games list
+        updateRunningGamesList();
+    }
+}

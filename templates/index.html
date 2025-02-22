@@ -790,9 +790,14 @@
             
             <!-- Footer -->
             <div class="p-6 border-t border-gray-700">
-                <button onclick="showEmergencyStopConfirmation()" class="w-full bg-red-500 hover:bg-red-600 px-6 py-3 rounded font-semibold transition-colors">
-                    <i class="fas fa-stop-circle mr-2"></i>Emergency Stop All Games
-                </button>
+                <div class="flex flex-col gap-4">
+                    <button onclick="stopAllGamesSequentially()" class="w-full bg-blue-500 hover:bg-blue-600 px-6 py-3 rounded font-semibold transition-colors">
+                        <i class="fas fa-stop mr-2"></i>Stop All Games
+                    </button>
+                    <button onclick="showEmergencyStopConfirmation()" class="w-full bg-red-500 hover:bg-red-600 px-6 py-3 rounded font-semibold transition-colors text-sm">
+                        <i class="fas fa-stop-circle mr-2"></i>Emergency Stop All Games
+                    </button>
+                </div>
             </div>
         </div>
     </div>

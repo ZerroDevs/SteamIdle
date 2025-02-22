@@ -2540,6 +2540,86 @@ def save_export_preferences():
         print(f"Error saving export preferences: {str(e)}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
+def detect_running_games():
+    """Detect already running steam-idle processes and add them to running_games"""
+    detected_games = []
+    try:
+        current_time = datetime.now()
+        for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
+            try:
+                if proc.name().lower() == 'steam-idle.exe':
+                    cmdline = proc.cmdline()
+                    if len(cmdline) > 1:
+                        game_id = cmdline[1]  # The game ID is passed as the first argument
+                        if game_id not in running_games:
+                            process = proc
+                            running_games[game_id] = process.pid
+                            
+                            try:
+                                # Get process creation time for accurate session tracking
+                                process_create_time = datetime.fromtimestamp(process.create_time())
+                            except:
+                                # If we can't get creation time, use current time
+                                process_create_time = current_time
+                            
+                            # Initialize game session
+                            if game_id not in game_sessions:
+                                game_info = fetch_game_info(game_id)
+                                game_sessions[game_id] = {
+                                    'total_time': 0,
+                                    'name': game_info['name'],
+                                    'image': game_info['image'],
+                                    'start_time': process_create_time  # Use actual process start time
+                                }
+                            else:
+                                # Update existing session with correct start time
+                                game_sessions[game_id]['start_time'] = process_create_time
+                            
+                            detected_games.append(game_id)
+            except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+                continue
+    except Exception as e:
+        print(f"Error detecting running games: {e}")
+    
+    if detected_games:
+        # Save statistics
+        save_statistics()
+        
+        # Update Discord RPC
+        if DISCORD_RPC_ENABLED:
+            try:
+                update_discord_rpc()
+            except Exception as e:
+                print(f"Error updating Discord RPC: {e}")
+        
+        # Update tray menu to show current games
+        try:
+            update_tray_menu()
+        except Exception as e:
+            print(f"Error updating tray menu: {e}")
+        
+        if icon:
+            icon.notify(f"🎮 Detected {len(detected_games)} running games", "Games Detected")
+    
+    return detected_games
+
+def on_loaded():
+    """Called when the window is fully loaded"""
+    # Detect already running games
+    detected_games = detect_running_games()
+    if detected_games:
+        print(f"Detected {len(detected_games)} running games")
+        # Update UI to show detected games
+        window.evaluate_js("""
+            runningGames.clear();
+            %s.forEach(gameId => runningGames.add(gameId));
+            updateGamesList();
+            loadPresets(true).then(presets => {
+                updatePresetsList(presets);
+                updateRunningGamesList();
+            });
+        """ % json.dumps(detected_games))
+
 if __name__ == '__main__':
     # Check for internet connection before starting the app
     while not check_internet_connection():
@@ -2550,8 +2630,9 @@ if __name__ == '__main__':
     minimize_to_tray = settings.get('minimize_to_tray', False)
     AUTO_RECONNECT = settings.get('auto_reconnect', False)
     
-    # Create window first
+    # Create window first with loaded callback
     window = webview.create_window('Steam Idle Manager', app, minimized=False, width=1440, height=1000)
+    window.events.loaded += on_loaded
     
     # Set the window event handlers
     window.events.closed += on_closed

@@ -291,6 +291,32 @@
                             </div>
                         </button>
                     </div>
+                    <div class="flex gap-4">
+                        <button onclick="showGameHistory()" 
+                                class="text-gray-400 hover:text-white transition-colors group relative">
+                            <i class="fas fa-history text-xl"></i>
+                            <!-- Tooltip -->
+                            <div class="opacity-0 group-hover:opacity-100 transition-opacity absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg whitespace-nowrap">
+                                Game History
+                                <!-- Arrow -->
+                                <div class="absolute left-1/2 transform -translate-x-1/2 top-full">
+                                    <div class="w-2 h-2 bg-gray-900 transform rotate-45"></div>
+                                </div>
+                            </div>
+                        </button>
+                        <button onclick="showGameFavorites()" 
+                                class="text-gray-400 hover:text-white transition-colors group relative">
+                            <i class="fas fa-star text-xl"></i>
+                            <!-- Tooltip -->
+                            <div class="opacity-0 group-hover:opacity-100 transition-opacity absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg whitespace-nowrap">
+                                Favorite Games
+                                <!-- Arrow -->
+                                <div class="absolute left-1/2 transform -translate-x-1/2 top-full">
+                                    <div class="w-2 h-2 bg-gray-900 transform rotate-45"></div>
+                                </div>
+                            </div>
+                        </button>
+                    </div>
                 </h2>
                 
                 <!-- Game Input Section -->

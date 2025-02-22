@@ -4870,7 +4870,7 @@ async function addGamesInBulk() {
             }
 
             if (!currentGames.some(game => game.id === gameInfo.id)) {
-                currentGames.push(gameInfo);
+                addGameToList(gameInfo); // Changed from currentGames.push to addGameToList
                 successCount++;
             }
         } catch (error) {
@@ -4878,9 +4878,6 @@ async function addGamesInBulk() {
             console.error(`Error adding game ${gameId}:`, error);
         }
     }
-
-    // Update the games list and history
-    updateGamesList();
     
     // Clear the input
     bulkInput.value = '';

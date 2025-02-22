@@ -157,6 +157,8 @@ async function fetchGame() {
         return;
     }
 
+    showNotification('Adding game...', 'info');
+
     try {
         const response = await fetch('/api/fetch-game', {
             method: 'POST',
@@ -4804,3 +4806,90 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 });
+
+let isBulkMode = false;
+
+function toggleBulkMode() {
+    isBulkMode = !isBulkMode;
+    const singleInput = document.getElementById('gameId');
+    const bulkInput = document.getElementById('bulkGameIds');
+    const bulkModeToggle = document.getElementById('bulkModeToggle');
+    const addButton = document.getElementById('addGameBtn');
+    
+    if (isBulkMode) {
+        singleInput.classList.add('hidden');
+        bulkInput.classList.remove('hidden');
+        bulkModeToggle.classList.add('text-blue-500');
+        addButton.querySelector('span').textContent = 'Add Games';
+    } else {
+        singleInput.classList.remove('hidden');
+        bulkInput.classList.add('hidden');
+        bulkModeToggle.classList.remove('text-blue-500');
+        addButton.querySelector('span').textContent = 'Add Game';
+    }
+}
+
+async function addGame() {
+    if (isBulkMode) {
+        await addGamesInBulk();
+    } else {
+        await fetchGame();
+    }
+}
+
+async function addGamesInBulk() {
+    const bulkInput = document.getElementById('bulkGameIds');
+    const gameIds = bulkInput.value.trim().split('\n').filter(id => id.trim() !== '');
+    
+    if (gameIds.length === 0) {
+        showNotification('Please enter at least one game', 'error');
+        return;
+    }
+
+    let successCount = 0;
+    let failCount = 0;
+    
+    // Show loading notification
+    showNotification(`Adding ${gameIds.length} games...`, 'info');
+    
+    for (const gameId of gameIds) {
+        try {
+            const response = await fetch('/api/fetch-game', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ gameId: gameId.trim() })
+            });
+
+            const gameInfo = await response.json();
+            if (gameInfo.error) {
+                failCount++;
+                console.error(`Failed to add game ${gameId}: ${gameInfo.error}`);
+                continue;
+            }
+
+            if (!currentGames.some(game => game.id === gameInfo.id)) {
+                currentGames.push(gameInfo);
+                successCount++;
+            }
+        } catch (error) {
+            failCount++;
+            console.error(`Error adding game ${gameId}:`, error);
+        }
+    }
+
+    // Update the games list and history
+    updateGamesList();
+    
+    // Clear the input
+    bulkInput.value = '';
+    
+    // Show results notification
+    if (successCount > 0) {
+        showNotification(`Successfully added ${successCount} game${successCount !== 1 ? 's' : ''}${failCount > 0 ? ` (${failCount} failed)` : ''}`, 
+            failCount > 0 ? 'warning' : 'success');
+    } else {
+        showNotification('Failed to add any games', 'error');
+    }
+}

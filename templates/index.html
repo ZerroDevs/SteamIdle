@@ -274,26 +274,16 @@
                                 </div>
                             </div>
                         </button>
-                    </div>
-                    <div class="flex gap-4">
-                        <button onclick="showGameHistory()" 
+                        <button onclick="toggleBulkMode()" id="bulkModeToggle"
                                 class="text-gray-400 hover:text-white transition-colors group relative">
-                            <i class="fas fa-history text-xl"></i>
+                            <i class="fas fa-list-ul text-xl"></i>
                             <!-- Tooltip -->
                             <div class="opacity-0 group-hover:opacity-100 transition-opacity absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg whitespace-nowrap">
-                                Game History
-                                <!-- Arrow -->
-                                <div class="absolute left-1/2 transform -translate-x-1/2 top-full">
-                                    <div class="w-2 h-2 bg-gray-900 transform rotate-45"></div>
+                                <div class="text-left">
+                                    <p class="font-medium mb-1">Bulk Add Mode</p>
+                                    <p>• Add multiple games at once</p>
+                                    <p>• One game per line</p>
                                 </div>
-                            </div>
-                        </button>
-                        <button onclick="showGameFavorites()" 
-                                class="text-gray-400 hover:text-white transition-colors group relative">
-                            <i class="fas fa-star text-xl"></i>
-                            <!-- Tooltip -->
-                            <div class="opacity-0 group-hover:opacity-100 transition-opacity absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg whitespace-nowrap">
-                                Favorite Games
                                 <!-- Arrow -->
                                 <div class="absolute left-1/2 transform -translate-x-1/2 top-full">
                                     <div class="w-2 h-2 bg-gray-900 transform rotate-45"></div>
@@ -302,18 +292,21 @@
                         </button>
                     </div>
                 </h2>
-                <div class="flex gap-4">
+                
+                <!-- Game Input Section -->
+                <div class="flex gap-4 mb-6">
                     <div class="flex-1 relative">
+                        <!-- Single Game Input (default) -->
                         <input type="text" id="gameId" placeholder="Enter Steam Game ID or Name" 
-                               class="w-full bg-gray-700 rounded px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        <!-- Search Results Dropdown -->
-                        <div id="gameSearchResults" class="absolute z-10 w-full mt-1 bg-gray-800 rounded-lg shadow-lg hidden max-h-96 overflow-y-auto">
-                            <!-- Search results will be added here dynamically -->
-                        </div>
+                               class="w-full bg-gray-700 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 single-input">
+                        <!-- Bulk Game Input (hidden by default) -->
+                        <textarea id="bulkGameIds" placeholder="Enter multiple games (one per line)&#10;Example:&#10;730&#10;Arma 3&#10;Team Fortress 2" 
+                                  class="hidden w-full bg-gray-700 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 bulk-input"
+                                  rows="5"></textarea>
                     </div>
-                    <button onclick="fetchGame()" 
-                            class="bg-blue-500 hover:bg-blue-600 px-6 py-2 rounded font-semibold transition-colors">
-                        <i class="fas fa-plus mr-2"></i>Add Game
+                    <button onclick="addGame()" id="addGameBtn"
+                            class="bg-green-500 hover:bg-green-600 px-8 py-3 rounded font-semibold transition-colors">
+                        <i class="fas fa-plus mr-2"></i><span>Add Game</span>
                     </button>
                 </div>
                 <!-- Game Import Loading Overlay -->

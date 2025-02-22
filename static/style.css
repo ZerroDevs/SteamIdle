@@ -1261,4 +1261,33 @@ select option {
     100% {
         transform: rotate(360deg);
     }
+}
+
+/* Bulk Mode Styles */
+.bulk-input {
+    min-height: 120px;
+    resize: vertical;
+    font-family: monospace;
+    line-height: 1.5;
+}
+
+#bulkModeToggle.text-blue-500 {
+    text-shadow: 0 0 10px rgba(59, 130, 246, 0.5);
+}
+
+#bulkModeToggle.text-blue-500 i {
+    transform: scale(1.1);
+}
+
+/* Transition effects for input switching */
+.single-input,
+.bulk-input {
+    transition: all 0.3s ease-in-out;
+}
+
+.hidden {
+    opacity: 0;
+    transform: translateY(-10px);
+    pointer-events: none;
+    position: absolute;
 } 

@@ -4566,3 +4566,77 @@ async function handleGameAction(gameId, isRunning) {
         showNotification('Failed to perform game action', 'error');
     }
 }
+
+async function addAllFromHistory() {
+    if (gameHistory.length === 0) {
+        showNotification('No games in history to add', 'info');
+        return;
+    }
+
+    let addedCount = 0;
+    let duplicateCount = 0;
+
+    for (const game of gameHistory) {
+        if (currentGames.some(g => g.id === game.id)) {
+            duplicateCount++;
+            continue;
+        }
+
+        try {
+            const response = await fetch('/api/fetch-game', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ gameId: game.id })
+            });
+            
+            const gameInfo = await response.json();
+            if (!gameInfo.error) {
+                currentGames.push(gameInfo);
+                addedCount++;
+            }
+        } catch (error) {
+            console.error('Error adding game from history:', error);
+        }
+    }
+
+    updateGamesList();
+    showNotification(`Added ${addedCount} games${duplicateCount > 0 ? ` (${duplicateCount} duplicates skipped)` : ''}`, 'success');
+    closeGameHistory();
+}
+
+async function addAllFromFavorites() {
+    if (gameFavorites.length === 0) {
+        showNotification('No favorite games to add', 'info');
+        return;
+    }
+
+    let addedCount = 0;
+    let duplicateCount = 0;
+
+    for (const game of gameFavorites) {
+        if (currentGames.some(g => g.id === game.id)) {
+            duplicateCount++;
+            continue;
+        }
+
+        try {
+            const response = await fetch('/api/fetch-game', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ gameId: game.id })
+            });
+            
+            const gameInfo = await response.json();
+            if (!gameInfo.error) {
+                currentGames.push(gameInfo);
+                addedCount++;
+            }
+        } catch (error) {
+            console.error('Error adding game from favorites:', error);
+        }
+    }
+
+    updateGamesList();
+    showNotification(`Added ${addedCount} games${duplicateCount > 0 ? ` (${duplicateCount} duplicates skipped)` : ''}`, 'success');
+    closeGameFavorites();
+}

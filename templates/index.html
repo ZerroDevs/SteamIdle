@@ -335,6 +335,18 @@
                             <span id="historyCount" class="text-gray-400 text-lg">(0 games)</span>
                         </div>
                         <div class="flex items-center gap-4">
+                            <button onclick="addAllFromHistory()" 
+                                    class="text-gray-400 hover:text-blue-500 transition-colors group relative">
+                                <i class="fas fa-plus-square text-xl"></i>
+                                <!-- Tooltip -->
+                                <div class="opacity-0 group-hover:opacity-100 transition-opacity absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg whitespace-nowrap">
+                                    Add All to Games
+                                    <!-- Arrow -->
+                                    <div class="absolute left-1/2 transform -translate-x-1/2 top-full">
+                                        <div class="w-2 h-2 bg-gray-900 transform rotate-45"></div>
+                                    </div>
+                                </div>
+                            </button>
                             <button id="historyStartStopAllBtn" onclick="toggleAllHistoryGames()" 
                                     class="text-gray-400 hover:text-green-500 transition-colors hidden group relative">
                                 <i class="fas fa-play text-xl"></i>
@@ -367,6 +379,18 @@
                             <span id="favoritesCount" class="text-gray-400 text-lg">(0 games)</span>
                         </div>
                         <div class="flex items-center gap-4">
+                            <button onclick="addAllFromFavorites()" 
+                                    class="text-gray-400 hover:text-blue-500 transition-colors group relative">
+                                <i class="fas fa-plus-square text-xl"></i>
+                                <!-- Tooltip -->
+                                <div class="opacity-0 group-hover:opacity-100 transition-opacity absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg whitespace-nowrap">
+                                    Add All to Games
+                                    <!-- Arrow -->
+                                    <div class="absolute left-1/2 transform -translate-x-1/2 top-full">
+                                        <div class="w-2 h-2 bg-gray-900 transform rotate-45"></div>
+                                    </div>
+                                </div>
+                            </button>
                             <button id="favoritesStartStopAllBtn" onclick="toggleAllFavoriteGames()" 
                                     class="text-gray-400 hover:text-green-500 transition-colors hidden group relative">
                                 <i class="fas fa-play text-xl"></i>

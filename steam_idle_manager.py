@@ -686,12 +686,16 @@ def run_preset():
         with open(json_path, 'r') as f:
             games = json.load(f)
         
+        # Keep track of started games
+        started_games = []
+        
         # Start each game
         for game in games:
             game_id = str(game['id'])
             if game_id not in running_games:  # Only start if not already running
                 process = subprocess.Popen([IDLER_PATH, game_id], shell=True)
                 running_games[game_id] = process.pid
+                started_games.append(game_id)
                 
                 # Initialize or update game session
                 if game_id not in game_sessions:
@@ -716,11 +720,21 @@ def run_preset():
                 });
             """ % json.dumps([str(game['id']) for game in games]))
         
-        icon.notify(f"▶️ Started {len(games)} games from preset {preset_name}", "Preset Started")
-        save_recent_action(f"▶️ Started preset {preset_name} from tray")
+        icon.notify(f"▶️ Started {len(started_games)} games from preset {preset_name}", "Preset Started")
+        save_recent_action(f"▶️ Started preset {preset_name}")
         update_tray_menu()
+        
+        return jsonify({
+            "status": "success",
+            "message": f"Started {len(started_games)} games from preset {preset_name}",
+            "gameIds": started_games
+        })
     except Exception as e:
         icon.notify(f"❌ Error running preset: {str(e)}", "Error")
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
 
 @app.route('/api/stats/total-playtime')
 def get_total_playtime():
@@ -1969,14 +1983,16 @@ def run_preset_tray(icon, item, preset_name):
         with open(json_path, 'r') as f:
             games = json.load(f)
         
+        # Keep track of started games
+        started_games = []
+        
         # Start each game
-        started_games = 0
         for game in games:
             game_id = str(game['id'])
             if game_id not in running_games:  # Only start if not already running
                 process = subprocess.Popen([IDLER_PATH, game_id], shell=True)
                 running_games[game_id] = process.pid
-                started_games += 1
+                started_games.append(game_id)
                 
                 # Initialize or update game session
                 if game_id not in game_sessions:
@@ -2001,11 +2017,21 @@ def run_preset_tray(icon, item, preset_name):
                 });
             """ % json.dumps([str(game['id']) for game in games]))
         
-        icon.notify(f"▶️ Started {started_games} games from preset {preset_name}", "Preset Started")
-        save_recent_action(f"▶️ Started preset {preset_name} from tray")
+        icon.notify(f"▶️ Started {len(started_games)} games from preset {preset_name}", "Preset Started")
+        save_recent_action(f"▶️ Started preset {preset_name}")
         update_tray_menu()
+        
+        return jsonify({
+            "status": "success",
+            "message": f"Started {len(started_games)} games from preset {preset_name}",
+            "gameIds": started_games
+        })
     except Exception as e:
         icon.notify(f"❌ Error running preset: {str(e)}", "Error")
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
 
 def launch_steam_tray(icon, item):
     steam_path = get_steam_path()

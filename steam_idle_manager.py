@@ -2543,6 +2543,11 @@ def save_export_preferences():
 def detect_running_games():
     """Detect already running steam-idle processes and add them to running_games"""
     detected_games = []
+    detected_game_info = []  # Store full game info for UI updates
+    
+    if icon:
+        icon.notify("🔍 Scanning for running games...", "Detection Started")
+    
     try:
         current_time = datetime.now()
         for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
@@ -2562,7 +2567,7 @@ def detect_running_games():
                                 # If we can't get creation time, use current time
                                 process_create_time = current_time
                             
-                            # Initialize game session
+                            # Initialize game session and get game info
                             if game_id not in game_sessions:
                                 game_info = fetch_game_info(game_id)
                                 game_sessions[game_id] = {
@@ -2571,15 +2576,25 @@ def detect_running_games():
                                     'image': game_info['image'],
                                     'start_time': process_create_time  # Use actual process start time
                                 }
+                                detected_game_info.append(game_info)  # Store full game info
                             else:
                                 # Update existing session with correct start time
                                 game_sessions[game_id]['start_time'] = process_create_time
+                                # Add existing game info
+                                detected_game_info.append({
+                                    'id': game_id,
+                                    'name': game_sessions[game_id]['name'],
+                                    'image': game_sessions[game_id]['image']
+                                })
                             
                             detected_games.append(game_id)
             except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
                 continue
     except Exception as e:
         print(f"Error detecting running games: {e}")
+        if icon:
+            icon.notify(f"❌ Error detecting games: {str(e)}", "Error")
+        return []
     
     if detected_games:
         # Save statistics
@@ -2599,26 +2614,44 @@ def detect_running_games():
             print(f"Error updating tray menu: {e}")
         
         if icon:
-            icon.notify(f"🎮 Detected {len(detected_games)} running games", "Games Detected")
+            icon.notify(f"✅ Successfully detected {len(detected_games)} running games", "Detection Complete")
+    else:
+        if icon:
+            icon.notify("ℹ️ No running games detected", "Detection Complete")
     
-    return detected_games
+    return detected_games, detected_game_info
 
 def on_loaded():
     """Called when the window is fully loaded"""
     # Detect already running games
-    detected_games = detect_running_games()
+    detected_games, detected_game_info = detect_running_games()
     if detected_games:
         print(f"Detected {len(detected_games)} running games")
         # Update UI to show detected games
         window.evaluate_js("""
+            // Show loading notification
+            showNotification('🔄 Adding detected games to library...', 'info');
+            
+            // Add games to currentGames array if not already present
+            %s.forEach(game => {
+                if (!currentGames.some(g => g.id === game.id)) {
+                    currentGames.push(game);
+                }
+            });
+            
+            // Update running games
             runningGames.clear();
             %s.forEach(gameId => runningGames.add(gameId));
+            
+            // Update all UI elements
             updateGamesList();
             loadPresets(true).then(presets => {
                 updatePresetsList(presets);
                 updateRunningGamesList();
+                // Show success notification
+                showNotification('✅ Successfully added ' + %d + ' games to library', 'success');
             });
-        """ % json.dumps(detected_games))
+        """ % (json.dumps(detected_game_info), json.dumps(detected_games), len(detected_games)))
 
 if __name__ == '__main__':
     # Check for internet connection before starting the app

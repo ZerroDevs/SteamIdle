@@ -334,9 +334,23 @@
                             <h3 class="text-2xl font-semibold">Game History</h3>
                             <span id="historyCount" class="text-gray-400 text-lg">(0 games)</span>
                         </div>
-                        <button onclick="closeGameHistory()" class="text-gray-400 hover:text-white transition-colors">
-                            <i class="fas fa-times"></i>
-                        </button>
+                        <div class="flex items-center gap-4">
+                            <button id="historyStartStopAllBtn" onclick="toggleAllHistoryGames()" 
+                                    class="text-gray-400 hover:text-green-500 transition-colors hidden group relative">
+                                <i class="fas fa-play text-xl"></i>
+                                <!-- Tooltip -->
+                                <div class="opacity-0 group-hover:opacity-100 transition-opacity absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg whitespace-nowrap">
+                                    Start All Games
+                                    <!-- Arrow -->
+                                    <div class="absolute left-1/2 transform -translate-x-1/2 top-full">
+                                        <div class="w-2 h-2 bg-gray-900 transform rotate-45"></div>
+                                    </div>
+                                </div>
+                            </button>
+                            <button onclick="closeGameHistory()" class="text-gray-400 hover:text-white transition-colors">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
                     </div>
                     <div id="gameHistoryList" class="flex-1 overflow-y-auto space-y-4 custom-scrollbar" style="max-height: 70vh;">
                         <!-- Game history will be added here dynamically -->
@@ -352,9 +366,23 @@
                             <h3 class="text-2xl font-semibold">Favorite Games</h3>
                             <span id="favoritesCount" class="text-gray-400 text-lg">(0 games)</span>
                         </div>
-                        <button onclick="closeGameFavorites()" class="text-gray-400 hover:text-white transition-colors">
-                            <i class="fas fa-times"></i>
-                        </button>
+                        <div class="flex items-center gap-4">
+                            <button id="favoritesStartStopAllBtn" onclick="toggleAllFavoriteGames()" 
+                                    class="text-gray-400 hover:text-green-500 transition-colors hidden group relative">
+                                <i class="fas fa-play text-xl"></i>
+                                <!-- Tooltip -->
+                                <div class="opacity-0 group-hover:opacity-100 transition-opacity absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg whitespace-nowrap">
+                                    Start All Games
+                                    <!-- Arrow -->
+                                    <div class="absolute left-1/2 transform -translate-x-1/2 top-full">
+                                        <div class="w-2 h-2 bg-gray-900 transform rotate-45"></div>
+                                    </div>
+                                </div>
+                            </button>
+                            <button onclick="closeGameFavorites()" class="text-gray-400 hover:text-white transition-colors">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
                     </div>
                     <div id="gameFavoritesList" class="flex-1 overflow-y-auto space-y-4 custom-scrollbar" style="max-height: 70vh;">
                         <!-- Favorite games will be added here dynamically -->

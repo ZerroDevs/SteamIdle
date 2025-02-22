@@ -3644,12 +3644,22 @@ function showGameHistory() {
     const modal = document.getElementById('gameHistoryModal');
     const historyList = document.getElementById('gameHistoryList');
     const historyCount = document.getElementById('historyCount');
+    const startStopBtn = document.getElementById('historyStartStopAllBtn');
     
     historyList.innerHTML = '';
     
     // Update the count in the header
     historyCount.textContent = `(${gameHistory.length} games)`;
     
+    // Show/hide and update start/stop button
+    if (gameHistory.length > 0) {
+        startStopBtn.classList.remove('hidden');
+        const allRunning = gameHistory.every(game => runningGames.has(game.id.toString()));
+        updateStartStopButton(startStopBtn, allRunning);
+    } else {
+        startStopBtn.classList.add('hidden');
+    }
+
     if (gameHistory.length === 0) {
         historyList.innerHTML = `
             <div class="text-center text-gray-400 py-8">
@@ -3664,6 +3674,7 @@ function showGameHistory() {
             
             const div = document.createElement('div');
             div.className = 'bg-gray-700 p-4 rounded-lg hover:bg-gray-600 transition-colors';
+            div.setAttribute('data-game-id', game.id);
             div.innerHTML = `
                 <div class="flex items-center justify-between">
                     <div class="flex items-center gap-4 flex-1">
@@ -3681,13 +3692,12 @@ function showGameHistory() {
                                     <i class="fas fa-star ${isFavorite ? 'text-yellow-400 glow-yellow' : 'text-gray-500 hover:text-yellow-400'}"></i>
                                 </button>
                             </div>
-                            <div class="text-sm text-gray-400 mt-1">Game ID: ${game.id}</div>
                             <div class="text-sm text-gray-400">Added ${formatTimeAgo(game.addedAt)}</div>
                         </div>
                     </div>
                     <div class="flex gap-2 items-center">
-                        <button onclick="${isRunning ? 'stopGame' : 'startGame'}('${game.id}'); showGameHistory();" 
-                                class="bg-${isRunning ? 'red' : 'green'}-500 hover:bg-${isRunning ? 'red' : 'green'}-600 px-4 py-2 rounded text-sm font-medium transition-colors">
+                        <button onclick="handleGameAction('${game.id}', ${isRunning})" 
+                                class="game-action-btn bg-${isRunning ? 'red' : 'green'}-500 hover:bg-${isRunning ? 'red' : 'green'}-600 px-4 py-2 rounded text-sm font-medium transition-colors">
                             <i class="fas fa-${isRunning ? 'stop' : 'play'} mr-1"></i>${isRunning ? 'Stop' : 'Start'}
                         </button>
                         <button onclick="addGameFromHistory('${game.id}')" 
@@ -3701,6 +3711,7 @@ function showGameHistory() {
                     </div>
                 </div>
             `;
+            
             historyList.appendChild(div);
         });
     }
@@ -3820,12 +3831,22 @@ function showGameFavorites() {
     const modal = document.getElementById('gameFavoritesModal');
     const favoritesList = document.getElementById('gameFavoritesList');
     const favoritesCount = document.getElementById('favoritesCount');
+    const startStopBtn = document.getElementById('favoritesStartStopAllBtn');
     
     favoritesList.innerHTML = '';
     
     // Update the count in the header
     favoritesCount.textContent = `(${gameFavorites.length} games)`;
     
+    // Show/hide and update start/stop button
+    if (gameFavorites.length > 0) {
+        startStopBtn.classList.remove('hidden');
+        const allRunning = gameFavorites.every(game => runningGames.has(game.id.toString()));
+        updateStartStopButton(startStopBtn, allRunning);
+    } else {
+        startStopBtn.classList.add('hidden');
+    }
+
     if (gameFavorites.length === 0) {
         favoritesList.innerHTML = `
             <div class="text-center text-gray-400 py-8">
@@ -3839,6 +3860,7 @@ function showGameFavorites() {
             
             const div = document.createElement('div');
             div.className = 'bg-gray-700 p-4 rounded-lg hover:bg-gray-600 transition-colors';
+            div.setAttribute('data-game-id', game.id);
             div.innerHTML = `
                 <div class="flex items-center justify-between">
                     <div class="flex items-center gap-4 flex-1">
@@ -3858,8 +3880,8 @@ function showGameFavorites() {
                         </div>
                     </div>
                     <div class="flex gap-2 items-center">
-                        <button onclick="${isRunning ? 'stopGame' : 'startGame'}('${game.id}')" 
-                                class="bg-${isRunning ? 'red' : 'green'}-500 hover:bg-${isRunning ? 'red' : 'green'}-600 px-4 py-2 rounded text-sm font-medium transition-colors">
+                        <button onclick="handleGameAction('${game.id}', ${isRunning})" 
+                                class="game-action-btn bg-${isRunning ? 'red' : 'green'}-500 hover:bg-${isRunning ? 'red' : 'green'}-600 px-4 py-2 rounded text-sm font-medium transition-colors">
                             <i class="fas fa-${isRunning ? 'stop' : 'play'} mr-1"></i>${isRunning ? 'Stop' : 'Start'}
                         </button>
                         <button onclick="addGameFromFavorites('${game.id}')" 
@@ -3873,6 +3895,7 @@ function showGameFavorites() {
                     </div>
                 </div>
             `;
+            
             favoritesList.appendChild(div);
         });
     }
@@ -4436,5 +4459,110 @@ async function stopAllGamesSequentially() {
         
         // Update the running games list
         updateRunningGamesList();
+    }
+}
+
+// Helper function to update start/stop button appearance
+function updateStartStopButton(button, isRunning) {
+    const icon = button.querySelector('i');
+    const tooltip = button.querySelector('.opacity-0');
+    
+    if (isRunning) {
+        button.classList.remove('hover:text-green-500');
+        button.classList.add('hover:text-red-500');
+        button.classList.add('text-red-500');
+        icon.classList.remove('fa-play');
+        icon.classList.add('fa-stop');
+        tooltip.textContent = 'Stop All Games';
+    } else {
+        button.classList.add('hover:text-green-500');
+        button.classList.remove('hover:text-red-500');
+        button.classList.remove('text-red-500');
+        icon.classList.add('fa-play');
+        icon.classList.remove('fa-stop');
+        tooltip.textContent = 'Start All Games';
+    }
+}
+
+// Function to toggle all games in history
+async function toggleAllHistoryGames() {
+    const allRunning = gameHistory.every(game => runningGames.has(game.id.toString()));
+    const button = document.getElementById('historyStartStopAllBtn');
+    
+    if (allRunning) {
+        // Stop all running games
+        for (const game of gameHistory) {
+            if (runningGames.has(game.id.toString())) {
+                await stopGame(game.id);
+            }
+        }
+    } else {
+        // Start all games that aren't running
+        for (const game of gameHistory) {
+            if (!runningGames.has(game.id.toString())) {
+                await startGame(game.id);
+            }
+        }
+    }
+    
+    // Update the button state
+    const newAllRunning = gameHistory.every(game => runningGames.has(game.id.toString()));
+    updateStartStopButton(button, newAllRunning);
+    
+    // Refresh the history view
+    showGameHistory();
+}
+
+// Function to toggle all games in favorites
+async function toggleAllFavoriteGames() {
+    const allRunning = gameFavorites.every(game => runningGames.has(game.id.toString()));
+    const button = document.getElementById('favoritesStartStopAllBtn');
+    
+    if (allRunning) {
+        // Stop all running games
+        for (const game of gameFavorites) {
+            if (runningGames.has(game.id.toString())) {
+                await stopGame(game.id);
+            }
+        }
+    } else {
+        // Start all games that aren't running
+        for (const game of gameFavorites) {
+            if (!runningGames.has(game.id.toString())) {
+                await startGame(game.id);
+            }
+        }
+    }
+    
+    // Update the button state
+    const newAllRunning = gameFavorites.every(game => runningGames.has(game.id.toString()));
+    updateStartStopButton(button, newAllRunning);
+    
+    // Refresh the favorites view
+    showGameFavorites();
+}
+
+// New function to handle game actions and update UI
+async function handleGameAction(gameId, isRunning) {
+    try {
+        if (isRunning) {
+            await stopGame(gameId);
+        } else {
+            await startGame(gameId);
+        }
+        
+        // Update both modals if they're open
+        if (!document.getElementById('gameHistoryModal').classList.contains('hidden')) {
+            showGameHistory();
+        }
+        if (!document.getElementById('gameFavoritesModal').classList.contains('hidden')) {
+            showGameFavorites();
+        }
+        
+        // Update the main games list
+        updateGamesList();
+    } catch (error) {
+        console.error('Error handling game action:', error);
+        showNotification('Failed to perform game action', 'error');
     }
 }

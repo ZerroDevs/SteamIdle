@@ -701,20 +701,26 @@ def run_preset():
                         'image': game['image']
                     }
                 game_sessions[game_id]['start_time'] = datetime.now()
-                
-                # Save statistics after each game is started
-                save_statistics()
         
-        # Update tray menu
+        save_statistics()
+        
+        # Notify the UI to update through the window's evaluate_js method
+        if window:
+            window.evaluate_js("""
+                runningGames.clear();
+                %s.forEach(gameId => runningGames.add(gameId));
+                updateGamesList();
+                loadPresets(true).then(presets => {
+                    updatePresetsList(presets);
+                    updateRunningGamesList();
+                });
+            """ % json.dumps([str(game['id']) for game in games]))
+        
+        icon.notify(f"▶️ Started {len(games)} games from preset {preset_name}", "Preset Started")
+        save_recent_action(f"▶️ Started preset {preset_name} from tray")
         update_tray_menu()
-        
-        return jsonify({
-            "status": "success",
-            "gameIds": [game['id'] for game in games],
-            "runningGames": list(running_games.keys())
-        })
     except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 500
+        icon.notify(f"❌ Error running preset: {str(e)}", "Error")
 
 @app.route('/api/stats/total-playtime')
 def get_total_playtime():
@@ -2425,9 +2431,14 @@ def manage_game_history():
         data = request.get_json()
         history = load_game_history()
         
-        history['history'] = [g for g in history['history'] if g['id'] != data['gameId']]
-        save_game_history(history)
+        if data.get('clearAll'):
+            # Clear all history
+            history['history'] = []
+        else:
+            # Remove specific game
+            history['history'] = [g for g in history['history'] if g['id'] != data['gameId']]
         
+        save_game_history(history)
         return jsonify(history)
 
 def load_game_favorites():
@@ -2476,9 +2487,14 @@ def manage_game_favorites():
         data = request.get_json()
         favorites = load_game_favorites()
         
-        favorites['favorites'] = [g for g in favorites['favorites'] if g['id'] != data['gameId']]
-        save_game_favorites(favorites)
+        if data.get('clearAll'):
+            # Clear all favorites
+            favorites['favorites'] = []
+        else:
+            # Remove specific game
+            favorites['favorites'] = [g for g in favorites['favorites'] if g['id'] != data['gameId']]
         
+        save_game_favorites(favorites)
         return jsonify({"favorites": favorites['favorites']})
 
 # Add new functions for export preferences

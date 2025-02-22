@@ -4662,3 +4662,87 @@ async function addAllFromFavorites() {
     showNotification(`Added ${addedCount} games${duplicateCount > 0 ? ` (${duplicateCount} duplicates skipped)` : ''}`, 'success');
     closeGameFavorites();
 }
+
+function showClearHistoryConfirmation() {
+    const modal = document.getElementById('clearHistoryConfirmModal');
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+}
+
+function closeClearHistoryConfirmation() {
+    const modal = document.getElementById('clearHistoryConfirmModal');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+}
+
+async function clearAllHistory() {
+    try {
+        const response = await fetch('/api/game-history', {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ clearAll: true })
+        });
+
+        if (response.ok) {
+            gameHistory = [];
+            showGameHistory(); // Refresh the history view
+            showNotification('Game history cleared successfully', 'success');
+            closeClearHistoryConfirmation();
+        }
+    } catch (error) {
+        console.error('Error clearing history:', error);
+        showNotification('Failed to clear history', 'error');
+    }
+}
+
+function showClearFavoritesConfirmation() {
+    const modal = document.getElementById('clearFavoritesConfirmModal');
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+}
+
+function closeClearFavoritesConfirmation() {
+    const modal = document.getElementById('clearFavoritesConfirmModal');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+}
+
+async function clearAllFavorites() {
+    try {
+        const response = await fetch('/api/game-favorites', {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ clearAll: true })
+        });
+
+        if (response.ok) {
+            gameFavorites = [];
+            showGameFavorites(); // Refresh the favorites view
+            updateGamesList(); // Update the main game list to reflect favorite status
+            showNotification('Favorite games cleared successfully', 'success');
+            closeClearFavoritesConfirmation();
+        }
+    } catch (error) {
+        console.error('Error clearing favorites:', error);
+        showNotification('Failed to clear favorites', 'error');
+    }
+}
+
+// Add click outside listeners for the confirmation modals
+document.addEventListener('DOMContentLoaded', function() {
+    const clearHistoryModal = document.getElementById('clearHistoryConfirmModal');
+    const clearFavoritesModal = document.getElementById('clearFavoritesConfirmModal');
+    
+    window.addEventListener('click', (e) => {
+        if (e.target === clearHistoryModal) {
+            closeClearHistoryConfirmation();
+        }
+        if (e.target === clearFavoritesModal) {
+            closeClearFavoritesConfirmation();
+        }
+    });
+});

@@ -347,6 +347,18 @@
                                     </div>
                                 </div>
                             </button>
+                            <button onclick="showClearHistoryConfirmation()" 
+                                    class="text-gray-400 hover:text-red-500 transition-colors group relative">
+                                <i class="fas fa-trash-alt text-xl"></i>
+                                <!-- Tooltip -->
+                                <div class="opacity-0 group-hover:opacity-100 transition-opacity absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg whitespace-nowrap">
+                                    Clear All History
+                                    <!-- Arrow -->
+                                    <div class="absolute left-1/2 transform -translate-x-1/2 top-full">
+                                        <div class="w-2 h-2 bg-gray-900 transform rotate-45"></div>
+                                    </div>
+                                </div>
+                            </button>
                             <button id="historyStartStopAllBtn" onclick="toggleAllHistoryGames()" 
                                     class="text-gray-400 hover:text-green-500 transition-colors hidden group relative">
                                 <i class="fas fa-play text-xl"></i>
@@ -385,6 +397,18 @@
                                 <!-- Tooltip -->
                                 <div class="opacity-0 group-hover:opacity-100 transition-opacity absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg whitespace-nowrap">
                                     Add All to Games
+                                    <!-- Arrow -->
+                                    <div class="absolute left-1/2 transform -translate-x-1/2 top-full">
+                                        <div class="w-2 h-2 bg-gray-900 transform rotate-45"></div>
+                                    </div>
+                                </div>
+                            </button>
+                            <button onclick="showClearFavoritesConfirmation()" 
+                                    class="text-gray-400 hover:text-red-500 transition-colors group relative">
+                                <i class="fas fa-trash-alt text-xl"></i>
+                                <!-- Tooltip -->
+                                <div class="opacity-0 group-hover:opacity-100 transition-opacity absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg whitespace-nowrap">
+                                    Clear All Favorites
                                     <!-- Arrow -->
                                     <div class="absolute left-1/2 transform -translate-x-1/2 top-full">
                                         <div class="w-2 h-2 bg-gray-900 transform rotate-45"></div>
@@ -1278,6 +1302,48 @@
                 </button>
                 <button onclick="toggleExportCustomization()" class="bg-blue-500 hover:bg-blue-600 px-4 py-2 rounded text-sm">
                     Done
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Clear History Confirmation Modal -->
+    <div id="clearHistoryConfirmModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-[100]">
+        <div class="bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4 transform transition-all duration-200">
+            <div class="text-center mb-6">
+                <i class="fas fa-exclamation-triangle text-red-500 text-4xl mb-4"></i>
+                <h3 class="text-xl font-semibold mb-2">Clear Game History</h3>
+                <p class="text-gray-300">Are you sure you want to clear all game history? This action cannot be undone.</p>
+            </div>
+            <div class="flex justify-center gap-4">
+                <button onclick="closeClearHistoryConfirmation()" 
+                        class="px-6 py-2 bg-gray-700 hover:bg-gray-600 rounded transition-colors">
+                    <i class="fas fa-times mr-2"></i>Cancel
+                </button>
+                <button onclick="clearAllHistory()" 
+                        class="px-6 py-2 bg-red-500 hover:bg-red-600 rounded transition-colors">
+                    <i class="fas fa-trash mr-2"></i>Clear History
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Clear Favorites Confirmation Modal -->
+    <div id="clearFavoritesConfirmModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-[100]">
+        <div class="bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4 transform transition-all duration-200">
+            <div class="text-center mb-6">
+                <i class="fas fa-exclamation-triangle text-red-500 text-4xl mb-4"></i>
+                <h3 class="text-xl font-semibold mb-2">Clear Favorite Games</h3>
+                <p class="text-gray-300">Are you sure you want to clear all favorite games? This action cannot be undone.</p>
+            </div>
+            <div class="flex justify-center gap-4">
+                <button onclick="closeClearFavoritesConfirmation()" 
+                        class="px-6 py-2 bg-gray-700 hover:bg-gray-600 rounded transition-colors">
+                    <i class="fas fa-times mr-2"></i>Cancel
+                </button>
+                <button onclick="clearAllFavorites()" 
+                        class="px-6 py-2 bg-red-500 hover:bg-red-600 rounded transition-colors">
+                    <i class="fas fa-trash mr-2"></i>Clear Favorites
                 </button>
             </div>
         </div>

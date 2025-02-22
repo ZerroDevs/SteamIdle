@@ -4575,6 +4575,10 @@ async function addAllFromHistory() {
 
     let addedCount = 0;
     let duplicateCount = 0;
+    const totalGames = gameHistory.length;
+
+    // Show initial loading notification
+    showNotification('Adding games from history...', 'info');
 
     for (const game of gameHistory) {
         if (currentGames.some(g => g.id === game.id)) {
@@ -4593,6 +4597,8 @@ async function addAllFromHistory() {
             if (!gameInfo.error) {
                 currentGames.push(gameInfo);
                 addedCount++;
+                // Show progress notification
+                showNotification(`Adding games: ${addedCount + duplicateCount}/${totalGames}`, 'info');
             }
         } catch (error) {
             console.error('Error adding game from history:', error);
@@ -4600,6 +4606,7 @@ async function addAllFromHistory() {
     }
 
     updateGamesList();
+    // Show final success notification
     showNotification(`Added ${addedCount} games${duplicateCount > 0 ? ` (${duplicateCount} duplicates skipped)` : ''}`, 'success');
     closeGameHistory();
 }
@@ -4612,6 +4619,10 @@ async function addAllFromFavorites() {
 
     let addedCount = 0;
     let duplicateCount = 0;
+    const totalGames = gameFavorites.length;
+
+    // Show initial loading notification
+    showNotification('Adding games from favorites...', 'info');
 
     for (const game of gameFavorites) {
         if (currentGames.some(g => g.id === game.id)) {
@@ -4630,6 +4641,8 @@ async function addAllFromFavorites() {
             if (!gameInfo.error) {
                 currentGames.push(gameInfo);
                 addedCount++;
+                // Show progress notification
+                showNotification(`Adding games: ${addedCount + duplicateCount}/${totalGames}`, 'info');
             }
         } catch (error) {
             console.error('Error adding game from favorites:', error);
@@ -4637,6 +4650,7 @@ async function addAllFromFavorites() {
     }
 
     updateGamesList();
+    // Show final success notification
     showNotification(`Added ${addedCount} games${duplicateCount > 0 ? ` (${duplicateCount} duplicates skipped)` : ''}`, 'success');
     closeGameFavorites();
 }

@@ -2653,6 +2653,50 @@ def on_loaded():
             });
         """ % (json.dumps(detected_game_info), json.dumps(detected_games), len(detected_games)))
 
+def update_and_save_statistics():
+    """Update and save statistics periodically"""
+    while True:
+        try:
+            if running_games:
+                current_time = datetime.now()
+                stats_updated = False
+
+                # Update session times for running games
+                for game_id in list(running_games.keys()):
+                    if game_id in game_sessions and 'start_time' in game_sessions[game_id]:
+                        # Calculate current session duration
+                        session_duration = (current_time - game_sessions[game_id]['start_time']).total_seconds()
+                        
+                        # Create a temporary copy of the session
+                        temp_session = game_sessions[game_id].copy()
+                        
+                        # Update total_time in the temporary session
+                        temp_session['total_time'] = game_sessions[game_id].get('total_time', 0)
+                        temp_session['total_time'] += session_duration
+                        
+                        # Save the temporary session to the statistics file
+                        stats_data = load_statistics()
+                        if 'game_sessions' not in stats_data:
+                            stats_data['game_sessions'] = {}
+                        
+                        stats_data['game_sessions'][game_id] = {
+                            'total_time': temp_session['total_time'],
+                            'name': temp_session.get('name', 'Unknown Game'),
+                            'image': temp_session.get('image', '')
+                        }
+                        
+                        with open(STATS_FILE, 'w') as f:
+                            json.dump(stats_data, f)
+                        
+                        stats_updated = True
+                
+                if stats_updated:
+                    print(f"Statistics auto-saved at {current_time.strftime('%H:%M:%S')}")
+        except Exception as e:
+            print(f"Error in statistics auto-save: {e}")
+        
+        time.sleep(60)  # Update every minute
+
 if __name__ == '__main__':
     # Check for internet connection before starting the app
     while not check_internet_connection():
@@ -2689,10 +2733,28 @@ if __name__ == '__main__':
     tray_update_thread.daemon = True
     tray_update_thread.start()
     
+    # Start the statistics auto-save thread
+    stats_thread = threading.Thread(target=update_and_save_statistics)
+    stats_thread.daemon = True
+    stats_thread.start()
+    
     try:
         # Start the application
         webview.start()
     finally:
+        # Save final statistics before closing
+        try:
+            if running_games:
+                current_time = datetime.now()
+                for game_id in list(running_games.keys()):
+                    if game_id in game_sessions and 'start_time' in game_sessions[game_id]:
+                        session_duration = (current_time - game_sessions[game_id]['start_time']).total_seconds()
+                        game_sessions[game_id]['total_time'] = game_sessions[game_id].get('total_time', 0) + session_duration
+                save_statistics()
+                print("Final statistics saved before exit")
+        except Exception as e:
+            print(f"Error saving final statistics: {e}")
+        
         # Clean up tray icon and Discord RPC when exiting
         if icon:
             try:

@@ -4848,6 +4848,7 @@ async function addGamesInBulk() {
 
     let successCount = 0;
     let failCount = 0;
+    let duplicateCount = 0;
     
     // Show loading notification
     showNotification(`Adding ${gameIds.length} games...`, 'info');
@@ -4869,10 +4870,14 @@ async function addGamesInBulk() {
                 continue;
             }
 
-            if (!currentGames.some(game => game.id === gameInfo.id)) {
-                addGameToList(gameInfo); // Changed from currentGames.push to addGameToList
-                successCount++;
+            if (currentGames.some(game => game.id === gameInfo.id)) {
+                duplicateCount++;
+                console.log(`Skipped duplicate game: ${gameInfo.name} (${gameInfo.id})`);
+                continue;
             }
+
+            addGameToList(gameInfo);
+            successCount++;
         } catch (error) {
             failCount++;
             console.error(`Error adding game ${gameId}:`, error);
@@ -4882,11 +4887,22 @@ async function addGamesInBulk() {
     // Clear the input
     bulkInput.value = '';
     
-    // Show results notification
-    if (successCount > 0) {
-        showNotification(`Successfully added ${successCount} game${successCount !== 1 ? 's' : ''}${failCount > 0 ? ` (${failCount} failed)` : ''}`, 
+    // Show detailed results notification
+    if (successCount > 0 || duplicateCount > 0) {
+        let message = `Added ${successCount} game${successCount !== 1 ? 's' : ''}`;
+        if (duplicateCount > 0) {
+            message += ` (${duplicateCount} duplicate${duplicateCount !== 1 ? 's' : ''} skipped)`;
+        }
+        if (failCount > 0) {
+            message += ` (${failCount} failed)`;
+        }
+        showNotification(message, 
             failCount > 0 ? 'warning' : 'success');
     } else {
-        showNotification('Failed to add any games', 'error');
+        if (duplicateCount > 0) {
+            showNotification(`All ${duplicateCount} games were duplicates - nothing added`, 'warning');
+        } else {
+            showNotification('Failed to add any games', 'error');
+        }
     }
 }

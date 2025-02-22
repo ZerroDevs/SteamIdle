@@ -640,30 +640,45 @@
                         <div class="flex gap-2">
                             <button onclick="exportStats('csv')" class="text-gray-400 hover:text-white transition-colors group relative">
                                 <i class="fas fa-file-csv text-xl"></i>
-                                <!-- Tooltip -->
-                                <div class="opacity-0 group-hover:opacity-100 transition-opacity absolute bottom-full right-0 mb-2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg whitespace-nowrap">
-                                    Export as CSV
-                                    <!-- Arrow -->
-                                    <div class="absolute right-3 transform -translate-x-1/2 top-full">
-                                        <div class="w-2 h-2 bg-gray-900 transform rotate-45"></div>
-                                    </div>
-                                </div>
                             </button>
                             <button onclick="exportStats('json')" class="text-gray-400 hover:text-white transition-colors group relative">
                                 <i class="fas fa-file-code text-xl"></i>
-                                <!-- Tooltip -->
-                                <div class="opacity-0 group-hover:opacity-100 transition-opacity absolute bottom-full right-0 mb-2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg whitespace-nowrap">
-                                    Export as JSON
-                                    <!-- Arrow -->
-                                    <div class="absolute right-3 transform -translate-x-1/2 top-full">
-                                        <div class="w-2 h-2 bg-gray-900 transform rotate-45"></div>
-                                    </div>
-                                </div>
                             </button>
                         </div>
                     </h2>
-                    <div id="totalPlaytime" class="text-4xl font-bold text-blue-400 mb-2">Loading...</div>
-                    <p class="text-sm text-gray-400 italic">Real time will be shown after stopping all idles</p>
+                    <div id="totalPlaytime" class="text-4xl font-bold text-blue-400 mb-4">Loading...</div>
+                    
+                    <!-- Current Session Card -->
+                    <div class="bg-gray-700 rounded p-4 mb-4">
+                        <div class="text-lg text-gray-400">Current Session</div>
+                        <div id="currentSession" class="text-2xl font-semibold text-green-400">00:00:00</div>
+                    </div>
+
+                    <!-- Statistics List -->
+                    <div class="space-y-3">
+                        <div class="flex justify-between items-center">
+                            <span class="text-gray-400">Daily Average</span>
+                            <span id="dailyAverage" class="text-lg text-purple-400">47.58 hours</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-gray-400">Weekly Average</span>
+                            <span id="weeklyAverage" class="text-lg text-pink-400">333.08 hours</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-gray-400">Monthly Average</span>
+                            <span id="monthlyAverage" class="text-lg text-indigo-400">1427.49 hours</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-gray-400">Days Tracked</span>
+                            <span id="daysTracked" class="text-lg text-amber-400">0 days</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-gray-400">Tracking Since</span>
+                            <span id="trackingSince" class="text-lg text-cyan-400">-</span>
+                        </div>
+                    </div>
+
+                    <p class="text-sm text-gray-400 italic mt-4">Real time will be shown after stopping all idles</p>
                 </div>
 
                 <!-- Most Idled Games Card -->
@@ -678,25 +693,9 @@
                         <div class="flex gap-2">
                             <button onclick="exportStats('csv')" class="text-gray-400 hover:text-white transition-colors group relative">
                                 <i class="fas fa-file-csv text-xl"></i>
-                                <!-- Tooltip -->
-                                <div class="opacity-0 group-hover:opacity-100 transition-opacity absolute bottom-full right-0 mb-2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg whitespace-nowrap">
-                                    Export as CSV
-                                    <!-- Arrow -->
-                                    <div class="absolute right-3 transform -translate-x-1/2 top-full">
-                                        <div class="w-2 h-2 bg-gray-900 transform rotate-45"></div>
-                                    </div>
-                                </div>
                             </button>
                             <button onclick="exportStats('json')" class="text-gray-400 hover:text-white transition-colors group relative">
                                 <i class="fas fa-file-code text-xl"></i>
-                                <!-- Tooltip -->
-                                <div class="opacity-0 group-hover:opacity-100 transition-opacity absolute bottom-full right-0 mb-2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg whitespace-nowrap">
-                                    Export as JSON
-                                    <!-- Arrow -->
-                                    <div class="absolute right-3 transform -translate-x-1/2 top-full">
-                                        <div class="w-2 h-2 bg-gray-900 transform rotate-45"></div>
-                                    </div>
-                                </div>
                             </button>
                         </div>
                     </h2>

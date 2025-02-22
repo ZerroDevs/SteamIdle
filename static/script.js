@@ -29,6 +29,9 @@ let areGamesMinimized = false;
 let presetsCache = null;
 let isUpdatingPresets = false;
 
+// Add this at the top of the file with other global variables
+let sessionStartTime = null;
+
 // Debounce function to prevent multiple rapid updates
 function debounce(func, wait) {
     let timeout;
@@ -749,50 +752,44 @@ async function startGame(gameId) {
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ gameId })
+            body: JSON.stringify({ gameId: gameId })
         });
 
         if (response.ok) {
-            runningGames.add(gameId.toString());
+            runningGames.add(gameId);
+            gameStartTimes.set(gameId, Date.now());
+            updateGameStatuses();
+            updateStatistics();
+            updateGamesList();
             triggerGameStateChange();
-            showNotification('Game started successfully', 'success');
-            updateRunningGamesList(); // Add this line
-        } else {
-            showNotification('Failed to start game', 'error');
         }
     } catch (error) {
         console.error('Error starting game:', error);
-        showNotification('Error starting game', 'error');
     }
 }
 
+// Update the stopGame function
 async function stopGame(gameId) {
     try {
-        // Get game info from currentGames or presetsCache
-        const game = currentGames.find(g => g.id.toString() === gameId.toString()) || 
-                    presetsCache?.flatMap(p => p.games).find(g => g.id.toString() === gameId.toString());
-
         const response = await fetch('/api/stop-game', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ gameId })
+            body: JSON.stringify({ gameId: gameId })
         });
 
         if (response.ok) {
-            runningGames.delete(gameId.toString());
+            runningGames.delete(gameId);
+            gameStartTimes.delete(gameId);
+            updateGameStatuses();
+            updateStatistics();
+            updateGamesList();
             triggerGameStateChange();
-            showNotification(game ? `Stopped "${game.name}" successfully` : 'Game stopped successfully', 'success');
-            updateRunningGamesList();
-        } else {
-            showNotification('Failed to stop game', 'error');
         }
     } catch (error) {
         console.error('Error stopping game:', error);
-        showNotification('Error stopping game', 'error');
     }
-    gameStartTimes.delete(gameId);
 }
 
 function switchTab(tabName) {
@@ -1280,38 +1277,86 @@ async function runPreset(presetName) {
 }
 
 async function updateStatistics() {
-    if (document.getElementById('statsContent').classList.contains('hidden')) {
-        return; // Don't update if stats tab is not visible
-    }
+    // Only update if stats tab is visible
+    if (!document.getElementById('statsContent').classList.contains('hidden')) {
+        try {
+            const response = await fetch('/api/stats/total-playtime');
+            const totalData = await response.json();
+            
+            // Update total playtime display
+            document.getElementById('totalPlaytime').textContent = totalData.total_time;
 
-    try {
-        // Get total playtime from server (this already includes current session times)
-        const totalResponse = await fetch('/api/stats/total-playtime');
-        const totalData = await totalResponse.json();
+            // Calculate and update current session time
+            let currentSessionTime = '00:00:00';
+            if (runningGames.size > 0) {
+                let totalSeconds = 0;
+                
+                // Calculate total seconds for all running games
+                for (const [gameId, startTime] of gameStartTimes.entries()) {
+                    if (runningGames.has(gameId)) {
+                        const elapsedSeconds = Math.floor((Date.now() - startTime) / 1000);
+                        totalSeconds += elapsedSeconds;
+                    }
+                }
+                
+                // Format total time as HH:MM:SS
+                const hours = Math.floor(totalSeconds / 3600);
+                const minutes = Math.floor((totalSeconds % 3600) / 60);
+                const seconds = totalSeconds % 60;
+                
+                currentSessionTime = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+            }
+            document.getElementById('currentSession').textContent = currentSessionTime;
 
-        // Update total playtime display
-        document.getElementById('totalPlaytime').textContent = totalData.total_time;
-    } catch (error) {
-        console.error('Error updating total playtime:', error);
-    }
+            // Calculate averages based on tracking duration
+            const trackingStartDate = new Date(totalData.tracking_since);
+            const now = new Date();
+            const totalDays = Math.max(1, Math.ceil((now - trackingStartDate) / (1000 * 60 * 60 * 24)));
+            
+            // Calculate daily, weekly, and monthly averages based on actual tracking duration
+            const totalHours = totalData.total_seconds / 3600;
+            const dailyAverage = totalHours / totalDays;
+            const weeklyAverage = dailyAverage * 7;
+            const monthlyAverage = dailyAverage * 30;
 
-    // Update most idled games
-    try {
-        const idledResponse = await fetch('/api/stats/most-idled');
-        const idledGames = await idledResponse.json();
-        const mostIdledContainer = document.getElementById('mostIdledGames');
-        mostIdledContainer.innerHTML = idledGames.map((game, index) => `
-            <div class="flex items-center gap-4 bg-gray-700 p-2 rounded">
-                <div class="text-xl font-bold text-gray-400 w-8">#${index + 1}</div>
-                <img src="${game.image}" alt="${game.name}" class="w-8 h-8 rounded">
-                <div class="flex-1">
-                    <div class="font-medium">${game.name}</div>
-                    <div class="text-sm text-gray-400">${game.total_time}</div>
+            // Update averages display with one decimal place
+            document.getElementById('dailyAverage').textContent = `${dailyAverage.toFixed(1)} hours`;
+            document.getElementById('weeklyAverage').textContent = `${weeklyAverage.toFixed(1)} hours`;
+            document.getElementById('monthlyAverage').textContent = `${monthlyAverage.toFixed(1)} hours`;
+
+            // Update tracking information
+            document.getElementById('daysTracked').textContent = `${totalData.days_tracked} days`;
+            
+            // Format and display tracking start date
+            const formattedDate = trackingStartDate.toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric'
+            });
+            document.getElementById('trackingSince').textContent = formattedDate;
+
+        } catch (error) {
+            console.error('Error updating total playtime:', error);
+        }
+
+        // Update most idled games
+        try {
+            const idledResponse = await fetch('/api/stats/most-idled');
+            const idledGames = await idledResponse.json();
+            const mostIdledContainer = document.getElementById('mostIdledGames');
+            mostIdledContainer.innerHTML = idledGames.map((game, index) => `
+                <div class="flex items-center gap-4 bg-gray-700 p-2 rounded">
+                    <div class="text-xl font-bold text-gray-400 w-8">#${index + 1}</div>
+                    <img src="${game.image}" alt="${game.name}" class="w-8 h-8 rounded">
+                    <div class="flex-1">
+                        <div class="font-medium">${game.name}</div>
+                        <div class="text-sm text-gray-400">${game.total_time}</div>
+                    </div>
                 </div>
-            </div>
-        `).join('');
-    } catch (error) {
-        console.error('Error updating most idled games:', error);
+            `).join('');
+        } catch (error) {
+            console.error('Error updating most idled games:', error);
+        }
     }
 }
 
@@ -4256,12 +4301,14 @@ async function toggleAllGames() {
         // Stop all games
         for (const game of currentGames) {
             await stopGame(game.id);
+            showNotification(`Stopping ${game.name}`, 'info');
         }
     } else {
         // Start all games
         for (const game of currentGames) {
             if (!runningGames.has(game.id.toString())) {
                 await startGame(game.id);
+                showNotification(`Starting ${game.name}`, 'info');
             }
         }
     }
@@ -4554,6 +4601,7 @@ async function toggleAllHistoryGames() {
         for (const game of gameHistory) {
             if (runningGames.has(game.id.toString())) {
                 await stopGame(game.id);
+                showNotification(`Stopping ${game.name}`, 'info');
             }
         }
     } else {
@@ -4561,6 +4609,7 @@ async function toggleAllHistoryGames() {
         for (const game of gameHistory) {
             if (!runningGames.has(game.id.toString())) {
                 await startGame(game.id);
+                showNotification(`Starting ${game.name}`, 'info');
             }
         }
     }
@@ -4583,6 +4632,7 @@ async function toggleAllFavoriteGames() {
         for (const game of gameFavorites) {
             if (runningGames.has(game.id.toString())) {
                 await stopGame(game.id);
+                showNotification(`Stopping ${game.name}`, 'info');
             }
         }
     } else {
@@ -4590,6 +4640,7 @@ async function toggleAllFavoriteGames() {
         for (const game of gameFavorites) {
             if (!runningGames.has(game.id.toString())) {
                 await startGame(game.id);
+                showNotification(`Starting ${game.name}`, 'info');
             }
         }
     }

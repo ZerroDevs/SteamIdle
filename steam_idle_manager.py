@@ -818,9 +818,15 @@ def get_total_playtime():
             current_session = (current_time - session['start_time']).total_seconds()
             total_seconds += current_session
     
+    # Get tracking start date from stats file creation time
+    tracking_since = datetime.fromtimestamp(os.path.getctime(STATS_FILE))
+    days_tracked = max(1, (current_time - tracking_since).days)
+    
     return jsonify({
         "total_time": format_duration(total_seconds),
-        "total_seconds": total_seconds
+        "total_seconds": total_seconds,
+        "days_tracked": days_tracked,
+        "tracking_since": tracking_since.isoformat()
     })
 
 @app.route('/api/stats/most-idled')

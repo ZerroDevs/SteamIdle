@@ -218,9 +218,14 @@ function updateGamesList() {
     const gamesList = document.getElementById('gamesList');
     const startStopAllBtn = document.getElementById('startStopAllBtn');
     const exportGamesBtn = document.getElementById('exportGamesBtn');
+    const currentGamesCount = document.getElementById('currentGamesCount');
     if (!gamesList) return;
     
     gamesList.innerHTML = '';
+    
+    // Update the games count with proper singular/plural form
+    const gameText = currentGames.length === 1 ? 'game' : 'games';
+    currentGamesCount.textContent = `(${currentGames.length} ${gameText})`;
     
     // Show/hide and update Start/Stop All button and export button based on games list
     if (currentGames.length > 0) {
@@ -242,6 +247,7 @@ function updateGamesList() {
     } else {
         startStopAllBtn.classList.add('hidden');
         exportGamesBtn.classList.add('hidden');
+        currentGamesCount.textContent = '(0 games)';
     }
     
     currentGames.forEach(game => {
@@ -3648,8 +3654,9 @@ function showGameHistory() {
     
     historyList.innerHTML = '';
     
-    // Update the count in the header
-    historyCount.textContent = `(${gameHistory.length} games)`;
+    // Update the count with proper singular/plural form
+    const gameText = gameHistory.length === 1 ? 'game' : 'games';
+    historyCount.textContent = `(${gameHistory.length} ${gameText})`;
     
     // Show/hide and update start/stop button
     if (gameHistory.length > 0) {
@@ -3835,8 +3842,9 @@ function showGameFavorites() {
     
     favoritesList.innerHTML = '';
     
-    // Update the count in the header
-    favoritesCount.textContent = `(${gameFavorites.length} games)`;
+    // Update the count with proper singular/plural form
+    const gameText = gameFavorites.length === 1 ? 'game' : 'games';
+    favoritesCount.textContent = `(${gameFavorites.length} ${gameText})`;
     
     // Show/hide and update start/stop button
     if (gameFavorites.length > 0) {

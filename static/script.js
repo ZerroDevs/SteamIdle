@@ -4664,6 +4664,10 @@ async function addAllFromFavorites() {
 }
 
 function showClearHistoryConfirmation() {
+    if (gameHistory.length === 0) {
+        showNotification('No games in history to clear', 'info');
+        return;
+    }
     const modal = document.getElementById('clearHistoryConfirmModal');
     modal.classList.remove('hidden');
     modal.classList.add('flex');
@@ -4698,6 +4702,10 @@ async function clearAllHistory() {
 }
 
 function showClearFavoritesConfirmation() {
+    if (gameFavorites.length === 0) {
+        showNotification('No favorite games to clear', 'info');
+        return;
+    }
     const modal = document.getElementById('clearFavoritesConfirmModal');
     modal.classList.remove('hidden');
     modal.classList.add('flex');

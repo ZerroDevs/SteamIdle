@@ -3643,8 +3643,12 @@ async function addToGameHistory(game) {
 function showGameHistory() {
     const modal = document.getElementById('gameHistoryModal');
     const historyList = document.getElementById('gameHistoryList');
+    const historyCount = document.getElementById('historyCount');
     
     historyList.innerHTML = '';
+    
+    // Update the count in the header
+    historyCount.textContent = `(${gameHistory.length} games)`;
     
     if (gameHistory.length === 0) {
         historyList.innerHTML = `
@@ -3815,8 +3819,12 @@ async function toggleGameFavorite(gameId) {
 function showGameFavorites() {
     const modal = document.getElementById('gameFavoritesModal');
     const favoritesList = document.getElementById('gameFavoritesList');
+    const favoritesCount = document.getElementById('favoritesCount');
     
     favoritesList.innerHTML = '';
+    
+    // Update the count in the header
+    favoritesCount.textContent = `(${gameFavorites.length} games)`;
     
     if (gameFavorites.length === 0) {
         favoritesList.innerHTML = `

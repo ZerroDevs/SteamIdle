@@ -330,7 +330,10 @@
             <div id="gameHistoryModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
                 <div class="bg-gray-800 rounded-lg p-6 w-[800px] max-h-[90vh] flex flex-col">
                     <div class="flex justify-between items-center mb-6">
-                        <h3 class="text-2xl font-semibold">Game History</h3>
+                        <div class="flex items-center gap-2">
+                            <h3 class="text-2xl font-semibold">Game History</h3>
+                            <span id="historyCount" class="text-gray-400 text-lg">(0 games)</span>
+                        </div>
                         <button onclick="closeGameHistory()" class="text-gray-400 hover:text-white transition-colors">
                             <i class="fas fa-times"></i>
                         </button>
@@ -345,7 +348,10 @@
             <div id="gameFavoritesModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
                 <div class="bg-gray-800 rounded-lg p-6 w-[800px] max-h-[90vh] flex flex-col">
                     <div class="flex justify-between items-center mb-6">
-                        <h3 class="text-2xl font-semibold">Favorite Games</h3>
+                        <div class="flex items-center gap-2">
+                            <h3 class="text-2xl font-semibold">Favorite Games</h3>
+                            <span id="favoritesCount" class="text-gray-400 text-lg">(0 games)</span>
+                        </div>
                         <button onclick="closeGameFavorites()" class="text-gray-400 hover:text-white transition-colors">
                             <i class="fas fa-times"></i>
                         </button>
